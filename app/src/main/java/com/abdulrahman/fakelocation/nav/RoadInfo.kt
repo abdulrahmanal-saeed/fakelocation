@@ -1,14 +1,10 @@
 package com.abdulrahman.fakelocation.nav
 
 import com.abdulrahman.fakelocation.data.LatLon
-import com.abdulrahman.fakelocation.geo.Nominatim
+import com.abdulrahman.fakelocation.geo.Overpass
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
-import java.io.IOException
-import java.net.HttpURLConnection
-import java.net.URL
-import java.net.URLEncoder
 import java.util.Locale
 import kotlin.math.cos
 import kotlin.math.roundToInt
@@ -31,27 +27,13 @@ data class LimitedWay(val limitKmh: Int, val shape: List<LatLon>)
  */
 object RoadInfoFetcher {
 
-    private val servers = listOf(
-        "https://overpass-api.de/api/interpreter",
-        "https://maps.mail.ru/osm/tools/overpass/api/interpreter",
-        "https://overpass.kumi.systems/api/interpreter",
-    )
-
     suspend fun fetch(route: NavRoute): RoadInfo = withContext(Dispatchers.IO) {
         val step = (route.points.size / 150).coerceAtLeast(1)
         val line = (route.points.filterIndexed { i, _ -> i % step == 0 } + route.points.last())
             .joinToString(",") { String.format(Locale.US, "%.5f,%.5f", it.lat, it.lon) }
         val query = "[out:json][timeout:25];(way(around:15,$line)[highway][maxspeed];" +
             "node(around:30,$line)[highway=speed_camera];);out tags geom;"
-        var lastError: Exception? = null
-        for (server in servers) {
-            try {
-                return@withContext parse(route, post(server, query))
-            } catch (e: Exception) {
-                lastError = e
-            }
-        }
-        throw lastError ?: IOException("No Overpass server answered")
+        parse(route, Overpass.query(query))
     }
 
     fun parse(route: NavRoute, json: JSONObject): RoadInfo {
@@ -139,20 +121,4 @@ object RoadInfoFetcher {
         return sqrt(x * x + y * y) to t
     }
 
-    private fun post(server: String, query: String): JSONObject {
-        val connection = URL(server).openConnection() as HttpURLConnection
-        try {
-            connection.requestMethod = "POST"
-            connection.doOutput = true
-            connection.connectTimeout = 15_000
-            connection.readTimeout = 40_000
-            connection.setRequestProperty("User-Agent", Nominatim.USER_AGENT)
-            connection.setRequestProperty("Content-Type", "application/x-www-form-urlencoded")
-            connection.outputStream.use { it.write(("data=" + URLEncoder.encode(query, "UTF-8")).toByteArray()) }
-            if (connection.responseCode !in 200..299) throw IOException("Overpass HTTP ${connection.responseCode}")
-            return JSONObject(connection.inputStream.bufferedReader().use { it.readText() })
-        } finally {
-            connection.disconnect()
-        }
-    }
 }

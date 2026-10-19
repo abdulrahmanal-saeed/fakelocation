@@ -22,6 +22,8 @@ import com.abdulrahman.fakelocation.databinding.ActivitySearchBinding
 import com.abdulrahman.fakelocation.geo.LocationText
 import com.abdulrahman.fakelocation.geo.MapsLinkResolver
 import com.abdulrahman.fakelocation.geo.PlaceSearch
+import com.abdulrahman.fakelocation.geo.NearbySearch
+import com.abdulrahman.fakelocation.geo.PlaceCategory
 import com.abdulrahman.fakelocation.mock.MockState
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -68,10 +70,44 @@ class SearchActivity : AppCompatActivity() {
             )
         )
         showRecent()
+        setupCategories()
 
         binding.searchInput.requestFocus()
         binding.searchInput.post {
             getSystemService(InputMethodManager::class.java).showSoftInput(binding.searchInput, InputMethodManager.SHOW_IMPLICIT)
+        }
+    }
+
+    private fun setupCategories() {
+        for (category in PlaceCategory.entries) {
+            val chip = com.google.android.material.chip.Chip(this, null, 0).apply {
+                setChipDrawable(com.google.android.material.chip.ChipDrawable.createFromAttributes(this@SearchActivity, null, 0, R.style.Chip_Place))
+                setTextAppearance(R.style.Text_Item)
+                textSize = 14f
+                setText(category.label)
+                setChipIconResource(category.icon)
+                chipIconTint = androidx.core.content.ContextCompat.getColorStateList(this@SearchActivity, R.color.ink_soft)
+                chipBackgroundColor = androidx.core.content.ContextCompat.getColorStateList(this@SearchActivity, R.color.ground)
+                setOnClickListener { searchNearby(category) }
+            }
+            binding.categories.addView(chip)
+        }
+    }
+
+    /** Fuel, parking, bus stops… around where you (or your fake location) are, nearest first. */
+    private fun searchNearby(category: PlaceCategory) {
+        hideKeyboard()
+        searchJob?.cancel()
+        binding.resultsSection.isVisible = true
+        binding.quickSection.isVisible = false
+        binding.recentSection.isVisible = false
+        binding.resultsTitle.text = getString(R.string.nearby_title, getString(category.label))
+        val center = nearPoint() ?: LatLon.HOME_REGION
+        searchJob = lifecycleScope.launch {
+            showStatus(R.string.searching)
+            runCatching { NearbySearch.find(this@SearchActivity, category, center) }
+                .onSuccess { if (it.isEmpty()) showStatus(R.string.nearby_none) else showResults(it, from = center) }
+                .onFailure { showStatus(R.string.search_error) }
         }
     }
 
@@ -101,6 +137,7 @@ class SearchActivity : AppCompatActivity() {
         binding.clearButton.isVisible = query.isNotEmpty()
         searchJob?.cancel()
         val idle = query.isEmpty()
+        binding.resultsTitle.setText(R.string.results)
         binding.resultsSection.isVisible = !idle
         binding.quickSection.isVisible = idle
         binding.recentSection.isVisible = idle && PlacesRepository.get(this).history.value.isNotEmpty()
@@ -135,9 +172,9 @@ class SearchActivity : AppCompatActivity() {
         binding.resultsStatus.setText(text)
     }
 
-    private fun showResults(places: List<Place>) {
+    private fun showResults(places: List<Place>, from: LatLon? = null) {
         binding.resultsStatus.isVisible = false
-        val real = prefs.lastRealLocation
+        val real = from ?: prefs.lastRealLocation
         binding.resultsList.showRows(places.mapIndexed { i, place ->
             PlaceRow(
                 "r$i", place.name ?: place.position.format(), place.address,

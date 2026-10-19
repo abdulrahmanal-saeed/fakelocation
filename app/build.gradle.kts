@@ -11,8 +11,8 @@ android {
         applicationId = "com.abdulrahman.fakelocation"
         minSdk = 26
         targetSdk = 36
-        versionCode = 8
-        versionName = "1.3.0"
+        versionCode = 9
+        versionName = "1.4.0"
     }
 
     signingConfigs {
@@ -61,6 +61,7 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.9.4")
     implementation("androidx.lifecycle:lifecycle-service:2.9.4")
     implementation("org.osmdroid:osmdroid-android:6.1.20")
+    implementation("androidx.car.app:app:1.4.0")
 
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.json:json:20240303")

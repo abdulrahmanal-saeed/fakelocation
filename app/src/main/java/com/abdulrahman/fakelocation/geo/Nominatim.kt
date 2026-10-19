@@ -17,9 +17,9 @@ object Nominatim {
     const val USER_AGENT = "FakeLocation-personal-app/0.2"
 
     suspend fun search(query: String, near: LatLon?): List<Place> = withContext(Dispatchers.IO) {
-        val bias = near?.let {
+        val bias = (near ?: LatLon.HOME_REGION).let {
             String.format(Locale.US, "&viewbox=%.4f,%.4f,%.4f,%.4f", it.lon - 0.5, it.lat + 0.5, it.lon + 0.5, it.lat - 0.5)
-        }.orEmpty()
+        }
         val body = get("$BASE/search?format=jsonv2&limit=8&addressdetails=1&accept-language=en$bias&q=" + URLEncoder.encode(query, "UTF-8"))
         val results = JSONArray(body)
         (0 until results.length()).map { i -> toPlace(results.getJSONObject(i)) }

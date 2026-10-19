@@ -37,3 +37,7 @@ Design (all screens, logo, splash): https://claude.ai/artifact/9FMXf1izujP79r3BA
 | 3 | Route editor, street routing, timing (start now / start at / arrive by), saved routes | Done (v0.3.0) |
 | 4 | Trip engine: movement at street speed, natural movement, waits, alarms (before stop, before wait ends, silent mode) | Done (v0.4.0) |
 | 5 | Quick Settings tile, widget, offline maps | Done (v1.0.0) |
+| 6 | Google Maps option (tiles, routes, search) with an in-app API key | Done (v1.1.0) |
+| 7 | Real navigation on the real GPS while the fake location keeps running | Done (v1.2.0) |
+| 8 | Driving screen: lanes, speed limit vs. my speed, speed cameras | Done (v1.3.0) |
+| 9 | Android Auto, nearby categories (fuel, parking, bus, metro, EV), UAE defaults, navigation with the screen off | Done (v1.4.0) |

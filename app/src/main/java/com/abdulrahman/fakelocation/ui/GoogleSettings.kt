@@ -78,7 +78,10 @@ class GoogleSettings(private val fragment: Fragment, private val binding: Fragme
             .setTitle(R.string.google_key_title)
             .setView(frame)
             .setPositiveButton(R.string.save) { _, _ ->
+                val firstKey = !prefs.hasGoogleKey
                 prefs.googleApiKey = input.text.toString()
+                // A new key: use Google for search right away (routes and map stay a separate choice).
+                if (firstKey && prefs.hasGoogleKey) prefs.useGoogleSearch = true
                 prefs.googleTileSession = null
                 if (prefs.hasGoogleKey) context.toast(R.string.google_key_saved)
                 changed()
@@ -145,13 +148,13 @@ class GoogleSettings(private val fragment: Fragment, private val binding: Fragme
         val ctx = context.applicationContext
         fragment.viewLifecycleOwner.lifecycleScope.launch {
             val api = GoogleApi(ctx)
-            val a = LatLon(30.0444, 31.2357)
-            val b = LatLon(30.0459, 31.2243)
+            val a = LatLon(25.1972, 55.2744) // Burj Khalifa
+            val b = LatLon(25.2048, 55.2708)
             val checks = withContext(Dispatchers.IO) {
                 listOf(
                     R.string.api_tiles to async { GoogleTiles.session(ctx, api, MapProvider.GOOGLE_ROADMAP) },
                     R.string.api_routes to async { GoogleRoutes.route(api, listOf(a, b), TravelMode.CAR) },
-                    R.string.api_places to async { GooglePlaces.search(api, "Cairo Tower", a) },
+                    R.string.api_places to async { GooglePlaces.search(api, "Dubai Mall", a) },
                     R.string.api_geocoding to async { GooglePlaces.reverse(api, a) },
                 ).map { (name, job) -> name to runCatching { job.await() }.exceptionOrNull() }
             }

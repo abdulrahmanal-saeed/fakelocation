@@ -206,7 +206,7 @@ class MapFragment : Fragment(R.layout.fragment_map) {
         zoomController.setVisibility(CustomZoomButtonsController.Visibility.NEVER)
         isTilesScaledToDpi = true
         controller.setZoom(15.0)
-        val start = prefs.activeSession?.position ?: prefs.lastRealLocation ?: LatLon(30.0444, 31.2357) // Cairo
+        val start = prefs.activeSession?.position ?: prefs.lastRealLocation ?: LatLon.HOME_REGION
         controller.setCenter(GeoPoint(start.lat, start.lon))
 
         realMarker = Marker(this).apply {

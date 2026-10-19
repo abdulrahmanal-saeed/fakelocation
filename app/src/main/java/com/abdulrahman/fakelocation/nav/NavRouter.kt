@@ -74,7 +74,7 @@ object NavRouter {
                         Lane((0 until (dirs?.length() ?: 0)).map { dirs!!.getString(it) }, lane.optBoolean("valid"))
                     }
                 }.orEmpty()
-                steps += NavStep(instruction.maneuver, instruction.text, instruction.spoken, start, step.optString("name").ifBlank { step.optString("ref") }, lanes)
+                steps += NavStep(instruction.maneuver, instruction.text, instruction.spoken, start, step.optString("name").ifBlank { step.optString("ref") }, lanes, maneuver.optInt("exit", 0))
                 points.appendShape(shape)
             }
         }

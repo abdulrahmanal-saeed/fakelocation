@@ -36,7 +36,7 @@ object GoogleTiles {
         prefs.googleTileSession?.split('|')?.takeIf { it.size == 3 }?.let { (who, session, expiry) ->
             if (who == cachedKey && (expiry.toLongOrNull() ?: 0) > System.currentTimeMillis() + 3_600_000) return session
         }
-        val body = JSONObject().put("language", "en-US").put("region", "EG")
+        val body = JSONObject().put("language", "en-US").put("region", "AE")
         when (provider) {
             MapProvider.GOOGLE_SATELLITE -> body.put("mapType", "satellite")
             MapProvider.GOOGLE_HYBRID -> body.put("mapType", "satellite").put("layerTypes", JSONArray().put("layerRoadmap"))

@@ -135,7 +135,7 @@ class RouteEditorActivity : AppCompatActivity() {
         zoomController.setVisibility(CustomZoomButtonsController.Visibility.NEVER)
         isTilesScaledToDpi = true
         controller.setZoom(14.0)
-        val start = route.stops.firstOrNull()?.position ?: Prefs(this@RouteEditorActivity).lastRealLocation ?: LatLon(30.0444, 31.2357)
+        val start = route.stops.firstOrNull()?.position ?: Prefs(this@RouteEditorActivity).lastRealLocation ?: LatLon.HOME_REGION
         controller.setCenter(GeoPoint(start.lat, start.lon))
         overlays.add(MapEventsOverlay(object : MapEventsReceiver {
             override fun singleTapConfirmedHelper(p: GeoPoint) = false

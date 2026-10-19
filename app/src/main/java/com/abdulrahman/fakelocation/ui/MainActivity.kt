@@ -58,7 +58,9 @@ class MainActivity : AppCompatActivity() {
         setContentView(binding.root)
 
         // Navigation isn't open: make sure the GPS chip is faked again if it was left real.
-        if (prefs.realGpsForNav && savedInstanceState == null) MockLocationService.setRealGpsForNavigation(this, false)
+        if (prefs.realGpsForNav && savedInstanceState == null && !com.abdulrahman.fakelocation.nav.NavSession.state.value.navigating) {
+            MockLocationService.setRealGpsForNavigation(this, false)
+        }
 
         // Pick up a fake location that is still running from before the app was closed.
         if (MockState.session.value == null) prefs.activeSession?.let { MockState.set(it) }

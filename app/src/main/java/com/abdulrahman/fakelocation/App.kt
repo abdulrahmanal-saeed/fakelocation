@@ -14,6 +14,7 @@ class App : Application() {
             additionalHttpRequestProperties.putAll(com.abdulrahman.fakelocation.geo.google.GoogleApi.appHeaders(this@App))
         }
         applyMapCacheLimit(Prefs(this).mapCacheMb)
+        com.abdulrahman.fakelocation.nav.NavSession.init(this)
     }
 
     companion object {

@@ -1,6 +1,11 @@
 package com.abdulrahman.fakelocation.data
 
-data class LatLon(val lat: Double, val lon: Double)
+data class LatLon(val lat: Double, val lon: Double) {
+    companion object {
+        /** Where the map opens before any location is known: Dubai. */
+        val HOME_REGION = LatLon(25.2048, 55.2708)
+    }
+}
 
 /** A point the user picked: from the map, search, a link, a favorite or history. */
 data class Place(val position: LatLon, val name: String? = null, val address: String? = null)

@@ -42,6 +42,12 @@ with a car icon, and a bottom bar with distance, arrival time, minutes and progr
 from OpenStreetMap, so they show only where they are mapped (lanes are rare in Egypt today); with Google routes
 there are no lane arrows.
 
+**v1.4.0:** Android Auto: the car screen shows the map, search, saved places and nearby categories, a route
+preview and turn-by-turn guidance with lane arrows; voice, speed limits and cameras come from the phone. Navigation
+now keeps going with the phone screen off. Nearby search (Fuel, Parking, Bus stops, Metro, EV charging) on the phone
+and in the car, through Google Places when a key is set, otherwise OpenStreetMap. Search and Google results are
+biased to the UAE (Dubai by default).
+
 See [PLAN.md](PLAN.md) for the full feature list.
 
 ## Install
@@ -62,6 +68,17 @@ See [PLAN.md](PLAN.md) for the full feature list.
 - In Google Maps: **Share** a place → **Fake Location** to open it straight in the app.
 - Star a place to keep it in **Places → Favorites**; every teleport is listed in **History**.
 - **Stop** (button or notification) returns the phone to its real GPS.
+
+## Android Auto
+
+The app isn't from the Play Store, so Android Auto hides it until you allow unknown sources once:
+
+1. Open the **Android Auto** app settings on the phone (Settings → Connected devices → Android Auto).
+2. Scroll to the bottom and tap **Version** 10 times → **Developer settings** appears in the ⋮ menu.
+3. Developer settings → turn on **Unknown sources**.
+4. Connect to the car; **Fake Location** appears in the app launcher.
+
+Open the app once on the phone first so it has location permission.
 
 ## Build locally
 

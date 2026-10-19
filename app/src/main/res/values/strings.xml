@@ -52,6 +52,14 @@
     <string name="clear">Clear</string>
     <string name="results">Results</string>
     <string name="quick_input">Quick input</string>
+    <string name="nearby">Nearby</string>
+    <string name="cat_fuel">Fuel</string>
+    <string name="cat_parking">Parking</string>
+    <string name="cat_bus">Bus stops</string>
+    <string name="cat_metro">Metro</string>
+    <string name="cat_ev">EV charging</string>
+    <string name="nearby_title">%1$s near you</string>
+    <string name="nearby_none">Nothing found nearby</string>
     <string name="enter_coordinates">Enter coordinates</string>
     <string name="enter_coordinates_hint">Type or paste lat, lon</string>
     <string name="paste_link">Paste Google Maps link</string>
@@ -351,6 +359,7 @@
     <string name="nav_real_gps_note">While you navigate, the app reads the real GPS chip. Google Maps and most apps keep seeing the fake location.</string>
     <string name="nav_in">In %1$s, %2$s</string>
     <string name="nav_my_speed">Your speed</string>
+    <string name="nav_channel">Navigation</string>
     <string name="nav_speed_limit">Speed limit</string>
     <string name="nav_camera_ahead">Speed camera ahead</string>
     <string name="nav_speed_limit_voice">Speed limit %1$d</string>
@@ -360,4 +369,14 @@
     <!-- Notification -->
     <string name="notification_channel">Fake location status</string>
     <string name="notification_title">Fake location: %1$s</string>
+    <!-- Android Auto -->
+    <string name="car_search">Search</string>
+    <string name="car_search_hint">Search places</string>
+    <string name="car_no_results">No places found</string>
+    <string name="car_saved">Saved places</string>
+    <string name="car_no_saved">No favorites or recent places yet</string>
+    <string name="car_recent">Recent</string>
+    <string name="car_start">Start</string>
+    <string name="car_retry">Retry</string>
+    <string name="car_need_phone">Open Fake Location on your phone and allow location access first.</string>
 </resources>

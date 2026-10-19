@@ -20,6 +20,8 @@ data class NavStep(
     val road: String = "",
     /** Lanes at this junction, when the map has them. */
     val lanes: List<Lane> = emptyList(),
+    /** Roundabout exit number (1 = first), 0 when not a roundabout. */
+    val exit: Int = 0,
 )
 
 /** A route to drive or walk for real, with turn-by-turn steps. */
