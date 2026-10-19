@@ -350,6 +350,11 @@
     <string name="nav_fake_trip">Fake trip still running for other apps · %1$s</string>
     <string name="nav_real_gps_note">While you navigate, the app reads the real GPS chip. Google Maps and most apps keep seeing the fake location.</string>
     <string name="nav_in">In %1$s, %2$s</string>
+    <string name="nav_my_speed">Your speed</string>
+    <string name="nav_speed_limit">Speed limit</string>
+    <string name="nav_camera_ahead">Speed camera ahead</string>
+    <string name="nav_speed_limit_voice">Speed limit %1$d</string>
+    <string name="nav_minutes">%1$d min</string>
     <string name="nav_now">%1$s now</string>
 
     <!-- Notification -->

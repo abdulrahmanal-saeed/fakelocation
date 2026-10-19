@@ -6,6 +6,9 @@ import kotlin.math.cos
 
 enum class Maneuver { DEPART, STRAIGHT, SLIGHT_LEFT, LEFT, SHARP_LEFT, SLIGHT_RIGHT, RIGHT, SHARP_RIGHT, UTURN, ROUNDABOUT, ARRIVE }
 
+/** One lane at a junction: the arrows painted on it, and whether it leads where we're going. */
+data class Lane(val directions: List<String>, val valid: Boolean)
+
 /** One instruction: what to do when reaching [pointIndex] on the route. */
 data class NavStep(
     val maneuver: Maneuver,
@@ -13,6 +16,10 @@ data class NavStep(
     /** Short form for the voice (no street names in other scripts). */
     val spoken: String,
     val pointIndex: Int,
+    /** The road you're on after this step (shown as "current street"). */
+    val road: String = "",
+    /** Lanes at this junction, when the map has them. */
+    val lanes: List<Lane> = emptyList(),
 )
 
 /** A route to drive or walk for real, with turn-by-turn steps. */
@@ -41,6 +48,8 @@ data class NavProgress(
     val metersToNextStep: Double,
     /** The instruction after [nextStep], for "then …". */
     val thenStep: NavStep?,
+    /** The step we're currently driving along (its road is the current street). */
+    val currentStep: NavStep?,
     val remainingMeters: Double,
     val remainingSeconds: Double,
     val arrived: Boolean,
@@ -77,6 +86,7 @@ class NavTracker(val route: NavRoute) {
             nextStep = next,
             metersToNextStep = next?.let { route.along[it.pointIndex] - along } ?: 0.0,
             thenStep = if (nextIndex >= 0) route.steps.getOrNull(nextIndex + 1) else null,
+            currentStep = route.steps.lastOrNull { route.along[it.pointIndex] <= along + 5 },
             remainingMeters = remaining,
             remainingSeconds = if (route.length > 0) route.durationSeconds * remaining / route.length else 0.0,
             arrived = arrived,

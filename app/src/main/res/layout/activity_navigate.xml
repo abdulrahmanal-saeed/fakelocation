@@ -162,13 +162,26 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:background="@drawable/bg_round"
-            android:backgroundTint="@color/real_dark"
+            android:backgroundTint="@color/nav_blue"
             android:elevation="8dp"
             android:orientation="vertical"
             android:paddingHorizontal="16dp"
             android:paddingVertical="14dp"
             android:visibility="gone"
             tools:visibility="visible">
+
+            <LinearLayout
+                android:id="@+id/lanesRow"
+                android:layout_width="wrap_content"
+                android:layout_height="34dp"
+                android:layout_marginBottom="8dp"
+                android:background="@drawable/bg_round"
+                android:backgroundTint="#33FFFFFF"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingHorizontal="8dp"
+                android:visibility="gone"
+                tools:visibility="visible" />
 
             <LinearLayout
                 android:layout_width="match_parent"
@@ -255,6 +268,53 @@
             android:visibility="gone"
             tools:text="Fake location still on for other apps · Zamalek"
             tools:visibility="visible" />
+
+        <LinearLayout
+            android:id="@+id/speedRow"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="end"
+            android:layout_marginTop="10dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:visibility="gone"
+            tools:visibility="visible">
+
+            <TextView
+                android:id="@+id/mySpeed"
+                style="@style/SpeedSign"
+                android:background="@drawable/speed_bg"
+                android:contentDescription="@string/nav_my_speed"
+                tools:text="55" />
+
+            <TextView
+                android:id="@+id/speedLimit"
+                style="@style/SpeedSign"
+                android:layout_marginStart="8dp"
+                android:background="@drawable/speed_limit_bg"
+                android:contentDescription="@string/nav_speed_limit"
+                tools:text="60" />
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/cameraChip"
+            style="@style/Text.Item"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="end"
+            android:layout_marginTop="8dp"
+            android:background="@drawable/bg_round"
+            android:drawablePadding="6dp"
+            android:elevation="4dp"
+            android:gravity="center_vertical"
+            android:paddingHorizontal="12dp"
+            android:paddingVertical="8dp"
+            android:textSize="15sp"
+            android:visibility="gone"
+            app:drawableStartCompat="@drawable/ic_camera"
+            app:drawableTint="@color/limit_red"
+            tools:text="30 m"
+            tools:visibility="visible" />
     </LinearLayout>
 
     <com.google.android.material.button.MaterialButton
@@ -267,8 +327,126 @@
         android:contentDescription="@string/nav_recenter"
         app:icon="@drawable/ic_navigate"
         app:iconTint="@color/real"
-        app:layout_constraintBottom_toTopOf="@id/bottom"
+        app:layout_constraintBottom_toTopOf="@id/bottomBarrier"
         app:layout_constraintEnd_toEndOf="parent" />
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/muteFab"
+        style="@style/MapFab"
+        android:layout_width="52dp"
+        android:layout_height="52dp"
+        android:layout_marginEnd="16dp"
+        android:layout_marginBottom="12dp"
+        android:contentDescription="@string/nav_mute"
+        android:visibility="gone"
+        app:icon="@drawable/ic_volume"
+        app:layout_constraintBottom_toTopOf="@id/recenterButton"
+        app:layout_constraintEnd_toEndOf="parent"
+        tools:visibility="visible" />
+
+    <TextView
+        android:id="@+id/streetPill"
+        style="@style/Text.Item"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="12dp"
+        android:background="@drawable/bg_pill"
+        android:elevation="4dp"
+        android:maxWidth="260dp"
+        android:maxLines="1"
+        android:ellipsize="end"
+        android:paddingHorizontal="14dp"
+        android:paddingVertical="6dp"
+        android:textSize="14sp"
+        android:visibility="gone"
+        app:layout_constraintBottom_toTopOf="@id/bottomBarrier"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        tools:text="Financial Center Rd"
+        tools:visibility="visible" />
+
+    <androidx.constraintlayout.widget.Barrier
+        android:id="@+id/bottomBarrier"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        app:barrierDirection="top"
+        app:constraint_referenced_ids="bottom,driveBar" />
+
+    <LinearLayout
+        android:id="@+id/driveBar"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginHorizontal="12dp"
+        android:layout_marginBottom="12dp"
+        android:background="@drawable/bg_round"
+        android:elevation="10dp"
+        android:orientation="vertical"
+        android:paddingHorizontal="14dp"
+        android:paddingTop="10dp"
+        android:paddingBottom="12dp"
+        android:visibility="gone"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        tools:visibility="visible">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <TextView
+                android:id="@+id/driveDistance"
+                style="@style/Text.Item"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:textSize="17sp"
+                tools:text="2.2 km" />
+
+            <TextView
+                android:id="@+id/driveArrival"
+                style="@style/Text.Item"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:textSize="17sp"
+                tools:text="12:55" />
+
+            <TextView
+                android:id="@+id/driveMinutes"
+                style="@style/Text.Item"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:gravity="end"
+                android:textSize="17sp"
+                tools:text="6 min" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/endButton"
+                style="@style/IconButton"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:layout_marginStart="12dp"
+                android:contentDescription="@string/nav_end"
+                app:cornerRadius="12dp"
+                app:icon="@drawable/ic_close"
+                app:iconSize="18dp" />
+        </LinearLayout>
+
+        <ProgressBar
+            android:id="@+id/driveProgress"
+            style="?android:attr/progressBarStyleHorizontal"
+            android:layout_width="match_parent"
+            android:layout_height="6dp"
+            android:layout_marginTop="10dp"
+            android:max="1000"
+            android:progressBackgroundTint="@color/line"
+            android:progressDrawable="@drawable/progress_green" />
+    </LinearLayout>
 
     <LinearLayout
         android:id="@+id/bottom"

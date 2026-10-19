@@ -36,6 +36,12 @@ fake trip keeps running for other apps. During navigation the raw GPS chip is le
 Google's location service (used by Google Maps and most apps) keeps reporting the fake position. Going off the
 route finds a new way automatically.
 
+**v1.3.0:** Yango-style driving screen: lane arrows at junctions (bright = lanes to use), your speed next to the
+road's speed limit (turns red and beeps when you're over), speed-camera warnings, current street name, green route
+with a car icon, and a bottom bar with distance, arrival time, minutes and progress. Lanes, limits and cameras come
+from OpenStreetMap, so they show only where they are mapped (lanes are rare in Egypt today); with Google routes
+there are no lane arrows.
+
 See [PLAN.md](PLAN.md) for the full feature list.
 
 ## Install

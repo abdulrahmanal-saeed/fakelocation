@@ -67,7 +67,14 @@ object NavRouter {
                     maneuver.optString("type"), maneuver.optString("modifier"), step.optString("name"),
                     maneuver.optInt("exit", 0), step.optString("ref")
                 )
-                steps += NavStep(instruction.maneuver, instruction.text, instruction.spoken, start)
+                val lanes = step.optJSONArray("intersections")?.optJSONObject(0)?.optJSONArray("lanes")?.let { arr ->
+                    (0 until arr.length()).map { i ->
+                        val lane = arr.getJSONObject(i)
+                        val dirs = lane.optJSONArray("indications")
+                        Lane((0 until (dirs?.length() ?: 0)).map { dirs!!.getString(it) }, lane.optBoolean("valid"))
+                    }
+                }.orEmpty()
+                steps += NavStep(instruction.maneuver, instruction.text, instruction.spoken, start, step.optString("name").ifBlank { step.optString("ref") }, lanes)
                 points.appendShape(shape)
             }
         }

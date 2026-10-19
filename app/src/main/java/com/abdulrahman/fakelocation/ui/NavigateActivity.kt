@@ -19,6 +19,8 @@ import android.speech.tts.TextToSpeech
 import android.view.MotionEvent
 import android.view.ViewGroup
 import android.view.WindowManager
+import android.media.AudioManager
+import android.media.ToneGenerator
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
@@ -45,6 +47,8 @@ import com.abdulrahman.fakelocation.nav.NavProgress
 import com.abdulrahman.fakelocation.nav.NavRoute
 import com.abdulrahman.fakelocation.nav.NavRouter
 import com.abdulrahman.fakelocation.nav.NavTracker
+import com.abdulrahman.fakelocation.nav.RoadInfo
+import com.abdulrahman.fakelocation.nav.RoadInfoFetcher
 import com.abdulrahman.fakelocation.trip.TripTimeline
 import com.google.android.gms.location.LocationCallback
 import com.google.android.gms.location.LocationRequest
@@ -88,9 +92,16 @@ class NavigateActivity : AppCompatActivity() {
     private var tts: TextToSpeech? = null
     private var ttsReady = false
     private var arrowCache = HashMap<Int, Drawable>()
+    private var carCache = HashMap<Int, Drawable>()
+    private var roadInfo: RoadInfo? = null
+    private var roadInfoJob: Job? = null
+    private var lastFix: Location? = null
+    private var speeding = false
+    private val beeper by lazy { runCatching { ToneGenerator(AudioManager.STREAM_NOTIFICATION, 90) }.getOrNull() }
+    private val cameraMarkers = mutableListOf<Marker>()
 
-    private val routeCasing by lazy { line(R.color.surface, 11f) }
-    private val routeLine by lazy { line(R.color.real, 7f) }
+    private val routeCasing by lazy { line(R.color.route_green_dark, 12f) }
+    private val routeLine by lazy { line(R.color.route_green, 8f) }
     private val passedLine by lazy { line(R.color.idle_dot, 7f) }
     private val me by lazy {
         Marker(binding.map).apply {
@@ -131,6 +142,7 @@ class NavigateActivity : AppCompatActivity() {
         intent.getStringExtra(EXTRA_TO_NAME)?.let { name ->
             to = Place(LatLon(intent.getDoubleExtra(EXTRA_TO_LAT, 0.0), intent.getDoubleExtra(EXTRA_TO_LON, 0.0)), name)
         }
+        binding.driveProgress.max = 1000
         applyInsets()
         setupMap()
         setupControls()
@@ -159,6 +171,7 @@ class NavigateActivity : AppCompatActivity() {
     override fun onDestroy() {
         stopRealLocation()
         tts?.shutdown()
+        beeper?.release()
         MockLocationService.setRealGpsForNavigation(this, false)
         super.onDestroy()
     }
@@ -227,6 +240,8 @@ class NavigateActivity : AppCompatActivity() {
             render()
         }
         binding.mainButton.setOnClickListener { if (navigating) finish() else startNavigation() }
+        binding.endButton.setOnClickListener { finish() }
+        binding.muteFab.setOnClickListener { binding.muteButton.performClick() }
     }
 
     private fun realPlace(): Place? = real?.let { Place(LatLon(it.latitude, it.longitude), getString(R.string.nav_my_location)) }
@@ -267,9 +282,38 @@ class NavigateActivity : AppCompatActivity() {
         destination.position = points.last()
         if (!binding.map.overlays.contains(destination)) binding.map.overlays.add(destination)
         if (fitMap) fit(newRoute)
+        loadRoadInfo(newRoute)
         binding.mainButton.isEnabled = true
         render()
         real?.let { onRealLocation(it) }
+    }
+
+    /** Speed limits and cameras along the route, from OpenStreetMap. Missing data just means no sign. */
+    private fun loadRoadInfo(r: NavRoute) {
+        roadInfoJob?.cancel()
+        roadInfo = null
+        cameraMarkers.forEach { binding.map.overlays.remove(it) }
+        cameraMarkers.clear()
+        roadInfoJob = lifecycleScope.launch {
+            val info = runCatching { RoadInfoFetcher.fetch(r) }.getOrNull() ?: return@launch
+            if (route !== r) return@launch
+            roadInfo = info
+            info.camerasAlong.forEach { along ->
+                val index = r.along.indexOfFirst { it >= along }.coerceAtLeast(0)
+                val p = r.points[index]
+                cameraMarkers += Marker(binding.map).apply {
+                    position = GeoPoint(p.lat, p.lon)
+                    icon = ContextCompat.getDrawable(this@NavigateActivity, R.drawable.ic_camera)?.mutate()?.apply {
+                        setTint(ContextCompat.getColor(this@NavigateActivity, R.color.limit_red))
+                    }
+                    setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
+                    setInfoWindow(null)
+                    setOnMarkerClickListener { _, _ -> true }
+                }
+            }
+            binding.map.overlays.addAll(cameraMarkers)
+            binding.map.invalidate()
+        }
     }
 
     private fun fit(r: NavRoute) {
@@ -316,7 +360,9 @@ class NavigateActivity : AppCompatActivity() {
             binding.map.mapOrientation = -bearing
             binding.map.controller.animateTo(me.position)
         }
-        me.icon = arrow(bearing + binding.map.mapOrientation)
+        me.icon = if (navigating && mode == TravelMode.CAR) car(bearing + binding.map.mapOrientation) else arrow(bearing + binding.map.mapOrientation)
+        val kmh = speedKmh(location)
+        lastFix = location
         binding.map.overlays.remove(me)
         binding.map.overlays.add(me)
 
@@ -324,6 +370,7 @@ class NavigateActivity : AppCompatActivity() {
             passedLine.setPoints(r.points.subList(0, progress.segment + 1).map { GeoPoint(it.lat, it.lon) } + GeoPoint(progress.snapped.lat, progress.snapped.lon))
             if (navigating) guide(r, progress, here)
             renderProgress(progress)
+            renderSpeed(kmh, roadInfo?.limitAt(progress.segment) ?: 0, progress)
         }
         binding.map.invalidate()
     }
@@ -404,8 +451,17 @@ class NavigateActivity : AppCompatActivity() {
         binding.toText.text = to?.name ?: getString(R.string.nav_choose_destination)
         binding.planCard.isVisible = !navigating
         binding.instructionCard.isVisible = navigating
-        binding.muteButton.isVisible = navigating
+        binding.muteButton.isVisible = false
         binding.muteButton.setIconResource(if (prefs.navMuted) R.drawable.ic_volume_off else R.drawable.ic_volume)
+        binding.muteFab.isVisible = navigating
+        binding.muteFab.setIconResource(if (prefs.navMuted) R.drawable.ic_volume_off else R.drawable.ic_volume)
+        binding.bottom.isVisible = !navigating
+        binding.driveBar.isVisible = navigating
+        if (!navigating) {
+            binding.speedRow.isVisible = false
+            binding.cameraChip.isVisible = false
+            binding.streetPill.isVisible = false
+        }
         binding.mainButton.setText(if (navigating) R.string.nav_end else R.string.nav_start)
         binding.mainButton.setIconResource(if (navigating) R.drawable.ic_stop else R.drawable.ic_navigate)
         binding.mainButton.backgroundTintList = ContextCompat.getColorStateList(this, if (navigating) R.color.ink else R.color.real)
@@ -440,8 +496,15 @@ class NavigateActivity : AppCompatActivity() {
         binding.thenText.isVisible = then != null && !p.arrived && p.metersToNextStep < 600
         binding.thenText.text = then?.let { getString(R.string.nav_then, it.text) }
         val secs = p.remainingSeconds
-        binding.etaText.text = getString(R.string.nav_eta, formatDuration((secs * 1000).toLong() + 30_000), clockText(System.currentTimeMillis() + (secs * 1000).toLong()))
-        binding.summaryText.text = formatDistance(p.remainingMeters)
+        binding.driveDistance.text = formatDistance(p.remainingMeters)
+        binding.driveArrival.text = clockText(System.currentTimeMillis() + (secs * 1000).toLong())
+        binding.driveMinutes.text = getString(R.string.nav_minutes, ((secs + 59) / 60).toInt())
+        val length = route?.length?.takeIf { it > 0 } ?: 1.0
+        binding.driveProgress.progress = (p.alongMeters / length * 1000).toInt()
+        val road = p.currentStep?.road.orEmpty()
+        binding.streetPill.isVisible = road.isNotBlank()
+        binding.streetPill.text = road
+        renderLanes(p)
     }
 
     private fun iconFor(m: Maneuver) = when (m) {
@@ -463,6 +526,120 @@ class NavigateActivity : AppCompatActivity() {
         outlinePaint.strokeCap = Paint.Cap.ROUND
         outlinePaint.strokeJoin = Paint.Join.ROUND
         setOnClickListener { _, _, _ -> false }
+    }
+
+    private fun speedKmh(location: Location): Int {
+        if (location.hasSpeed()) return (location.speed * 3.6f).roundToInt()
+        val previous = lastFix ?: return 0
+        val seconds = (location.time - previous.time) / 1000.0
+        if (seconds <= 0) return 0
+        return (location.distanceTo(previous) / seconds * 3.6).roundToInt()
+    }
+
+    /** Your speed next to the road's limit (red sign). Speed turns red and beeps once when you go over. */
+    private fun renderSpeed(kmh: Int, limit: Int, p: NavProgress) {
+        if (!navigating) return
+        binding.speedRow.isVisible = mode == TravelMode.CAR
+        binding.mySpeed.text = kmh.toString()
+        binding.speedLimit.isVisible = limit > 0
+        binding.speedLimit.text = limit.toString()
+        val over = limit > 0 && kmh > limit + 5
+        binding.mySpeed.setTextColor(ContextCompat.getColor(this, if (over) R.color.limit_red else R.color.ink))
+        if (over && !speeding) {
+            speeding = true
+            if (!prefs.navMuted) beeper?.startTone(ToneGenerator.TONE_PROP_BEEP2, 400)
+        } else if (!over && kmh <= limit) {
+            speeding = false
+        }
+        // Speed camera coming up.
+        val camera = roadInfo?.nextCamera(p.alongMeters)?.takeIf { it in 0.0..600.0 && mode == TravelMode.CAR }
+        binding.cameraChip.isVisible = camera != null
+        if (camera != null) {
+            binding.cameraChip.text = formatDistance(camera)
+            val key = "camera:${(p.alongMeters + camera).roundToInt()}"
+            if (camera < 400 && spoken.add(key)) {
+                speak(getString(R.string.nav_camera_ahead) + if (limit > 0) ". " + getString(R.string.nav_speed_limit_voice, limit) else "")
+            }
+        }
+    }
+
+    /** Lane arrows for the next junction, the ones to use bright and the others faded. */
+    private fun renderLanes(p: NavProgress) {
+        val step = p.nextStep
+        val lanes = step?.lanes.orEmpty()
+        val show = lanes.isNotEmpty() && p.metersToNextStep < 800
+        binding.lanesRow.isVisible = show
+        if (!show) return
+        binding.lanesRow.removeAllViews()
+        val size = (26 * resources.displayMetrics.density).toInt()
+        for (lane in lanes) {
+            val direction = lane.directions.firstOrNull { lane.valid && matches(it, step!!.maneuver) } ?: lane.directions.firstOrNull() ?: "straight"
+            val view = android.widget.ImageView(this).apply {
+                setImageResource(laneIcon(direction))
+                imageTintList = android.content.res.ColorStateList.valueOf(ContextCompat.getColor(this@NavigateActivity, R.color.surface))
+                alpha = if (lane.valid) 1f else 0.35f
+            }
+            binding.lanesRow.addView(view, android.widget.LinearLayout.LayoutParams(size, size))
+        }
+    }
+
+    private fun matches(direction: String, m: Maneuver) = when (m) {
+        Maneuver.LEFT, Maneuver.SHARP_LEFT -> "left" in direction
+        Maneuver.RIGHT, Maneuver.SHARP_RIGHT -> "right" in direction
+        Maneuver.SLIGHT_LEFT -> "left" in direction
+        Maneuver.SLIGHT_RIGHT -> "right" in direction
+        Maneuver.UTURN -> direction == "uturn"
+        else -> direction == "straight"
+    }
+
+    private fun laneIcon(direction: String) = when (direction) {
+        "left" -> R.drawable.ic_m_left
+        "right" -> R.drawable.ic_m_right
+        "slight left" -> R.drawable.ic_m_slight_left
+        "slight right" -> R.drawable.ic_m_slight_right
+        "sharp left" -> R.drawable.ic_m_sharp_left
+        "sharp right" -> R.drawable.ic_m_sharp_right
+        "uturn" -> R.drawable.ic_m_uturn
+        else -> R.drawable.ic_m_straight
+    }
+
+    /** A white car seen from above, pointing along [degrees] on screen. */
+    private fun car(degrees: Float): Drawable {
+        val step = ((((degrees % 360) + 360) % 360) / 10f).roundToInt() * 10 % 360
+        return carCache.getOrPut(step) {
+            val d = resources.displayMetrics.density
+            val w = 26 * d
+            val h = 46 * d
+            val size = (h + 8 * d).toInt()
+            val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+            val canvas = Canvas(bitmap)
+            val c = size / 2f
+            canvas.rotate(step.toFloat(), c, c)
+            val left = c - w / 2
+            val top = c - h / 2
+            val paint = Paint(Paint.ANTI_ALIAS_FLAG)
+            paint.color = 0x33000000
+            canvas.drawRoundRect(android.graphics.RectF(left - 2 * d, top + 1 * d, left + w + 2 * d, top + h + 3 * d), 10 * d, 10 * d, paint)
+            paint.color = 0xFFF8FAFC.toInt()
+            canvas.drawRoundRect(android.graphics.RectF(left, top, left + w, top + h), 9 * d, 9 * d, paint)
+            paint.style = Paint.Style.STROKE
+            paint.strokeWidth = 1.2f * d
+            paint.color = 0xFF94A3B8.toInt()
+            canvas.drawRoundRect(android.graphics.RectF(left, top, left + w, top + h), 9 * d, 9 * d, paint)
+            paint.style = Paint.Style.FILL
+            paint.color = 0xFF1E293B.toInt()
+            canvas.drawRoundRect(android.graphics.RectF(left + 3 * d, top + 11 * d, left + w - 3 * d, top + 18 * d), 3 * d, 3 * d, paint)
+            canvas.drawRoundRect(android.graphics.RectF(left + 4 * d, top + 34 * d, left + w - 4 * d, top + 39 * d), 2 * d, 2 * d, paint)
+            paint.color = 0xFFE2E8F0.toInt()
+            canvas.drawRoundRect(android.graphics.RectF(left + 4 * d, top + 19 * d, left + w - 4 * d, top + 33 * d), 3 * d, 3 * d, paint)
+            paint.color = 0xFFFDE68A.toInt()
+            canvas.drawCircle(left + 5 * d, top + 3.5f * d, 2.2f * d, paint)
+            canvas.drawCircle(left + w - 5 * d, top + 3.5f * d, 2.2f * d, paint)
+            paint.color = 0xFFDC2626.toInt()
+            canvas.drawRoundRect(android.graphics.RectF(left + 3 * d, top + h - 3 * d, left + 9 * d, top + h - 1 * d), d, d, paint)
+            canvas.drawRoundRect(android.graphics.RectF(left + w - 9 * d, top + h - 3 * d, left + w - 3 * d, top + h - 1 * d), d, d, paint)
+            BitmapDrawable(resources, bitmap)
+        }
     }
 
     /** Blue circle with a white arrow, rotated on screen by [degrees]. */
