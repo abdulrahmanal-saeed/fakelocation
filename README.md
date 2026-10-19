@@ -48,6 +48,13 @@ now keeps going with the phone screen off. Nearby search (Fuel, Parking, Bus sto
 and in the car, through Google Places when a key is set, otherwise OpenStreetMap. Search and Google results are
 biased to the UAE (Dubai by default).
 
+**v1.5.0:** Salik (Dubai) and Darb (Abu Dhabi) gates: the route preview shows how much the trip costs in tolls
+(priced for the time you'll pass each gate) plus fuel, and the voice warns before each gate. "No tolls" and
+"No highways" route options (Google, or Valhalla on OpenStreetMap). Several stops in one real navigation, also
+added while driving (phone "+" or the car's "+" → Nearby). A Parking screen (P button on the map): zone code from
+the sign, pay by SMS to 7275, countdown, an alarm before the time runs out, and walking directions back to the car.
+Fuel price per litre, grade and consumption are set in Settings → Car & costs (built in: October 2026 prices).
+
 See [PLAN.md](PLAN.md) for the full feature list.
 
 ## Install

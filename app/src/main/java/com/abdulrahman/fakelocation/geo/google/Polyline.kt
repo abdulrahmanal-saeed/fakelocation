@@ -2,9 +2,10 @@ package com.abdulrahman.fakelocation.geo.google
 
 import com.abdulrahman.fakelocation.data.LatLon
 
-/** Google's encoded polyline format (used by the Routes API). */
+/** Google's encoded polyline format (used by the Routes API; Valhalla uses the same with 6 decimals). */
 object Polyline {
-    fun decode(encoded: String): List<LatLon> {
+    fun decode(encoded: String, precision: Int = 5): List<LatLon> {
+        val factor = Math.pow(10.0, precision.toDouble())
         val points = ArrayList<LatLon>()
         var index = 0
         var lat = 0
@@ -27,7 +28,7 @@ object Polyline {
                 shift += 5
             } while (b >= 0x20)
             lon += if (result and 1 != 0) (result shr 1).inv() else result shr 1
-            points += LatLon(lat / 1e5, lon / 1e5)
+            points += LatLon(lat / factor, lon / factor)
         }
         return points
     }

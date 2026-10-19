@@ -85,6 +85,7 @@ class CarMapScreen(carContext: CarContext, private val renderer: CarMapRenderer)
                         .setOnClickListener { NavSession.stop() }.build(),
                 )
                 .addAction(iconAction(if (s.muted) R.drawable.ic_volume_off else R.drawable.ic_volume) { NavSession.toggleMute() })
+                .addAction(iconAction(R.drawable.ic_plus) { screenManager.push(CarCategoriesScreen(carContext)) })
                 .build(),
         )
 

@@ -124,6 +124,12 @@
                     </LinearLayout>
 
                     <LinearLayout
+                        android:id="@+id/stopsContainer"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical" />
+
+                    <LinearLayout
                         android:id="@+id/toRow"
                         style="@style/NavField"
                         android:layout_marginTop="6dp">
@@ -154,6 +160,43 @@
                     app:icon="@drawable/ic_swap"
                     app:iconSize="18dp" />
             </LinearLayout>
+
+            <HorizontalScrollView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:scrollbars="none">
+
+                <com.google.android.material.chip.ChipGroup
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    app:chipSpacingHorizontal="6dp"
+                    app:singleLine="true">
+
+                    <com.google.android.material.chip.Chip
+                        android:id="@+id/addStopChip"
+                        style="@style/Widget.Material3.Chip.Assist"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/nav_add_stop"
+                        app:chipIcon="@drawable/ic_plus"
+                        app:chipIconSize="16dp" />
+
+                    <com.google.android.material.chip.Chip
+                        android:id="@+id/avoidTollsChip"
+                        style="@style/Widget.Material3.Chip.Filter"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/nav_avoid_tolls" />
+
+                    <com.google.android.material.chip.Chip
+                        android:id="@+id/avoidHighwaysChip"
+                        style="@style/Widget.Material3.Chip.Filter"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/nav_avoid_highways" />
+                </com.google.android.material.chip.ChipGroup>
+            </HorizontalScrollView>
         </LinearLayout>
 
         <!-- Driving: next instruction -->
@@ -315,6 +358,26 @@
             app:drawableTint="@color/limit_red"
             tools:text="30 m"
             tools:visibility="visible" />
+
+        <TextView
+            android:id="@+id/tollChip"
+            style="@style/Text.Item"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="end"
+            android:layout_marginTop="8dp"
+            android:background="@drawable/bg_round"
+            android:drawablePadding="6dp"
+            android:elevation="4dp"
+            android:gravity="center_vertical"
+            android:paddingHorizontal="12dp"
+            android:paddingVertical="8dp"
+            android:textSize="15sp"
+            android:visibility="gone"
+            app:drawableStartCompat="@drawable/ic_toll"
+            app:drawableTint="@color/nav_blue"
+            tools:text="Salik · AED 6 · 400 m"
+            tools:visibility="visible" />
     </LinearLayout>
 
     <com.google.android.material.button.MaterialButton
@@ -341,6 +404,34 @@
         android:visibility="gone"
         app:icon="@drawable/ic_volume"
         app:layout_constraintBottom_toTopOf="@id/recenterButton"
+        app:layout_constraintEnd_toEndOf="parent"
+        tools:visibility="visible" />
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/addStopFab"
+        style="@style/MapFab"
+        android:layout_width="52dp"
+        android:layout_height="52dp"
+        android:layout_marginEnd="16dp"
+        android:layout_marginBottom="12dp"
+        android:contentDescription="@string/nav_add_stop"
+        android:visibility="gone"
+        app:icon="@drawable/ic_plus"
+        app:layout_constraintBottom_toTopOf="@id/muteFab"
+        app:layout_constraintEnd_toEndOf="parent"
+        tools:visibility="visible" />
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/parkFab"
+        style="@style/MapFab"
+        android:layout_width="52dp"
+        android:layout_height="52dp"
+        android:layout_marginEnd="16dp"
+        android:layout_marginBottom="12dp"
+        android:contentDescription="@string/parking_park_here"
+        android:visibility="gone"
+        app:icon="@drawable/ic_parking"
+        app:layout_constraintBottom_toTopOf="@id/addStopFab"
         app:layout_constraintEnd_toEndOf="parent"
         tools:visibility="visible" />
 
@@ -487,6 +578,16 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     tools:text="4.3 km · Google live traffic" />
+
+                <TextView
+                    android:id="@+id/costText"
+                    style="@style/Text.Caption"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="2dp"
+                    android:visibility="gone"
+                    tools:text="Fuel ≈ AED 3.10 · Salik AED 10 (2 gates)"
+                    tools:visibility="visible" />
             </LinearLayout>
 
             <com.google.android.material.button.MaterialButton

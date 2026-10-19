@@ -5,6 +5,7 @@ import androidx.car.app.CarContext
 import androidx.car.app.Screen
 import androidx.car.app.constraints.ConstraintManager
 import androidx.car.app.model.Action
+import androidx.car.app.model.ActionStrip
 import androidx.car.app.model.ItemList
 import androidx.car.app.model.ListTemplate
 import androidx.car.app.model.MessageTemplate
@@ -24,6 +25,8 @@ import com.abdulrahman.fakelocation.data.Place
 import com.abdulrahman.fakelocation.data.PlacesRepository
 import com.abdulrahman.fakelocation.data.TravelMode
 import com.abdulrahman.fakelocation.data.distanceMeters
+import com.abdulrahman.fakelocation.drive.Fuel
+import com.abdulrahman.fakelocation.drive.Tolls
 import com.abdulrahman.fakelocation.geo.NearbySearch
 import com.abdulrahman.fakelocation.geo.PlaceCategory
 import com.abdulrahman.fakelocation.geo.PlaceSearch
@@ -46,7 +49,15 @@ private fun Screen.placeRow(place: Place, fallback: String): Row {
     here()?.let { text.append(CarUi.distanceText(distanceMeters(it, place.position))) }
     place.address?.takeIf { it.isNotBlank() }?.let { if (text.isNotEmpty()) text.append(" · "); text.append(it) }
     if (text.isNotEmpty()) row.addText(text)
-    return row.setOnClickListener { screenManager.push(CarPreviewScreen(carContext, place)) }.build()
+    return row.setOnClickListener {
+        if (NavSession.state.value.navigating) {
+            // While driving, a picked place becomes the next stop on the way.
+            NavSession.addStop(place)
+            screenManager.popToRoot()
+        } else {
+            screenManager.push(CarPreviewScreen(carContext, place))
+        }
+    }.build()
 }
 
 /** Shown when the phone app hasn't been given location access yet. */
@@ -160,6 +171,16 @@ class CarNearbyScreen(carContext: CarContext, private val category: PlaceCategor
     }
 }
 
+/** "Fuel ≈ AED 3.10 · Salik AED 10" for the car screen. */
+private fun Screen.costText(s: NavSession.State): String {
+    val parts = mutableListOf(carContext.getString(R.string.nav_cost_fuel, Fuel.aed(s.fuelCostAed)))
+    if (s.tolls.isEmpty()) parts += carContext.getString(R.string.nav_cost_no_tolls)
+    s.tolls.groupBy { it.gate.system }.forEach { (system, passes) ->
+        parts += system.label + " " + Fuel.aed(Tolls.total(passes)).replace(".00", "")
+    }
+    return parts.joinToString(" · ")
+}
+
 /** The route to a place before starting: time and distance, and a Start button. */
 class CarPreviewScreen(carContext: CarContext, private val place: Place) : Screen(carContext) {
 
@@ -176,7 +197,7 @@ class CarPreviewScreen(carContext: CarContext, private val place: Place) : Scree
             repeatOnLifecycle(Lifecycle.State.STARTED) {
                 var last: Any? = null
                 NavSession.state.collect { s ->
-                    val key = s.status to s.route
+                    val key = Triple(s.status, s.route, s.tolls)
                     if (key != last) { last = key; invalidate() }
                 }
             }
@@ -202,7 +223,17 @@ class CarPreviewScreen(carContext: CarContext, private val place: Place) : Scree
             .append(" · ")
             .append(CarUi.distanceText(route.distanceMeters))
         val row = Row.Builder().setTitle(summary)
+        row.addText(costText(s))
         place.address?.takeIf { it.isNotBlank() }?.let { row.addText(it) }
+        val avoid = s.avoid
+        builder.setActionStrip(
+            ActionStrip.Builder().addAction(
+                Action.Builder()
+                    .setTitle(carContext.getString(if (avoid.tolls) R.string.car_tolls_avoided else R.string.nav_avoid_tolls))
+                    .setOnClickListener { NavSession.setAvoid(avoid.copy(tolls = !avoid.tolls)) }
+                    .build(),
+            ).build(),
+        )
         return builder
             .setItemList(ItemList.Builder().addItem(row.build()).setSelectedIndex(0).setOnSelectedListener { }.build())
             .setNavigateAction(

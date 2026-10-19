@@ -1,0 +1,7 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp" android:height="24dp" android:viewportWidth="24" android:viewportHeight="24"
+    android:tint="?attr/colorControlNormal">
+    <!-- A toll gantry over a road -->
+    <path android:pathData="M4,21V5M20,21V5M3,5h18M3,9h18" android:strokeColor="#FF000000" android:strokeWidth="2" android:strokeLineCap="round" android:strokeLineJoin="round" android:fillColor="#00000000" />
+    <path android:pathData="M12,13v2M12,18v3" android:strokeColor="#FF000000" android:strokeWidth="2" android:strokeLineCap="round" android:fillColor="#00000000" />
+</vector>

@@ -15,17 +15,19 @@ import androidx.core.content.ContextCompat
 import androidx.core.view.isVisible
 import com.abdulrahman.fakelocation.R
 import com.abdulrahman.fakelocation.databinding.ActivityAlarmBinding
+import com.abdulrahman.fakelocation.drive.ParkingAlarms
 import com.abdulrahman.fakelocation.mock.MockLocationService
 import java.util.Locale
 
 /** Full-screen alarm shown over the lock screen: "arriving at C in 2:00" or "leaving B in 1:00". */
 class AlarmActivity : AppCompatActivity() {
 
-    enum class Kind { ARRIVING, LEAVING }
+    enum class Kind { ARRIVING, LEAVING, PARKING }
 
     private lateinit var binding: ActivityAlarmBinding
     private val handler = Handler(Looper.getMainLooper())
     private var target = 0L
+    private var kind = Kind.ARRIVING
 
     private val countdown = object : Runnable {
         override fun run() {
@@ -58,7 +60,7 @@ class AlarmActivity : AppCompatActivity() {
         binding.root.padForSystemBars(top = true, bottom = true)
         bind(intent)
         binding.dismissButton.setOnClickListener {
-            MockLocationService.dismissAlarm(this)
+            if (kind == Kind.PARKING) ParkingAlarms.dismiss(this) else MockLocationService.dismissAlarm(this)
             finish()
         }
         ContextCompat.registerReceiver(this, closeReceiver, IntentFilter(ACTION_CLOSE), ContextCompat.RECEIVER_NOT_EXPORTED)
@@ -70,14 +72,31 @@ class AlarmActivity : AppCompatActivity() {
     }
 
     private fun bind(intent: Intent) {
-        val kind = Kind.valueOf(intent.getStringExtra(EXTRA_KIND) ?: Kind.ARRIVING.name)
+        kind = Kind.valueOf(intent.getStringExtra(EXTRA_KIND) ?: Kind.ARRIVING.name)
         val index = intent.getIntExtra(EXTRA_INDEX, 0)
         val count = intent.getIntExtra(EXTRA_COUNT, 1)
         target = intent.getLongExtra(EXTRA_TARGET, System.currentTimeMillis())
-        binding.overline.setText(if (kind == Kind.ARRIVING) R.string.alarm_overline_arriving else R.string.alarm_overline_leaving)
-        binding.untilText.setText(if (kind == Kind.ARRIVING) R.string.alarm_until_reach else R.string.alarm_until_leave)
-        binding.letter.text = stopLetter(index)
-        binding.letter.backgroundTintList = ColorStateList.valueOf(ContextCompat.getColor(this, stopColorRes(index, count)))
+        binding.overline.setText(
+            when (kind) {
+                Kind.ARRIVING -> R.string.alarm_overline_arriving
+                Kind.LEAVING -> R.string.alarm_overline_leaving
+                Kind.PARKING -> R.string.alarm_overline_parking
+            }
+        )
+        binding.untilText.setText(
+            when (kind) {
+                Kind.ARRIVING -> R.string.alarm_until_reach
+                Kind.LEAVING -> R.string.alarm_until_leave
+                Kind.PARKING -> R.string.alarm_until_parking
+            }
+        )
+        if (kind == Kind.PARKING) {
+            binding.letter.text = "P"
+            binding.letter.backgroundTintList = ColorStateList.valueOf(ContextCompat.getColor(this, R.color.nav_blue))
+        } else {
+            binding.letter.text = stopLetter(index)
+            binding.letter.backgroundTintList = ColorStateList.valueOf(ContextCompat.getColor(this, stopColorRes(index, count)))
+        }
         binding.name.text = intent.getStringExtra(EXTRA_NAME)
         val note = intent.getStringExtra(EXTRA_NOTE)
         binding.note.text = note
@@ -110,5 +129,13 @@ class AlarmActivity : AppCompatActivity() {
                 .putExtra(EXTRA_NAME, name)
                 .putExtra(EXTRA_TARGET, target)
                 .putExtra(EXTRA_NOTE, note)
+
+        fun parkingIntent(context: Context, zone: String, place: String?, endsAt: Long) =
+            Intent(context, AlarmActivity::class.java)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+                .putExtra(EXTRA_KIND, Kind.PARKING.name)
+                .putExtra(EXTRA_NAME, context.getString(R.string.parking_zone_label, zone))
+                .putExtra(EXTRA_TARGET, endsAt)
+                .putExtra(EXTRA_NOTE, place)
     }
 }

@@ -11,7 +11,12 @@ import kotlin.math.roundToInt
 import kotlin.math.sqrt
 
 /** Speed limits along the route (km/h per piece of road, 0 = unknown) and where the speed cameras are. */
-data class RoadInfo(val limits: IntArray, val camerasAlong: List<Double>) {
+data class RoadInfo(
+    val limits: IntArray,
+    val camerasAlong: List<Double>,
+    /** Toll gantries mapped near the route (position, name), for gates the app doesn't know yet. */
+    val gantries: List<Pair<LatLon, String>> = emptyList(),
+) {
     fun limitAt(segment: Int): Int = limits.getOrElse(segment) { 0 }
 
     /** The next camera ahead of [along] metres, as distance from here. */
@@ -32,13 +37,14 @@ object RoadInfoFetcher {
         val line = (route.points.filterIndexed { i, _ -> i % step == 0 } + route.points.last())
             .joinToString(",") { String.format(Locale.US, "%.5f,%.5f", it.lat, it.lon) }
         val query = "[out:json][timeout:25];(way(around:15,$line)[highway][maxspeed];" +
-            "node(around:30,$line)[highway=speed_camera];);out tags geom;"
+            "node(around:30,$line)[highway=speed_camera];node(around:25,$line)[highway=toll_gantry];);out tags geom;"
         parse(route, Overpass.query(query))
     }
 
     fun parse(route: NavRoute, json: JSONObject): RoadInfo {
         val ways = ArrayList<LimitedWay>()
         val cameras = ArrayList<LatLon>()
+        val gantries = ArrayList<Pair<LatLon, String>>()
         val elements = json.optJSONArray("elements") ?: return RoadInfo(IntArray(route.points.size), emptyList())
         for (i in 0 until elements.length()) {
             val e = elements.getJSONObject(i)
@@ -51,10 +57,18 @@ object RoadInfoFetcher {
                         LatLon(g.getDouble("lat"), g.getDouble("lon"))
                     })
                 }
-                "node" -> cameras += LatLon(e.getDouble("lat"), e.getDouble("lon"))
+                "node" -> {
+                    val tags = e.optJSONObject("tags")
+                    val p = LatLon(e.getDouble("lat"), e.getDouble("lon"))
+                    if (tags?.optString("highway") == "toll_gantry") {
+                        gantries += p to (tags.optString("name:en").ifBlank { tags.optString("name") })
+                    } else {
+                        cameras += p
+                    }
+                }
             }
         }
-        return RoadInfo(assignLimits(route, ways), camerasAlong(route, cameras))
+        return RoadInfo(assignLimits(route, ways), camerasAlong(route, cameras), gantries)
     }
 
     /** "60" → 60, "30 mph" → 48. Anything else (e.g. "EG:urban", "signals") → null. */
@@ -90,18 +104,25 @@ object RoadInfoFetcher {
     }
 
     /** Distance along the route of each camera that sits on it (within 30 m), sorted. */
-    fun camerasAlong(route: NavRoute, cameras: List<LatLon>): List<Double> = cameras.mapNotNull { camera ->
+    fun camerasAlong(route: NavRoute, cameras: List<LatLon>): List<Double> = cameras.mapNotNull { alongOf(route, it, 30.0) }.sorted()
+
+    /** How far along [route] the point nearest to [p] is, or null if the route never comes within [maxMeters]. */
+    fun alongOf(route: NavRoute, p: LatLon, maxMeters: Double): Double? {
         var best = Double.MAX_VALUE
         var at = 0.0
         for (i in 0 until route.points.size - 1) {
-            val (d, t) = project(camera, route.points[i], route.points[i + 1])
+            val a = route.points[i]
+            val b = route.points[i + 1]
+            // Cheap reject: a segment wholly north or south of p by ~5 km can't be close.
+            if ((a.lat - p.lat > 0.05 && b.lat - p.lat > 0.05) || (a.lat - p.lat < -0.05 && b.lat - p.lat < -0.05)) continue
+            val (d, t) = project(p, a, b)
             if (d < best) {
                 best = d
                 at = route.along[i] + (route.along[i + 1] - route.along[i]) * t
             }
         }
-        at.takeIf { best <= 30.0 }
-    }.sorted()
+        return at.takeIf { best <= maxMeters }
+    }
 
     private fun distanceToSegment(p: LatLon, a: LatLon, b: LatLon): Double = project(p, a, b).first
 

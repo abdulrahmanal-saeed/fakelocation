@@ -32,6 +32,8 @@ import com.abdulrahman.fakelocation.data.TravelMode
 import com.abdulrahman.fakelocation.data.formatDistance
 import com.abdulrahman.fakelocation.data.formatDuration
 import com.abdulrahman.fakelocation.databinding.ActivityNavigateBinding
+import com.abdulrahman.fakelocation.drive.Fuel
+import com.abdulrahman.fakelocation.drive.Tolls
 import com.abdulrahman.fakelocation.mock.MockState
 import com.abdulrahman.fakelocation.nav.NavIcons
 import com.abdulrahman.fakelocation.nav.NavProgress
@@ -76,6 +78,11 @@ class NavigateActivity : AppCompatActivity() {
     private val pickTo = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         SearchActivity.placeFrom(result.data)?.let { NavSession.setDestination(it) }
     }
+    private val pickStop = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        SearchActivity.placeFrom(result.data)?.let { NavSession.addStop(it) }
+    }
+    private var shownStops: Pair<List<Place>, Int>? = null
+    private val stopMarkers = mutableListOf<Marker>()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -171,6 +178,19 @@ class NavigateActivity : AppCompatActivity() {
             if (s.navigating) render(s) else s.route?.let { fit(it) } ?: s.real?.let { binding.map.controller.animateTo(GeoPoint(it.lat, it.lon)) }
         }
         binding.muteFab.setOnClickListener { NavSession.toggleMute() }
+        binding.addStopChip.setOnClickListener { pickStop.launch(Intent(this, SearchActivity::class.java)) }
+        binding.addStopFab.setOnClickListener { pickStop.launch(Intent(this, SearchActivity::class.java)) }
+        binding.avoidTollsChip.setOnClickListener {
+            NavSession.setAvoid(NavSession.state.value.avoid.copy(tolls = binding.avoidTollsChip.isChecked))
+        }
+        binding.avoidHighwaysChip.setOnClickListener {
+            NavSession.setAvoid(NavSession.state.value.avoid.copy(highways = binding.avoidHighwaysChip.isChecked))
+        }
+        binding.parkFab.setOnClickListener {
+            NavSession.stop()
+            startActivity(Intent(this, ParkingActivity::class.java))
+            finish()
+        }
         binding.mainButton.setOnClickListener {
             follow = true
             NavSession.start()
@@ -205,6 +225,13 @@ class NavigateActivity : AppCompatActivity() {
         binding.muteFab.isVisible = navigating
         binding.muteFab.setIconResource(if (s.muted) R.drawable.ic_volume_off else R.drawable.ic_volume)
         binding.muteButton.isVisible = false
+        binding.addStopFab.isVisible = navigating && s.progress?.arrived != true
+        binding.parkFab.isVisible = navigating && s.mode == TravelMode.CAR && s.progress?.arrived == true
+        binding.avoidTollsChip.isChecked = s.avoid.tolls
+        binding.avoidHighwaysChip.isChecked = s.avoid.highways
+        binding.avoidTollsChip.isVisible = s.mode == TravelMode.CAR
+        binding.avoidHighwaysChip.isVisible = s.mode == TravelMode.CAR
+        renderStops(s)
 
         val session = MockState.session.value
         val trip = MockState.trip.value
@@ -224,6 +251,7 @@ class NavigateActivity : AppCompatActivity() {
     private fun renderPlanning(s: NavSession.State) {
         binding.speedRow.isVisible = false
         binding.cameraChip.isVisible = false
+        binding.tollChip.isVisible = false
         binding.streetPill.isVisible = false
         binding.banner.isVisible = false
         val r = s.route
@@ -248,6 +276,9 @@ class NavigateActivity : AppCompatActivity() {
                 binding.summaryText.text = if (r.trafficAware) getString(R.string.nav_traffic, distance) else distance
             }
         }
+        val cost = if (r != null && s.mode == TravelMode.CAR && s.status == NavSession.Status.PREVIEW) costLine(s) else null
+        binding.costText.isVisible = cost != null
+        binding.costText.text = cost
     }
 
     private fun renderDriving(s: NavSession.State) {
@@ -265,6 +296,13 @@ class NavigateActivity : AppCompatActivity() {
         binding.speedLimit.text = s.limitKmh.toString()
         binding.cameraChip.isVisible = s.cameraMeters != null
         binding.cameraChip.text = s.cameraMeters?.let { formatDistance(it) }
+        val toll = s.nextToll
+        val tollMeters = s.tollMeters
+        binding.tollChip.isVisible = toll != null && tollMeters != null
+        if (toll != null && tollMeters != null) {
+            val price = if (toll.priceAed > 0) Fuel.aed(toll.priceAed).replace(".00", "") else getString(R.string.toll_free_now)
+            binding.tollChip.text = getString(R.string.toll_chip, toll.gate.system.label, price, formatDistance(tollMeters))
+        }
         if (p == null) {
             binding.maneuverText.setText(R.string.nav_waiting_gps)
             binding.maneuverDistance.text = ""
@@ -305,6 +343,51 @@ class NavigateActivity : AppCompatActivity() {
                     alpha = if (lane.valid) 1f else 0.35f
                 }, LinearLayout.LayoutParams(size, size))
             }
+        }
+    }
+
+    /** "Fuel ≈ AED 3.10 · Salik AED 10 (2 gates)". */
+    private fun costLine(s: NavSession.State): String {
+        val parts = mutableListOf(getString(R.string.nav_cost_fuel, Fuel.aed(s.fuelCostAed)))
+        if (s.tolls.isEmpty()) {
+            parts += getString(R.string.nav_cost_no_tolls)
+        } else {
+            s.tolls.groupBy { it.gate.system }.forEach { (system, passes) ->
+                val sum = Fuel.aed(Tolls.total(passes)).replace(".00", "")
+                parts += if (passes.size == 1) getString(R.string.nav_cost_toll_one, system.label, sum)
+                else getString(R.string.nav_cost_tolls, system.label, sum, passes.size)
+            }
+        }
+        return parts.joinToString(" · ")
+    }
+
+    /** In-between stops as rows (number, name, remove) between the start and the destination. */
+    private fun renderStops(s: NavSession.State) {
+        val key = s.stops to s.stopsReached
+        if (key != shownStops) {
+            shownStops = key
+            binding.stopsContainer.removeAllViews()
+            s.stops.forEachIndexed { i, place ->
+                val row = layoutInflater.inflate(R.layout.item_nav_stop, binding.stopsContainer, false)
+                val passed = s.navigating && i < s.stopsReached
+                row.findViewById<android.widget.TextView>(R.id.stopNumber).text = (i + 1).toString()
+                row.findViewById<android.widget.TextView>(R.id.stopName).text =
+                    if (passed) getString(R.string.nav_stop_done, place.name.orEmpty()) else place.name ?: String.format(java.util.Locale.US, "%.5f, %.5f", place.position.lat, place.position.lon)
+                row.findViewById<android.view.View>(R.id.stopRemove).apply {
+                    isVisible = !passed
+                    setOnClickListener { NavSession.removeStop(i) }
+                }
+                binding.stopsContainer.addView(row)
+            }
+            stopMarkers.forEach { binding.map.overlays.remove(it) }
+            stopMarkers.clear()
+            s.stops.forEachIndexed { i, place ->
+                stopMarkers += marker(Marker.ANCHOR_CENTER).apply {
+                    position = GeoPoint(place.position.lat, place.position.lon)
+                    icon = BitmapDrawable(resources, NavIcons.numberDot(this@NavigateActivity, i + 1))
+                }
+            }
+            binding.map.overlays.addAll(stopMarkers)
         }
     }
 

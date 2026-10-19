@@ -2,6 +2,8 @@ package com.abdulrahman.fakelocation.data
 
 import android.content.Context
 import androidx.core.content.edit
+import com.abdulrahman.fakelocation.drive.FuelType
+import com.abdulrahman.fakelocation.drive.Parking
 
 /** Small key/value store for things that must survive the app being closed. */
 class Prefs(context: Context) {
@@ -110,6 +112,56 @@ class Prefs(context: Context) {
     var activeHistoryId: Long
         get() = prefs.getLong("history_id", -1)
         set(value) = prefs.edit { putLong("history_id", value) }
+
+    // region Driving costs and parking (UAE)
+
+    var avoidTolls: Boolean
+        get() = prefs.getBoolean("avoid_tolls", false)
+        set(value) = prefs.edit { putBoolean("avoid_tolls", value) }
+
+    var avoidHighways: Boolean
+        get() = prefs.getBoolean("avoid_highways", false)
+        set(value) = prefs.edit { putBoolean("avoid_highways", value) }
+
+    var fuelType: FuelType
+        get() = runCatching { FuelType.valueOf(prefs.getString("fuel_type", null)!!) }.getOrDefault(FuelType.SPECIAL_95)
+        set(value) = prefs.edit { putString("fuel_type", value.name) }
+
+    fun fuelPrice(type: FuelType = fuelType): Double =
+        prefs.getFloat("fuel_price_${type.name}", 0f).takeIf { it > 0f }?.toDouble() ?: type.defaultPrice
+
+    fun setFuelPrice(type: FuelType, price: Double?) = prefs.edit {
+        if (price == null) remove("fuel_price_${type.name}") else putFloat("fuel_price_${type.name}", price.toFloat())
+    }
+
+    /** Litres per 100 km. */
+    var fuelConsumption: Double
+        get() = prefs.getFloat("fuel_consumption", 8f).toDouble()
+        set(value) = prefs.edit { putFloat("fuel_consumption", value.toFloat()) }
+
+    /** Plate as typed in the parking SMS, e.g. "A12345". */
+    var plateNumber: String
+        get() = prefs.getString("plate", "").orEmpty()
+        set(value) = prefs.edit { putString("plate", value.trim()) }
+
+    var parkingAlertMinutes: Int
+        get() = prefs.getInt("parking_alert_min", 10)
+        set(value) = prefs.edit { putInt("parking_alert_min", value) }
+
+    var parkingHours: Int
+        get() = prefs.getInt("parking_hours", 1)
+        set(value) = prefs.edit { putInt("parking_hours", value) }
+
+    /** Zone codes used before, newest first. */
+    var recentZones: List<String>
+        get() = prefs.getString("recent_zones", "").orEmpty().split(",").filter { it.isNotBlank() }
+        set(value) = prefs.edit { putString("recent_zones", value.take(6).joinToString(",")) }
+
+    var activeParking: Parking?
+        get() = prefs.getString("parking", null)?.let { Parking.fromJson(it) }
+        set(value) = prefs.edit { if (value == null) remove("parking") else putString("parking", value.toJson()) }
+
+    // endregion
 
     private fun readLatLon(key: String): LatLon? {
         if (!prefs.contains("${key}_lat")) return null

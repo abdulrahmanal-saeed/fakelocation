@@ -127,4 +127,23 @@ object NavIcons {
         }
         return bitmap
     }
+
+    /** A numbered stop marker: white number on a blue dot with a white ring. */
+    fun numberDot(context: Context, number: Int, scale: Float = context.resources.displayMetrics.density): Bitmap {
+        val size = (26 * scale).toInt()
+        val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(bitmap)
+        val paint = Paint(Paint.ANTI_ALIAS_FLAG)
+        val c = size / 2f
+        paint.color = 0xFFFFFFFF.toInt()
+        canvas.drawCircle(c, c, c, paint)
+        paint.color = ContextCompat.getColor(context, R.color.nav_blue)
+        canvas.drawCircle(c, c, c - 2.5f * scale, paint)
+        paint.color = 0xFFFFFFFF.toInt()
+        paint.textAlign = Paint.Align.CENTER
+        paint.textSize = 13 * scale
+        paint.isFakeBoldText = true
+        canvas.drawText(number.toString(), c, c - (paint.descent() + paint.ascent()) / 2, paint)
+        return bitmap
+    }
 }

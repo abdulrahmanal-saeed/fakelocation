@@ -93,6 +93,47 @@
             </LinearLayout>
         </LinearLayout>
 
+        <TextView style="@style/SettingsSection" android:text="@string/settings_costs" />
+
+        <LinearLayout style="@style/SettingsCard">
+
+            <LinearLayout android:id="@+id/fuelTypeRow" style="@style/SettingsRow.Clickable">
+                <TextView style="@style/SettingsRowLabel" android:text="@string/settings_fuel_type" />
+                <TextView android:id="@+id/fuelTypeValue" style="@style/SettingsRowValue.Accent" />
+            </LinearLayout>
+
+            <View style="@style/Divider" />
+
+            <LinearLayout android:id="@+id/fuelPriceRow" style="@style/SettingsRow.Clickable">
+                <LinearLayout style="@style/SettingsRowText">
+                    <TextView style="@style/Text.Item" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/settings_fuel_price" />
+                    <TextView android:id="@+id/fuelPriceHint" style="@style/Text.Caption" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textSize="12sp" />
+                </LinearLayout>
+                <TextView android:id="@+id/fuelPriceValue" style="@style/SettingsRowValue.Accent" />
+            </LinearLayout>
+
+            <View style="@style/Divider" />
+
+            <LinearLayout android:id="@+id/consumptionRow" style="@style/SettingsRow.Clickable">
+                <TextView style="@style/SettingsRowLabel" android:text="@string/settings_consumption" />
+                <TextView android:id="@+id/consumptionValue" style="@style/SettingsRowValue.Accent" />
+            </LinearLayout>
+
+            <View style="@style/Divider" />
+
+            <LinearLayout android:id="@+id/plateRow" style="@style/SettingsRow.Clickable">
+                <TextView style="@style/SettingsRowLabel" android:text="@string/settings_plate" />
+                <TextView android:id="@+id/plateValue" style="@style/SettingsRowValue.Accent" />
+            </LinearLayout>
+
+            <View style="@style/Divider" />
+
+            <LinearLayout android:id="@+id/parkingAlertRow" style="@style/SettingsRow.Clickable">
+                <TextView style="@style/SettingsRowLabel" android:text="@string/settings_parking_alert" />
+                <TextView android:id="@+id/parkingAlertValue" style="@style/SettingsRowValue.Accent" />
+            </LinearLayout>
+        </LinearLayout>
+
         <TextView style="@style/SettingsSection" android:text="@string/google_section" />
 
         <LinearLayout style="@style/SettingsCard">

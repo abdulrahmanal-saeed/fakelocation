@@ -241,6 +241,7 @@ class MapFragment : Fragment(R.layout.fragment_map) {
     private fun setupControls() {
         binding.searchPill.setOnClickListener { main.openSearch() }
         binding.navigateButton.setOnClickListener { startActivity(NavigateActivity.intent(requireContext())) }
+        binding.parkingButton.setOnClickListener { startActivity(android.content.Intent(requireContext(), ParkingActivity::class.java)) }
         binding.myLocationButton.setOnClickListener {
             val trip = tripView
             if (tripShown && trip != null && !trip.follow) {

@@ -17,6 +17,10 @@ import com.abdulrahman.fakelocation.data.Place
 import com.abdulrahman.fakelocation.data.Prefs
 import com.abdulrahman.fakelocation.data.TravelMode
 import com.abdulrahman.fakelocation.data.distanceMeters
+import com.abdulrahman.fakelocation.drive.Fuel
+import com.abdulrahman.fakelocation.drive.TollGate
+import com.abdulrahman.fakelocation.drive.TollPass
+import com.abdulrahman.fakelocation.drive.Tolls
 import com.abdulrahman.fakelocation.mock.MockLocationService
 import com.abdulrahman.fakelocation.mock.MockState
 import com.abdulrahman.fakelocation.trip.TripTimeline
@@ -63,6 +67,17 @@ object NavSession {
         /** Metres to the start of a route that begins elsewhere (0 when not relevant). */
         val toStartMeters: Double = 0.0,
         val muted: Boolean = false,
+        /** Places to pass on the way, in order (the destination is [to]). */
+        val stops: List<Place> = emptyList(),
+        /** How many of [stops] are already behind us. */
+        val stopsReached: Int = 0,
+        val avoid: Avoid = Avoid(),
+        /** Salik / Darb gates on the route and their price at the time you'll pass. */
+        val tolls: List<TollPass> = emptyList(),
+        val fuelCostAed: Double = 0.0,
+        /** The next toll gate ahead while driving, and how far. */
+        val nextToll: TollPass? = null,
+        val tollMeters: Double? = null,
     ) {
         val navigating get() = status == Status.NAVIGATING
     }
@@ -80,6 +95,8 @@ object NavSession {
     private var lastFix: Location? = null
     private var offRouteCount = 0
     private var lastReroute = 0L
+    /** Stops already passed when the current route was made (it only contains the ones after). */
+    private var routeStopBase = 0
     private val spoken = HashSet<String>()
     private var tts: TextToSpeech? = null
     private var ttsReady = false
@@ -96,7 +113,8 @@ object NavSession {
 
     fun init(context: Context) {
         app = context.applicationContext
-        _state.update { it.copy(muted = Prefs(app).navMuted, real = Prefs(app).lastRealLocation) }
+        val prefs = Prefs(app)
+        _state.update { it.copy(muted = prefs.navMuted, real = prefs.lastRealLocation, avoid = Avoid(prefs.avoidTolls, prefs.avoidHighways)) }
     }
 
     // region Who is watching
@@ -135,7 +153,34 @@ object NavSession {
     fun swap() {
         val s = state.value
         val newTo = s.from ?: s.real?.let { Place(it, app.getString(R.string.nav_my_location)) } ?: return
-        _state.update { it.copy(from = s.to, to = newTo) }
+        _state.update { it.copy(from = s.to, to = newTo, stops = s.stops.reversed()) }
+        plan()
+    }
+
+    /** Adds a place to pass on the way; while navigating it becomes the next stop. */
+    fun addStop(place: Place) {
+        _state.update { s ->
+            if (s.to == null) return@update s.copy(to = place)
+            if (s.navigating) {
+                val list = s.stops.toMutableList().apply { add(s.stopsReached, place) }
+                s.copy(stops = list, from = null)
+            } else s.copy(stops = s.stops + place)
+        }
+        plan()
+    }
+
+    fun removeStop(index: Int) {
+        val s = state.value
+        if (index !in s.stops.indices || (s.navigating && index < s.stopsReached)) return
+        _state.update { it.copy(stops = it.stops.filterIndexed { i, _ -> i != index }, from = if (it.navigating) null else it.from) }
+        plan()
+    }
+
+    fun setAvoid(avoid: Avoid) {
+        if (avoid == state.value.avoid) return
+        Prefs(app).avoidTolls = avoid.tolls
+        Prefs(app).avoidHighways = avoid.highways
+        _state.update { it.copy(avoid = avoid) }
         plan()
     }
 
@@ -149,16 +194,19 @@ object NavSession {
         }
         routingJob?.cancel()
         _state.update { it.copy(status = if (it.navigating) Status.NAVIGATING else Status.ROUTING, rerouting = it.navigating) }
+        val base = if (s.navigating) s.stopsReached else 0
+        val via = s.stops.drop(base).map { it.position }
         routingJob = scope.launch {
-            runCatching { NavRouter.route(app, start, target.position, s.mode) }
-                .onSuccess { setRoute(it) }
+            runCatching { NavRouter.route(app, start, target.position, s.mode, via, s.avoid) }
+                .onSuccess { routeStopBase = base; setRoute(it) }
                 .onFailure { _state.update { st -> st.copy(status = if (st.navigating) Status.NAVIGATING else Status.ERROR, rerouting = false) } }
         }
     }
 
     fun start() {
         if (state.value.route == null) return
-        _state.update { it.copy(status = Status.NAVIGATING) }
+        routeStopBase = 0
+        _state.update { it.copy(status = Status.NAVIGATING, stopsReached = 0) }
         startListening()
         ContextCompat.startForegroundService(app, NavigationService.intent(app))
         speak(state.value.route?.steps?.firstOrNull()?.spoken.orEmpty())
@@ -179,7 +227,7 @@ object NavSession {
         routingJob?.cancel()
         roadInfoJob?.cancel()
         tracker = null
-        _state.update { State(muted = it.muted, real = it.real, mode = it.mode) }
+        _state.update { State(muted = it.muted, real = it.real, mode = it.mode, avoid = it.avoid) }
     }
 
     fun toggleMute() {
@@ -195,17 +243,29 @@ object NavSession {
         tracker = NavTracker(route)
         spoken.clear()
         offRouteCount = 0
+        val car = state.value.mode == TravelMode.CAR
+        val prefs = Prefs(app)
         _state.update {
             it.copy(route = route, roadInfo = null, progress = null, rerouting = false,
-                status = if (it.navigating) Status.NAVIGATING else Status.PREVIEW)
+                status = if (it.navigating) Status.NAVIGATING else Status.PREVIEW,
+                tolls = if (car) tollsOn(route, Tolls.GATES) else emptyList(),
+                fuelCostAed = if (car) Fuel.cost(route.distanceMeters, prefs.fuelConsumption, prefs.fuelPrice()) else 0.0)
         }
         roadInfoJob?.cancel()
         roadInfoJob = scope.launch {
             val info = runCatching { RoadInfoFetcher.fetch(route) }.getOrNull() ?: return@launch
-            if (state.value.route === route) _state.update { it.copy(roadInfo = info) }
+            if (state.value.route !== route) return@launch
+            val extra = Tolls.extraGates(info.gantries)
+            _state.update { it.copy(roadInfo = info, tolls = if (car && extra.isNotEmpty()) tollsOn(route, Tolls.GATES + extra) else it.tolls) }
         }
         lastFix?.let { onLocation(it) }
     }
+
+    private fun tollsOn(route: NavRoute, gates: List<TollGate>): List<TollPass> = Tolls.passes(
+        gates, System.currentTimeMillis(),
+        alongOf = { RoadInfoFetcher.alongOf(route, it, 25.0) },
+        secondsTo = { along -> if (route.length > 0) route.durationSeconds * along / route.length else 0.0 },
+    )
 
     // region Real location
 
@@ -261,10 +321,16 @@ object NavSession {
         if (over && !s.speeding && s.navigating && !s.muted) beeper?.startTone(ToneGenerator.TONE_PROP_BEEP2, 400)
         val camera = progress?.let { p -> s.roadInfo?.nextCamera(p.alongMeters)?.takeIf { it in 0.0..600.0 && s.mode == TravelMode.CAR } }
         val toStart = if (route != null && s.from != null && (progress?.alongMeters ?: 0.0) < 1) distanceMeters(here, route.points.first()) else 0.0
+        val toll = progress?.let { p -> s.tolls.firstOrNull { it.alongMeters > p.alongMeters - 10 } }
+        val tollMeters = toll?.let { it.alongMeters - progress.alongMeters }?.takeIf { it < 1500 }
+        val reached = if (route != null && progress != null && s.navigating) {
+            routeStopBase + route.stopsAlong.count { it <= progress.alongMeters + 30 }
+        } else s.stopsReached
         _state.update {
             it.copy(real = here, bearing = bearing, speedKmh = speed, limitKmh = limit, progress = progress,
                 speeding = if (over) true else if (speed <= limit || limit == 0) false else it.speeding,
-                cameraMeters = camera, toStartMeters = if (toStart > NavTracker.OFF_ROUTE_METERS) toStart else 0.0)
+                cameraMeters = camera, toStartMeters = if (toStart > NavTracker.OFF_ROUTE_METERS) toStart else 0.0,
+                nextToll = toll?.takeIf { tollMeters != null }, tollMeters = tollMeters, stopsReached = reached)
         }
         if (s.navigating && route != null && progress != null) guide(route, progress, camera, limit)
     }
@@ -281,6 +347,14 @@ object NavSession {
         }
         if (camera != null && camera < 400 && spoken.add("camera:${(p.alongMeters + camera).roundToInt() / 50}")) {
             speak(app.getString(R.string.nav_camera_ahead) + if (limit > 0) ". " + app.getString(R.string.nav_speed_limit_voice, limit) else "")
+        }
+        val toll = state.value.nextToll
+        val tollMeters = state.value.tollMeters
+        if (toll != null && tollMeters != null && tollMeters < 600 && spoken.add("toll:${toll.gate.name}:${toll.alongMeters.roundToInt() / 100}")) {
+            speak(
+                if (toll.priceAed > 0) app.getString(R.string.toll_voice, toll.gate.system.label, toll.priceAed.roundToInt())
+                else app.getString(R.string.toll_voice_free, toll.gate.system.label)
+            )
         }
         if (p.arrived) {
             if (spoken.add("arrived")) speak(app.getString(R.string.nav_arrived))

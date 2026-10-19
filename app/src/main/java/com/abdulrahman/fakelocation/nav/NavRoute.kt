@@ -31,12 +31,17 @@ data class NavRoute(
     val distanceMeters: Double,
     val durationSeconds: Double,
     val trafficAware: Boolean = false,
+    /** Point index where each in-between stop is reached (empty for a plain A → B route). */
+    val stopPoints: List<Int> = emptyList(),
 ) {
     /** Distance along the route at each point. */
     val along: DoubleArray = DoubleArray(points.size).also {
         for (i in 1 until points.size) it[i] = it[i - 1] + distanceMeters(points[i - 1], points[i])
     }
     val length get() = along.lastOrNull() ?: 0.0
+
+    /** Distance along the route of each in-between stop. */
+    val stopsAlong: List<Double> get() = stopPoints.map { along[it.coerceIn(0, points.lastIndex)] }
 }
 
 /** Where the real position is relative to the route. */
