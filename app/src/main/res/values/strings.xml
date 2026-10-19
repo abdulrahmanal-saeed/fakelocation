@@ -1,0 +1,22 @@
+<resources>
+    <string name="app_name">Fake Location</string>
+    <string name="status_idle">Fake location is off</string>
+    <string name="status_fixed">Fake location: %1$.5f, %2$.5f</string>
+    <string name="teleport_title">Set fake location here?</string>
+    <string name="teleport_action">Teleport here</string>
+    <string name="cancel">Cancel</string>
+    <string name="stop">Stop</string>
+    <string name="my_location">My location</string>
+    <string name="real_location_unknown">Real location not known yet. Turn off the fake location once so the app can read your GPS.</string>
+    <string name="real_location_cached">Showing your last real location (fake location is on)</string>
+    <string name="mock_setup_title">One-time setup needed</string>
+    <string name="mock_setup_message">Android only lets one app fake the location.\n\n1. Open Settings → About phone → Software information and tap \"Build number\" 7 times to enable Developer options.\n2. Open Developer options → \"Select mock location app\" and choose Fake Location.\n3. Come back and try again.</string>
+    <string name="open_developer_options">Open Developer options</string>
+    <string name="developer_options_disabled">Developer options are off. Enable them first (tap Build number 7 times).</string>
+    <string name="permission_needed">Location permission is required.</string>
+    <string name="notification_channel">Fake location status</string>
+    <string name="notification_title">Fake location active</string>
+    <string name="setup_guide">Setup guide</string>
+    <string name="search_hint">Search place</string>
+    <string name="search_failed">No results found</string>
+</resources>

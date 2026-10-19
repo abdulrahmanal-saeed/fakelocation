@@ -1,0 +1,6 @@
+<resources>
+    <color name="brand">#1E3A8A</color>
+    <color name="brand_accent">#2563EB</color>
+    <color name="fake_pin">#DC2626</color>
+    <color name="real_dot">#2563EB</color>
+</resources>

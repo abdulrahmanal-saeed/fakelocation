@@ -1,0 +1,48 @@
+name: Build APK
+
+on:
+  push:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: build-apk
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Build
+        run: ./gradlew assembleDebug --console=plain
+
+      - name: Rename APK
+        run: cp app/build/outputs/apk/debug/app-debug.apk FakeLocation.apk
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: FakeLocation-apk
+          path: FakeLocation.apk
+
+      # Always-current download link: Releases → "Latest build"
+      - name: Publish "Latest build" release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete latest-build --yes --cleanup-tag || true
+          gh release create latest-build FakeLocation.apk \
+            --prerelease \
+            --target "$GITHUB_SHA" \
+            --title "Latest build" \
+            --notes "Built from ${GITHUB_REF_NAME} @ ${GITHUB_SHA::7}. Download FakeLocation.apk on your phone and install it."

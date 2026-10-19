@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item>
+        <shape android:shape="oval">
+            <solid android:color="@color/brand" />
+            <size android:width="108dp" android:height="108dp" />
+        </shape>
+    </item>
+    <item android:drawable="@drawable/ic_pin_white" android:gravity="center" android:width="60dp" android:height="60dp" />
+</layer-list>
