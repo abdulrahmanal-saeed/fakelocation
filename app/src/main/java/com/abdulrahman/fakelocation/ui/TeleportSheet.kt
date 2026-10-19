@@ -19,7 +19,7 @@ import com.abdulrahman.fakelocation.data.distanceMeters
 import com.abdulrahman.fakelocation.data.format
 import com.abdulrahman.fakelocation.data.formatDistance
 import com.abdulrahman.fakelocation.databinding.SheetTeleportBinding
-import com.abdulrahman.fakelocation.geo.Nominatim
+import com.abdulrahman.fakelocation.geo.PlaceSearch
 import com.google.android.material.bottomsheet.BottomSheetDialogFragment
 import kotlinx.coroutines.launch
 
@@ -90,7 +90,7 @@ class TeleportSheet : BottomSheetDialogFragment() {
 
     private fun lookUpAddress() {
         viewLifecycleOwner.lifecycleScope.launch {
-            val found = runCatching { Nominatim.reverse(position) }.getOrNull()
+            val found = runCatching { PlaceSearch.reverse(requireContext(), position) }.getOrNull()
             if (name == null) name = found?.name
             if (address == null) address = found?.address
             if (_binding != null) renderText(lookupDone = true)

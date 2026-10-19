@@ -21,7 +21,7 @@ import com.abdulrahman.fakelocation.data.formatDistance
 import com.abdulrahman.fakelocation.databinding.ActivitySearchBinding
 import com.abdulrahman.fakelocation.geo.LocationText
 import com.abdulrahman.fakelocation.geo.MapsLinkResolver
-import com.abdulrahman.fakelocation.geo.Nominatim
+import com.abdulrahman.fakelocation.geo.PlaceSearch
 import com.abdulrahman.fakelocation.mock.MockState
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -117,7 +117,7 @@ class SearchActivity : AppCompatActivity() {
             if (!immediate && !isLink) delay(SEARCH_DELAY_MS)
             showStatus(if (isLink) R.string.reading_link else R.string.searching)
             val results = runCatching {
-                if (isLink) listOfNotNull(MapsLinkResolver.resolve(query)) else Nominatim.search(query, nearPoint())
+                if (isLink) listOfNotNull(MapsLinkResolver.resolve(query)) else PlaceSearch.search(this@SearchActivity, query, nearPoint())
             }
             results.onSuccess { places ->
                 if (places.isEmpty()) showStatus(if (isLink) R.string.link_failed else R.string.no_results) else showResults(places)

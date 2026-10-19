@@ -21,6 +21,15 @@ notification. Scheduled trips ("start at" / "arrive by") start by themselves.
 status, a live countdown and buttons, and offline maps: areas you've viewed stay on the phone (limit and clear in
 Settings), with an "offline" banner on the map. Saved routes run without internet.
 
+**v1.1.0:** Google Maps as an option. Paste your own Google API key in Settings → Google Maps, then choose
+Google for the map (normal, satellite, satellite + roads), for routes (with live traffic) and/or for search.
+"Test key" checks each Google API and shows Google's message if one isn't enabled. Anything Google can't do
+falls back to the free OpenStreetMap services.
+
+Google Cloud setup: enable Map Tiles API, Routes API, Places API (New) and Geocoding API, create an API key,
+and (recommended) restrict it to Android apps with package `com.abdulrahman.fakelocation` and SHA-1
+`26:3F:24:75:BE:D1:E6:B5:02:49:80:07:17:F1:F9:B2:EE:25:3F:FD` (the app's signing key in `keystore/`).
+
 See [PLAN.md](PLAN.md) for the full feature list.
 
 ## Install

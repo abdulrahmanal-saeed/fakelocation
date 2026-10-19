@@ -132,6 +132,7 @@ class MapFragment : Fragment(R.layout.fragment_map) {
 
     override fun onResume() {
         super.onResume()
+        applyMapStyle()
         binding.map.onResume()
         updateRealLocationTracking()
     }
@@ -144,6 +145,7 @@ class MapFragment : Fragment(R.layout.fragment_map) {
 
     override fun onHiddenChanged(hidden: Boolean) {
         super.onHiddenChanged(hidden)
+        if (!hidden) applyMapStyle()
         if (hidden) stopRealLocationTracking() else updateRealLocationTracking()
     }
 
@@ -189,8 +191,17 @@ class MapFragment : Fragment(R.layout.fragment_map) {
         }
     }
 
+    private var appliedProvider: com.abdulrahman.fakelocation.data.MapProvider? = null
+
+    private fun applyMapStyle() {
+        val prefs = Prefs(requireContext())
+        val wanted = if (prefs.hasGoogleKey) prefs.mapProvider else com.abdulrahman.fakelocation.data.MapProvider.OSM
+        if (wanted == appliedProvider) return
+        appliedProvider = MapStyle.apply(binding.map, viewLifecycleOwner.lifecycleScope, binding.mapCredit)
+    }
+
     private fun setupMap() = with(binding.map) {
-        setTileSource(TileSourceFactory.MAPNIK)
+        applyMapStyle()
         setMultiTouchControls(true)
         zoomController.setVisibility(CustomZoomButtonsController.Visibility.NEVER)
         isTilesScaledToDpi = true

@@ -16,6 +16,8 @@ data class RoutePath(
     val points: List<LatLon>,
     val segmentSeconds: List<Double>,
     val legs: List<Leg>,
+    /** True when the times already include live traffic (Google), so the traffic setting is not added again. */
+    val trafficAware: Boolean = false,
 ) {
     val distanceMeters get() = legs.sumOf { it.distanceMeters }
     val durationSeconds get() = legs.sumOf { it.durationSeconds }
@@ -41,7 +43,7 @@ data class Route(
 ) {
     /** The path with the traffic slowdown applied (cars only). */
     fun travelPath(trafficPercent: Int): RoutePath? =
-        if (mode == TravelMode.CAR) path?.slower(1 + trafficPercent / 100.0) else path
+        if (mode == TravelMode.CAR && path?.trafficAware == false) path.slower(1 + trafficPercent / 100.0) else path
 
     /** Waiting time that counts towards the trip: every stop except the last one. */
     val waitMinutes get() = stops.dropLast(1).sumOf { it.waitMinutes }

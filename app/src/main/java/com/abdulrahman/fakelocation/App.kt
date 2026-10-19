@@ -10,6 +10,8 @@ class App : Application() {
         Configuration.getInstance().apply {
             load(this@App, getSharedPreferences("osmdroid", MODE_PRIVATE))
             userAgentValue = packageName
+            // Lets Google tiles work with a key restricted to this app.
+            additionalHttpRequestProperties.putAll(com.abdulrahman.fakelocation.geo.google.GoogleApi.appHeaders(this@App))
         }
         applyMapCacheLimit(Prefs(this).mapCacheMb)
     }

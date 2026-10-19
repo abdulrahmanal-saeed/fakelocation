@@ -69,6 +69,30 @@ class Prefs(context: Context) {
         get() = prefs.getInt("map_cache_mb", 1000)
         set(value) = prefs.edit { putInt("map_cache_mb", value) }
 
+    // Google Maps (optional). The key is typed in by the user in Settings.
+    var googleApiKey: String
+        get() = prefs.getString("google_key", "").orEmpty()
+        set(value) = prefs.edit { putString("google_key", value.trim()) }
+
+    val hasGoogleKey get() = googleApiKey.isNotBlank()
+
+    var mapProvider: MapProvider
+        get() = MapProvider.entries.firstOrNull { it.name == prefs.getString("map_provider", null) } ?: MapProvider.OSM
+        set(value) = prefs.edit { putString("map_provider", value.name) }
+
+    var useGoogleRoutes: Boolean
+        get() = prefs.getBoolean("google_routes", false)
+        set(value) = prefs.edit { putBoolean("google_routes", value) }
+
+    var useGoogleSearch: Boolean
+        get() = prefs.getBoolean("google_search", false)
+        set(value) = prefs.edit { putBoolean("google_search", value) }
+
+    /** Cached Google map tile session: "<provider>|<session>|<expiry millis>". */
+    var googleTileSession: String?
+        get() = prefs.getString("google_tile_session", null)
+        set(value) = prefs.edit { if (value == null) remove("google_tile_session") else putString("google_tile_session", value) }
+
     /** The running or scheduled trip, so the service can pick it up again after a restart. */
     var activeTrip: String?
         get() = prefs.getString("trip", null)

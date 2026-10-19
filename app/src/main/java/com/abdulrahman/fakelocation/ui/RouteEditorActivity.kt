@@ -39,7 +39,7 @@ import com.abdulrahman.fakelocation.data.formatDuration
 import com.abdulrahman.fakelocation.databinding.ActivityRouteEditorBinding
 import com.abdulrahman.fakelocation.databinding.ItemAddStopBinding
 import com.abdulrahman.fakelocation.databinding.ItemStopBinding
-import com.abdulrahman.fakelocation.geo.Nominatim
+import com.abdulrahman.fakelocation.geo.PlaceSearch
 import com.abdulrahman.fakelocation.geo.Router
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.snackbar.Snackbar
@@ -130,7 +130,7 @@ class RouteEditorActivity : AppCompatActivity() {
     }
 
     private fun setupMap() = with(binding.map) {
-        setTileSource(TileSourceFactory.MAPNIK)
+        MapStyle.apply(this, lifecycleScope)
         setMultiTouchControls(true)
         zoomController.setVisibility(CustomZoomButtonsController.Visibility.NEVER)
         isTilesScaledToDpi = true
@@ -230,7 +230,7 @@ class RouteEditorActivity : AppCompatActivity() {
 
     private fun lookUpName(stop: Stop) {
         lifecycleScope.launch {
-            val name = runCatching { Nominatim.reverse(stop.position)?.name }.getOrNull() ?: stop.position.format(4)
+            val name = runCatching { PlaceSearch.reverse(this@RouteEditorActivity, stop.position)?.name }.getOrNull() ?: stop.position.format(4)
             route = route.copy(stops = route.stops.map { if (it.id == stop.id) it.copy(name = name) else it })
             render()
             persist()
@@ -258,7 +258,7 @@ class RouteEditorActivity : AppCompatActivity() {
         routingJob = lifecycleScope.launch {
             if (!immediate) delay(350)
             renderSummary(loading = true)
-            val result = runCatching { Router.route(wanted, mode) }
+            val result = runCatching { Router.route(this@RouteEditorActivity, wanted, mode) }
             if (route.stops.map { it.position } != wanted || route.mode != mode) return@launch
             result.onSuccess { path ->
                 route = route.copy(path = path)
@@ -293,7 +293,7 @@ class RouteEditorActivity : AppCompatActivity() {
                 formatDuration((path.durationSeconds * 1000).toLong()),
                 getString(if (route.mode == TravelMode.CAR) R.string.driving else R.string.walking),
                 formatDuration(route.waitMinutes * 60_000L).takeIf { route.waitMinutes > 0 } ?: "0m",
-            )
+            ) + if (path.trafficAware) " · " + getString(R.string.route_google_traffic) else ""
             else -> getString(R.string.route_calculating)
         }
         binding.nextButton.isEnabled = path != null && route.stops.size >= 2 && !loading

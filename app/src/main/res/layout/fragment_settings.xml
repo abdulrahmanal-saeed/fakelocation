@@ -93,16 +93,57 @@
             </LinearLayout>
         </LinearLayout>
 
-        <TextView style="@style/SettingsSection" android:text="@string/map_section" />
+        <TextView style="@style/SettingsSection" android:text="@string/google_section" />
 
         <LinearLayout style="@style/SettingsCard">
 
-            <LinearLayout style="@style/SettingsRow">
-                <TextView style="@style/SettingsRowLabel" android:text="@string/map_provider" />
-                <TextView style="@style/SettingsRowValue" android:text="@string/map_provider_osm" />
+            <LinearLayout android:id="@+id/googleKeyRow" style="@style/SettingsRow.Clickable">
+                <LinearLayout style="@style/SettingsRowText">
+                    <TextView style="@style/Text.Item" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/google_key" />
+                    <TextView android:id="@+id/googleKeyValue" style="@style/Text.Caption" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textSize="12sp" />
+                </LinearLayout>
+                <ImageView style="@style/SettingsChevron" />
             </LinearLayout>
 
             <View style="@style/Divider" />
+
+            <LinearLayout android:id="@+id/googleMapRow" style="@style/SettingsRow.Clickable">
+                <TextView style="@style/SettingsRowLabel" android:text="@string/google_map_style" />
+                <TextView android:id="@+id/googleMapValue" style="@style/SettingsRowValue.Accent" />
+            </LinearLayout>
+
+            <View style="@style/Divider" />
+
+            <LinearLayout android:id="@+id/googleRoutesRow" style="@style/SettingsRow.Clickable">
+                <TextView style="@style/SettingsRowLabel" android:text="@string/google_routes" />
+                <TextView android:id="@+id/googleRoutesValue" style="@style/SettingsRowValue.Accent" />
+            </LinearLayout>
+
+            <View style="@style/Divider" />
+
+            <LinearLayout android:id="@+id/googleSearchRow" style="@style/SettingsRow.Clickable">
+                <TextView style="@style/SettingsRowLabel" android:text="@string/google_search" />
+                <TextView android:id="@+id/googleSearchValue" style="@style/SettingsRowValue.Accent" />
+            </LinearLayout>
+
+            <View style="@style/Divider" />
+
+            <LinearLayout android:id="@+id/googleTestRow" style="@style/SettingsRow.Clickable">
+                <TextView style="@style/SettingsRowLabel" android:text="@string/google_test" />
+                <ImageView style="@style/SettingsChevron" />
+            </LinearLayout>
+
+            <View style="@style/Divider" />
+
+            <LinearLayout android:id="@+id/googleHowRow" style="@style/SettingsRow.Clickable">
+                <TextView style="@style/SettingsRowLabel" android:text="@string/google_how" />
+                <ImageView style="@style/SettingsChevron" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <TextView style="@style/SettingsSection" android:text="@string/map_section" />
+
+        <LinearLayout style="@style/SettingsCard">
 
             <LinearLayout android:id="@+id/offlineRow" style="@style/SettingsRow.Clickable">
                 <LinearLayout style="@style/SettingsRowText">

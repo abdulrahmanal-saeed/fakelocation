@@ -100,6 +100,7 @@ object RouteJson {
         return JSONObject()
             .put("points", coords)
             .put("seconds", JSONArray(path.segmentSeconds.map { round(it, 2) }))
+            .put("traffic", path.trafficAware)
             .put("legs", JSONArray(path.legs.map {
                 JSONObject().put("distance", it.distanceMeters).put("duration", it.durationSeconds)
                     .put("first", it.firstPoint).put("last", it.lastPoint)
@@ -117,6 +118,7 @@ object RouteJson {
                 val l = legs.getJSONObject(it)
                 Leg(l.getDouble("distance"), l.getDouble("duration"), l.getInt("first"), l.getInt("last"))
             },
+            trafficAware = json.optBoolean("traffic", false),
         )
     }
 

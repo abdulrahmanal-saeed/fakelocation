@@ -24,6 +24,7 @@ class SettingsFragment : Fragment(R.layout.fragment_settings) {
     private var _binding: FragmentSettingsBinding? = null
     private val binding get() = _binding!!
     private lateinit var prefs: Prefs
+    private var google: GoogleSettings? = null
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         _binding = FragmentSettingsBinding.bind(view)
@@ -59,6 +60,7 @@ class SettingsFragment : Fragment(R.layout.fragment_settings) {
         binding.fullScreenRow.setOnClickListener { openFullScreenSettings() }
         binding.testAlarmRow.setOnClickListener { testAlarm() }
         binding.setupRow.setOnClickListener { (requireActivity() as MainActivity).openSetup() }
+        google = GoogleSettings(this, binding) { }.also { it.setUp() }
         binding.offlineRow.setOnClickListener {
             val options = listOf(300, 600, 1000, 2000)
             MaterialAlertDialogBuilder(requireContext())
@@ -99,6 +101,7 @@ class SettingsFragment : Fragment(R.layout.fragment_settings) {
 
     private fun render() {
         val b = _binding ?: return
+        google?.render()
         b.arriveValue.text = minutes(prefs.alertBeforeArriveMinutes)
         b.leaveValue.text = minutes(prefs.alertBeforeLeaveMinutes)
         b.trafficValue.text = trafficLabel(prefs.trafficPercent)

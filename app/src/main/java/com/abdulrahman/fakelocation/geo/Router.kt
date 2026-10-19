@@ -1,6 +1,11 @@
 package com.abdulrahman.fakelocation.geo
 
+import android.content.Context
+import android.util.Log
 import com.abdulrahman.fakelocation.data.LatLon
+import com.abdulrahman.fakelocation.data.Prefs
+import com.abdulrahman.fakelocation.geo.google.GoogleApi
+import com.abdulrahman.fakelocation.geo.google.GoogleRoutes
 import com.abdulrahman.fakelocation.data.Leg
 import com.abdulrahman.fakelocation.data.RoutePath
 import com.abdulrahman.fakelocation.data.TravelMode
@@ -20,6 +25,19 @@ object Router {
 
     private const val FOSSGIS = "https://routing.openstreetmap.de"
     private const val OSRM_DEMO = "https://router.project-osrm.org"
+
+    /** Google (with live traffic) when chosen in Settings, otherwise, or if Google fails, the free OSRM servers. */
+    suspend fun route(context: Context, stops: List<LatLon>, mode: TravelMode): RoutePath = withContext(Dispatchers.IO) {
+        val prefs = Prefs(context)
+        if (prefs.useGoogleRoutes && prefs.hasGoogleKey) {
+            try {
+                return@withContext GoogleRoutes.route(GoogleApi(context), stops, mode)
+            } catch (e: Exception) {
+                Log.w("Router", "Google routing failed, using OSRM", e)
+            }
+        }
+        route(stops, mode)
+    }
 
     suspend fun route(stops: List<LatLon>, mode: TravelMode): RoutePath = withContext(Dispatchers.IO) {
         require(stops.size >= 2) { "A route needs at least two stops" }

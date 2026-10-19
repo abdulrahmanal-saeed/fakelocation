@@ -17,3 +17,8 @@ data class HistoryEntry(
 
 /** The fake location currently being sent to the phone. */
 data class FakeSession(val position: LatLon, val name: String, val startedAt: Long)
+
+enum class MapProvider { OSM, GOOGLE_ROADMAP, GOOGLE_SATELLITE, GOOGLE_HYBRID;
+
+    val isGoogle get() = this != OSM
+}
