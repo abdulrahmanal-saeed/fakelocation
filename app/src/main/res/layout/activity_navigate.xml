@@ -199,84 +199,166 @@
             </HorizontalScrollView>
         </LinearLayout>
 
-        <!-- Driving: next instruction -->
+        <!-- Driving: next instruction (compact, like Yango) and the speed signs -->
         <LinearLayout
-            android:id="@+id/instructionCard"
+            android:id="@+id/driveTop"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:background="@drawable/bg_round"
-            android:backgroundTint="@color/nav_blue"
-            android:elevation="8dp"
-            android:orientation="vertical"
-            android:paddingHorizontal="16dp"
-            android:paddingVertical="14dp"
+            android:orientation="horizontal"
             android:visibility="gone"
             tools:visibility="visible">
 
             <LinearLayout
-                android:id="@+id/lanesRow"
-                android:layout_width="wrap_content"
-                android:layout_height="34dp"
-                android:layout_marginBottom="8dp"
-                android:background="@drawable/bg_round"
-                android:backgroundTint="#33FFFFFF"
-                android:gravity="center_vertical"
-                android:orientation="horizontal"
-                android:paddingHorizontal="8dp"
-                android:visibility="gone"
-                tools:visibility="visible" />
-
-            <LinearLayout
-                android:layout_width="match_parent"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:gravity="center_vertical"
-                android:orientation="horizontal">
-
-                <ImageView
-                    android:id="@+id/maneuverIcon"
-                    android:layout_width="52dp"
-                    android:layout_height="52dp"
-                    android:importantForAccessibility="no"
-                    android:src="@drawable/ic_m_left"
-                    app:tint="@color/surface" />
+                android:layout_weight="1"
+                android:orientation="vertical">
 
                 <LinearLayout
-                    android:layout_width="0dp"
+                    android:id="@+id/instructionCard"
+                    android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginStart="14dp"
-                    android:layout_weight="1"
-                    android:orientation="vertical">
+                    android:background="@drawable/bg_round"
+                    android:backgroundTint="@color/nav_blue"
+                    android:elevation="8dp"
+                    android:minWidth="150dp"
+                    android:orientation="vertical"
+                    android:paddingStart="12dp"
+                    android:paddingTop="8dp"
+                    android:paddingEnd="16dp"
+                    android:paddingBottom="10dp">
 
-                    <TextView
-                        android:id="@+id/maneuverDistance"
-                        style="@style/Text.Heading"
+                    <LinearLayout
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:textColor="@color/surface"
-                        tools:text="300 m" />
+                        android:gravity="center_vertical"
+                        android:orientation="horizontal">
+
+                        <ImageView
+                            android:id="@+id/maneuverIcon"
+                            android:layout_width="34dp"
+                            android:layout_height="34dp"
+                            android:importantForAccessibility="no"
+                            android:src="@drawable/ic_m_right"
+                            app:tint="@color/surface" />
+
+                        <TextView
+                            android:id="@+id/maneuverDistance"
+                            style="@style/Text.Heading"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:layout_marginStart="8dp"
+                            android:textColor="@color/surface"
+                            android:textSize="30sp"
+                            tools:text="400 m" />
+                    </LinearLayout>
 
                     <TextView
                         android:id="@+id/maneuverText"
                         style="@style/Text.Item"
-                        android:layout_width="match_parent"
+                        android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:maxLines="2"
+                        android:ellipsize="end"
+                        android:maxWidth="220dp"
+                        android:maxLines="1"
                         android:textColor="@color/surface"
-                        android:textSize="17sp"
-                        tools:text="Turn left onto 26th of July St" />
+                        android:textSize="16sp"
+                        tools:text="Al Hudaiba St" />
                 </LinearLayout>
+
+                <TextView
+                    android:id="@+id/thenText"
+                    style="@style/Text.Caption"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:background="@drawable/bg_pill"
+                    android:backgroundTint="@color/ink"
+                    android:drawablePadding="6dp"
+                    android:elevation="6dp"
+                    android:gravity="center_vertical"
+                    android:paddingHorizontal="10dp"
+                    android:paddingVertical="4dp"
+                    android:text="@string/nav_then_short"
+                    android:textColor="@color/surface"
+                    android:textSize="13sp"
+                    android:visibility="gone"
+                    tools:visibility="visible" />
             </LinearLayout>
 
-            <TextView
-                android:id="@+id/thenText"
-                style="@style/Text.Caption"
-                android:layout_width="match_parent"
+            <LinearLayout
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="8dp"
-                android:textColor="#DBE7FF"
-                android:visibility="gone"
-                tools:text="Then: Turn right"
-                tools:visibility="visible" />
+                android:layout_marginStart="8dp"
+                android:gravity="end"
+                android:orientation="vertical">
+
+                <LinearLayout
+                    android:id="@+id/speedRow"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="end"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal"
+                    android:visibility="gone"
+                    tools:visibility="visible">
+
+                    <TextView
+                        android:id="@+id/mySpeed"
+                        style="@style/SpeedSign"
+                        android:background="@drawable/speed_bg"
+                        android:contentDescription="@string/nav_my_speed"
+                        tools:text="55" />
+
+                    <TextView
+                        android:id="@+id/speedLimit"
+                        style="@style/SpeedSign"
+                        android:layout_marginStart="8dp"
+                        android:background="@drawable/speed_limit_bg"
+                        android:contentDescription="@string/nav_speed_limit"
+                        tools:text="60" />
+                </LinearLayout>
+
+                <TextView
+                    android:id="@+id/cameraChip"
+                    style="@style/Text.Item"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="end"
+                    android:layout_marginTop="8dp"
+                    android:background="@drawable/bg_round"
+                    android:drawablePadding="6dp"
+                    android:elevation="4dp"
+                    android:gravity="center_vertical"
+                    android:paddingHorizontal="12dp"
+                    android:paddingVertical="8dp"
+                    android:textSize="15sp"
+                    android:visibility="gone"
+                    app:drawableStartCompat="@drawable/ic_camera"
+                    app:drawableTint="@color/limit_red"
+                    tools:text="30 m"
+                    tools:visibility="visible" />
+
+                <TextView
+                    android:id="@+id/tollChip"
+                    style="@style/Text.Item"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="end"
+                    android:layout_marginTop="8dp"
+                    android:background="@drawable/bg_round"
+                    android:drawablePadding="6dp"
+                    android:elevation="4dp"
+                    android:gravity="center_vertical"
+                    android:paddingHorizontal="12dp"
+                    android:paddingVertical="8dp"
+                    android:textSize="15sp"
+                    android:visibility="gone"
+                    app:drawableStartCompat="@drawable/ic_toll"
+                    app:drawableTint="@color/nav_blue"
+                    tools:text="Salik · AED 6 · 400 m"
+                    tools:visibility="visible" />
+            </LinearLayout>
         </LinearLayout>
 
         <TextView
@@ -312,72 +394,6 @@
             tools:text="Fake location still on for other apps · Zamalek"
             tools:visibility="visible" />
 
-        <LinearLayout
-            android:id="@+id/speedRow"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_gravity="end"
-            android:layout_marginTop="10dp"
-            android:gravity="center_vertical"
-            android:orientation="horizontal"
-            android:visibility="gone"
-            tools:visibility="visible">
-
-            <TextView
-                android:id="@+id/mySpeed"
-                style="@style/SpeedSign"
-                android:background="@drawable/speed_bg"
-                android:contentDescription="@string/nav_my_speed"
-                tools:text="55" />
-
-            <TextView
-                android:id="@+id/speedLimit"
-                style="@style/SpeedSign"
-                android:layout_marginStart="8dp"
-                android:background="@drawable/speed_limit_bg"
-                android:contentDescription="@string/nav_speed_limit"
-                tools:text="60" />
-        </LinearLayout>
-
-        <TextView
-            android:id="@+id/cameraChip"
-            style="@style/Text.Item"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_gravity="end"
-            android:layout_marginTop="8dp"
-            android:background="@drawable/bg_round"
-            android:drawablePadding="6dp"
-            android:elevation="4dp"
-            android:gravity="center_vertical"
-            android:paddingHorizontal="12dp"
-            android:paddingVertical="8dp"
-            android:textSize="15sp"
-            android:visibility="gone"
-            app:drawableStartCompat="@drawable/ic_camera"
-            app:drawableTint="@color/limit_red"
-            tools:text="30 m"
-            tools:visibility="visible" />
-
-        <TextView
-            android:id="@+id/tollChip"
-            style="@style/Text.Item"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_gravity="end"
-            android:layout_marginTop="8dp"
-            android:background="@drawable/bg_round"
-            android:drawablePadding="6dp"
-            android:elevation="4dp"
-            android:gravity="center_vertical"
-            android:paddingHorizontal="12dp"
-            android:paddingVertical="8dp"
-            android:textSize="15sp"
-            android:visibility="gone"
-            app:drawableStartCompat="@drawable/ic_toll"
-            app:drawableTint="@color/nav_blue"
-            tools:text="Salik · AED 6 · 400 m"
-            tools:visibility="visible" />
     </LinearLayout>
 
     <com.google.android.material.button.MaterialButton
@@ -528,15 +544,11 @@
                 app:iconSize="18dp" />
         </LinearLayout>
 
-        <ProgressBar
-            android:id="@+id/driveProgress"
-            style="?android:attr/progressBarStyleHorizontal"
+        <com.abdulrahman.fakelocation.ui.TrafficBar
+            android:id="@+id/trafficBar"
             android:layout_width="match_parent"
-            android:layout_height="6dp"
-            android:layout_marginTop="10dp"
-            android:max="1000"
-            android:progressBackgroundTint="@color/line"
-            android:progressDrawable="@drawable/progress_green" />
+            android:layout_height="18dp"
+            android:layout_marginTop="6dp" />
     </LinearLayout>
 
     <LinearLayout

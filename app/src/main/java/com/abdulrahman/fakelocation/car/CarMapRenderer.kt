@@ -24,6 +24,8 @@ import com.abdulrahman.fakelocation.data.TravelMode
 import com.abdulrahman.fakelocation.geo.google.GoogleTiles
 import com.abdulrahman.fakelocation.nav.NavIcons
 import com.abdulrahman.fakelocation.nav.NavSession
+import com.abdulrahman.fakelocation.nav.Traffic
+import com.abdulrahman.fakelocation.trip.TripTimeline
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -152,7 +154,7 @@ class CarMapRenderer(private val carContext: CarContext, private val owner: Life
             navigating && real != null -> {
                 center = state.progress?.takeIf { it.offRouteMeters < 25 }?.snapped ?: real
                 zoom = (if (state.mode == TravelMode.CAR) 17.0 else 18.0) + zoomOffset
-                rotation = -state.bearing
+                rotation = -heading(state)
                 anchorY = area.top + area.height() * 0.68f
             }
             route != null -> {
@@ -212,19 +214,21 @@ class CarMapRenderer(private val carContext: CarContext, private val owner: Life
             }
         }
 
-        // Route: dark edge, green line, grey for the part already driven.
+        // Route: only the road still ahead (dark edge, green line), with yellow / red where traffic is slow.
         if (route != null) {
+            val from = state.progress?.takeIf { navigating && it.offRouteMeters < 40 }?.alongMeters ?: 0.0
+            val ahead = if (from > 0) route.slice(from, route.length) else route.points
             path.reset()
-            route.points.forEachIndexed { i, p -> if (i == 0) path.moveTo(sx(p), sy(p)) else path.lineTo(sx(p), sy(p)) }
+            ahead.forEachIndexed { i, p -> if (i == 0) path.moveTo(sx(p), sy(p)) else path.lineTo(sx(p), sy(p)) }
             stroke(ContextCompat.getColor(carContext, R.color.route_green_dark), 13 * scale)
             canvas.drawPath(path, paint)
             stroke(ContextCompat.getColor(carContext, R.color.route_green), 9 * scale)
             canvas.drawPath(path, paint)
-            state.progress?.let { p ->
+            for (span in route.traffic) {
+                if (span.toAlong <= from) continue
                 path.reset()
-                route.points.subList(0, p.segment + 1).forEachIndexed { i, q -> if (i == 0) path.moveTo(sx(q), sy(q)) else path.lineTo(sx(q), sy(q)) }
-                path.lineTo(sx(p.snapped), sy(p.snapped))
-                stroke(0xFF94A3B8.toInt(), 9 * scale)
+                route.slice(maxOf(span.fromAlong, from), span.toAlong).forEachIndexed { i, p -> if (i == 0) path.moveTo(sx(p), sy(p)) else path.lineTo(sx(p), sy(p)) }
+                stroke(ContextCompat.getColor(carContext, if (span.level == Traffic.JAM) R.color.traffic_jam else R.color.traffic_slow), 9 * scale)
                 canvas.drawPath(path, paint)
             }
             state.roadInfo?.camerasAlong?.forEach { along ->
@@ -246,7 +250,7 @@ class CarMapRenderer(private val carContext: CarContext, private val owner: Life
         if (real != null) {
             val shown = if (navigating) center else real
             val (px, py) = rotate(sx(shown), sy(shown), anchorX, anchorY, rotation)
-            val onScreen = state.bearing + rotation
+            val onScreen = (if (navigating) heading(state) else state.bearing) + rotation
             val bitmap = if (navigating && state.mode == TravelMode.CAR) NavIcons.car(carContext, onScreen, scale) else NavIcons.arrow(carContext, onScreen, scale)
             canvas.drawBitmap(bitmap, px - bitmap.width / 2f, py - bitmap.height / 2f, null)
         }
@@ -273,6 +277,14 @@ class CarMapRenderer(private val carContext: CarContext, private val owner: Life
         paint.textSize = r * 0.85f
         paint.typeface = Typeface.DEFAULT_BOLD
         canvas.drawText(text, x, y - (paint.descent() + paint.ascent()) / 2, paint)
+    }
+
+    /** On the route, the direction of the road ahead (steadier than the GPS heading). */
+    private fun heading(state: NavSession.State): Float {
+        val route = state.route
+        val p = state.progress?.takeIf { it.offRouteMeters < 25 } ?: return state.bearing
+        if (route == null) return state.bearing
+        return TripTimeline.bearing(route.pointAt(p.alongMeters), route.pointAt(p.alongMeters + 20))
     }
 
     private fun stroke(color: Int, width: Float) {

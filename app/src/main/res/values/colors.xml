@@ -18,6 +18,8 @@
     <color name="route_green">#4ADE80</color>
     <color name="route_green_dark">#16A34A</color>
     <color name="limit_red">#E11D2E</color>
+    <color name="traffic_slow">#F6C33B</color>
+    <color name="traffic_jam">#E5402F</color>
     <color name="success">#15803D</color>
     <color name="success_bg">#DCFCE7</color>
     <color name="idle_dot">#94A3B8</color>

@@ -6,6 +6,11 @@ import kotlin.math.cos
 
 enum class Maneuver { DEPART, STRAIGHT, SLIGHT_LEFT, LEFT, SHARP_LEFT, SLIGHT_RIGHT, RIGHT, SHARP_RIGHT, UTURN, ROUNDABOUT, ARRIVE }
 
+enum class Traffic { SLOW, JAM }
+
+/** A stretch of the route with slow traffic or a jam, in metres along the route. */
+data class TrafficSpan(val fromAlong: Double, val toAlong: Double, val level: Traffic)
+
 /** One lane at a junction: the arrows painted on it, and whether it leads where we're going. */
 data class Lane(val directions: List<String>, val valid: Boolean)
 
@@ -33,12 +38,36 @@ data class NavRoute(
     val trafficAware: Boolean = false,
     /** Point index where each in-between stop is reached (empty for a plain A → B route). */
     val stopPoints: List<Int> = emptyList(),
+    /** Live traffic along the route (Google only); everything else is free-flowing. */
+    val traffic: List<TrafficSpan> = emptyList(),
 ) {
     /** Distance along the route at each point. */
     val along: DoubleArray = DoubleArray(points.size).also {
         for (i in 1 until points.size) it[i] = it[i - 1] + distanceMeters(points[i - 1], points[i])
     }
     val length get() = along.lastOrNull() ?: 0.0
+
+    /** The point [meters] along the route. */
+    fun pointAt(meters: Double): LatLon {
+        val m = meters.coerceIn(0.0, length)
+        var i = java.util.Arrays.binarySearch(along, m).let { if (it >= 0) it else -it - 2 }.coerceIn(0, points.size - 2)
+        while (i < points.size - 2 && along[i + 1] < m) i++
+        val span = along[i + 1] - along[i]
+        val t = if (span > 0) (m - along[i]) / span else 0.0
+        val a = points[i]
+        val b = points[i + 1]
+        return LatLon(a.lat + (b.lat - a.lat) * t, a.lon + (b.lon - a.lon) * t)
+    }
+
+    /** The route between two distances along it, following its shape. */
+    fun slice(fromMeters: Double, toMeters: Double): List<LatLon> {
+        if (points.size < 2 || toMeters <= fromMeters) return emptyList()
+        val out = ArrayList<LatLon>()
+        out += pointAt(fromMeters)
+        for (i in points.indices) if (along[i] > fromMeters && along[i] < toMeters) out += points[i]
+        out += pointAt(toMeters)
+        return out
+    }
 
     /** Distance along the route of each in-between stop. */
     val stopsAlong: List<Double> get() = stopPoints.map { along[it.coerceIn(0, points.lastIndex)] }

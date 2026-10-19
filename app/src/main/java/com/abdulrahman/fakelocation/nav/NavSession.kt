@@ -5,11 +5,14 @@ import android.content.Context
 import android.location.Location
 import android.location.LocationListener
 import android.location.LocationManager
+import android.media.AudioAttributes
+import android.media.AudioFocusRequest
 import android.media.AudioManager
 import android.media.ToneGenerator
 import android.os.Build
 import android.os.Looper
 import android.speech.tts.TextToSpeech
+import android.speech.tts.UtteranceProgressListener
 import androidx.core.content.ContextCompat
 import com.abdulrahman.fakelocation.R
 import com.abdulrahman.fakelocation.data.LatLon
@@ -80,6 +83,14 @@ object NavSession {
         val tollMeters: Double? = null,
     ) {
         val navigating get() = status == Status.NAVIGATING
+
+        /** Lane arrows before [step]: from the router, else from OpenStreetMap's turn:lanes. */
+        fun lanesFor(step: NavStep?): List<Lane> {
+            if (step == null) return emptyList()
+            if (step.lanes.isNotEmpty()) return step.lanes
+            val index = route?.steps?.indexOf(step) ?: return emptyList()
+            return roadInfo?.stepLanes?.get(index).orEmpty()
+        }
     }
 
     private lateinit var app: Context
@@ -101,6 +112,11 @@ object NavSession {
     private var tts: TextToSpeech? = null
     private var ttsReady = false
     private var beeper: ToneGenerator? = null
+    private var roadInfoFailedAt = 0L
+    /** The last posted limit seen, kept on screen a little while over unmapped bits of the same road. */
+    private var heldLimit = 0
+    private var heldLimitAlong = 0.0
+    private var focusRequest: AudioFocusRequest? = null
 
     private val locationManager get() = app.getSystemService(LocationManager::class.java)
     private val fused by lazy { LocationServices.getFusedLocationProviderClient(app) }
@@ -252,13 +268,37 @@ object NavSession {
                 fuelCostAed = if (car) Fuel.cost(route.distanceMeters, prefs.fuelConsumption, prefs.fuelPrice()) else 0.0)
         }
         roadInfoJob?.cancel()
-        roadInfoJob = scope.launch {
-            val info = runCatching { RoadInfoFetcher.fetch(route) }.getOrNull() ?: return@launch
-            if (state.value.route !== route) return@launch
-            val extra = Tolls.extraGates(info.gantries)
-            _state.update { it.copy(roadInfo = info, tolls = if (car && extra.isNotEmpty()) tollsOn(route, Tolls.GATES + extra) else it.tolls) }
-        }
+        roadInfoFailedAt = 0L
+        heldLimitAlong = 0.0
+        fetchRoadInfo(route, 0.0)
         lastFix?.let { onLocation(it) }
+    }
+
+    /** Speed limits, cameras and lanes for the next stretch of the route (20 km at a time, ahead of the car). */
+    private fun fetchRoadInfo(route: NavRoute, from: Double) {
+        if (roadInfoJob?.isActive == true) return
+        val car = state.value.mode == TravelMode.CAR
+        roadInfoJob = scope.launch {
+            val info = runCatching { RoadInfoFetcher.fetch(route, from, from + RoadInfoFetcher.CHUNK_METERS) }.getOrNull()
+            if (state.value.route !== route) return@launch
+            if (info == null) {
+                roadInfoFailedAt = System.currentTimeMillis()
+                return@launch
+            }
+            _state.update {
+                val merged = it.roadInfo?.merge(info) ?: info
+                val extra = Tolls.extraGates(merged.gantries)
+                it.copy(roadInfo = merged, tolls = if (car && extra.isNotEmpty()) tollsOn(route, Tolls.GATES + extra) else it.tolls)
+            }
+        }
+    }
+
+    private fun fetchMoreRoadInfo(route: NavRoute, along: Double) {
+        val info = state.value.roadInfo
+        val covered = info?.coveredTo ?: 0.0
+        if (covered >= route.length || along < covered - 6000) return
+        if (System.currentTimeMillis() - roadInfoFailedAt < 20_000) return
+        fetchRoadInfo(route, if (info == null) (along - 500).coerceAtLeast(0.0) else covered)
     }
 
     private fun tollsOn(route: NavRoute, gates: List<TollGate>): List<TollPass> = Tolls.passes(
@@ -278,7 +318,7 @@ object NavSession {
         if (tts == null) {
             tts = TextToSpeech(app) { status ->
                 ttsReady = status == TextToSpeech.SUCCESS
-                if (ttsReady) tts?.language = Locale.US
+                if (ttsReady) setUpVoice()
             }
         }
         if (beeper == null) beeper = runCatching { ToneGenerator(AudioManager.STREAM_NOTIFICATION, 90) }.getOrNull()
@@ -316,7 +356,8 @@ object NavSession {
             route != null && progress != null -> TripTimeline.bearing(route.points[progress.segment], route.points[progress.segment + 1])
             else -> s.bearing
         }
-        val limit = if (progress != null) s.roadInfo?.limitAt(progress.segment) ?: 0 else 0
+        val limit = if (progress != null) heldLimit(s.roadInfo?.limitAt(progress.segment) ?: 0, progress.alongMeters) else 0
+        if (route != null && progress != null) fetchMoreRoadInfo(route, progress.alongMeters)
         val over = limit > 0 && speed > limit + 5
         if (over && !s.speeding && s.navigating && !s.muted) beeper?.startTone(ToneGenerator.TONE_PROP_BEEP2, 400)
         val camera = progress?.let { p -> s.roadInfo?.nextCamera(p.alongMeters)?.takeIf { it in 0.0..600.0 && s.mode == TravelMode.CAR } }
@@ -364,15 +405,35 @@ object NavSession {
         val index = route.steps.indexOf(step)
         val d = p.metersToNextStep
         val car = s.mode == TravelMode.CAR
-        val far = if (car) 400.0 else 120.0
-        val near = if (car) 120.0 else 30.0
-        val now = if (car) 35.0 else 10.0
+        // Announce by time, not fixed distances: earlier on fast roads (like Waze / Yango).
+        val mps = (s.speedKmh / 3.6).coerceAtLeast(if (car) 8.0 else 1.2)
+        val early = if (car) (mps * 35).coerceIn(500.0, 1500.0) else (mps * 60).coerceIn(80.0, 150.0)
+        val prepare = if (car) (mps * 12).coerceIn(150.0, 450.0) else 35.0
+        val now = if (car) (mps * 3.5).coerceIn(30.0, 90.0) else 10.0
+        val previousAt = route.steps.getOrNull(index - 1)?.let { route.along[it.pointIndex] } ?: 0.0
+        val sinceTurn = p.alongMeters - previousAt
+        val then = p.thenStep?.takeIf { route.along[it.pointIndex] - route.along[step.pointIndex] < 120 && it.maneuver != Maneuver.DEPART }
+        val thenText = then?.let { app.getString(R.string.nav_voice_then, it.spoken.lowercase(Locale.US)) }.orEmpty()
+        val what = step.spoken.lowercase(Locale.US)
         when {
             d <= now && spoken.add("$index:now") ->
-                speak(if (step.maneuver == Maneuver.ARRIVE) step.spoken else app.getString(R.string.nav_now, step.spoken))
-            d in now..near && spoken.add("$index:near") -> speak(app.getString(R.string.nav_in, spokenDistance(d), step.spoken.lowercase(Locale.US)))
-            d in near..far && spoken.add("$index:far") -> speak(app.getString(R.string.nav_in, spokenDistance(d), step.spoken.lowercase(Locale.US)))
+                speak(step.spoken + thenText)
+            d in now..prepare && spoken.add("$index:near") ->
+                speak(app.getString(R.string.nav_in, spokenDistance(d), what) + thenText)
+            d in prepare..early && sinceTurn > 60 && spoken.add("$index:far") ->
+                speak(app.getString(R.string.nav_in, spokenDistance(d), what))
+            d > 2500 && sinceTurn in 30.0..400.0 && spoken.add("$index:continue") ->
+                speak(app.getString(R.string.nav_voice_continue, spokenDistance(d)))
         }
+    }
+
+    private fun heldLimit(mapped: Int, along: Double): Int {
+        if (mapped > 0) {
+            heldLimit = mapped
+            heldLimitAlong = along
+            return mapped
+        }
+        return if (heldLimit > 0 && along - heldLimitAlong in -50.0..700.0) heldLimit else 0
     }
 
     private fun speedKmh(location: Location): Int {
@@ -383,14 +444,60 @@ object NavSession {
         return (location.distanceTo(previous) / seconds * 3.6).roundToInt()
     }
 
-    private fun spokenDistance(meters: Double): String {
-        val rounded = if (meters < 100) (meters / 10).roundToInt() * 10 else (meters / 50).roundToInt() * 50
-        return if (rounded >= 1000) String.format(Locale.US, "%.1f kilometers", rounded / 1000.0) else "$rounded meters"
+    /** "400 meters", "1 kilometer", "1.5 kilometers": round numbers, as people say them. */
+    private fun spokenDistance(meters: Double): String = when {
+        meters < 100 -> "${((meters / 10).roundToInt() * 10).coerceAtLeast(10)} meters"
+        meters < 1000 -> "${((meters / 50).roundToInt() * 50).coerceAtMost(950)} meters"
+        meters < 1250 -> "1 kilometer"
+        meters < 10_000 -> String.format(Locale.US, "%.1f kilometers", (meters / 500).roundToInt() / 2.0).replace(".0 ", " ")
+        else -> "${(meters / 1000).roundToInt()} kilometers"
+    }
+
+    /** A clear offline English voice on the navigation audio channel. */
+    private fun setUpVoice() {
+        val engine = tts ?: return
+        engine.setAudioAttributes(
+            AudioAttributes.Builder()
+                .setUsage(AudioAttributes.USAGE_ASSISTANCE_NAVIGATION_GUIDANCE)
+                .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
+                .build()
+        )
+        val voices = runCatching { engine.voices }.getOrNull().orEmpty()
+            .filter { it.locale.language == "en" && !it.isNetworkConnectionRequired && "notinstalled" !in it.features.orEmpty() }
+        val best = voices.maxByOrNull { v ->
+            v.quality * 10 + (if (v.locale.country == "US") 3 else if (v.locale.country == "GB") 2 else 0) - v.latency
+        }
+        if (best != null) engine.voice = best else engine.language = Locale.US
+        engine.setSpeechRate(0.95f)
+        engine.setPitch(1.0f)
+        engine.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
+            override fun onStart(utteranceId: String?) = Unit
+            override fun onDone(utteranceId: String?) = releaseFocus()
+            @Deprecated("Deprecated in Java")
+            override fun onError(utteranceId: String?) = releaseFocus()
+        })
     }
 
     private fun speak(text: String) {
         if (text.isBlank() || state.value.muted || !ttsReady) return
+        // Turn music down while the voice talks, like other navigation apps.
+        val audio = app.getSystemService(AudioManager::class.java)
+        val request = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK)
+            .setAudioAttributes(
+                AudioAttributes.Builder()
+                    .setUsage(AudioAttributes.USAGE_ASSISTANCE_NAVIGATION_GUIDANCE)
+                    .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
+                    .build()
+            )
+            .build()
+        focusRequest = request
+        audio.requestAudioFocus(request)
         tts?.speak(text, TextToSpeech.QUEUE_FLUSH, null, text)
+    }
+
+    private fun releaseFocus() {
+        focusRequest?.let { app.getSystemService(AudioManager::class.java).abandonAudioFocusRequest(it) }
+        focusRequest = null
     }
 
     // endregion

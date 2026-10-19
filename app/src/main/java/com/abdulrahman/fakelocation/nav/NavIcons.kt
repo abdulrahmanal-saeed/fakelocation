@@ -146,4 +146,44 @@ object NavIcons {
         canvas.drawText(number.toString(), c, c - (paint.descent() + paint.ascent()) / 2, paint)
         return bitmap
     }
+
+    /** Lanes in a blue speech bubble pointing down at the junction (like Yango): lanes to use bright, others faded. */
+    fun laneBubble(context: Context, lanes: List<Lane>, m: Maneuver, scale: Float = context.resources.displayMetrics.density): Bitmap {
+        val arrow = 30 * scale
+        val pad = 8 * scale
+        val tail = 10 * scale
+        val border = 2 * scale
+        val w = (lanes.size * arrow + 2 * pad + 2 * border).toInt()
+        val bodyH = arrow + 2 * pad + 2 * border
+        val bitmap = Bitmap.createBitmap(w, (bodyH + tail).toInt(), Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(bitmap)
+        val paint = Paint(Paint.ANTI_ALIAS_FLAG)
+        val path = Path().apply {
+            addRoundRect(RectF(0f, 0f, w.toFloat(), bodyH), 12 * scale, 12 * scale, Path.Direction.CW)
+            moveTo(w / 2f - tail, bodyH - 1)
+            lineTo(w / 2f, bodyH + tail - 1)
+            lineTo(w / 2f + tail, bodyH - 1)
+            close()
+        }
+        paint.color = 0xFFFFFFFF.toInt()
+        canvas.drawPath(path, paint)
+        val inner = Path().apply {
+            addRoundRect(RectF(border, border, w - border, bodyH - border), 10 * scale, 10 * scale, Path.Direction.CW)
+            moveTo(w / 2f - tail + border * 1.5f, bodyH - border - 1)
+            lineTo(w / 2f, bodyH + tail - border * 2.2f)
+            lineTo(w / 2f + tail - border * 1.5f, bodyH - border - 1)
+            close()
+        }
+        paint.color = ContextCompat.getColor(context, R.color.nav_blue)
+        canvas.drawPath(inner, paint)
+        lanes.forEachIndexed { i, lane ->
+            val d = ContextCompat.getDrawable(context, laneIcon(laneDirection(lane, m)))!!.mutate()
+            d.setTint(if (lane.valid) 0xFFFFFFFF.toInt() else 0x66FFFFFF)
+            val left = (border + pad + i * arrow).toInt()
+            val top = (border + pad).toInt()
+            d.setBounds(left, top, (left + arrow).toInt(), (top + arrow).toInt())
+            d.draw(canvas)
+        }
+        return bitmap
+    }
 }

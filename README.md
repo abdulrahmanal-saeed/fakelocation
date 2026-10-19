@@ -55,6 +55,12 @@ added while driving (phone "+" or the car's "+" → Nearby). A Parking screen (P
 the sign, pay by SMS to 7275, countdown, an alarm before the time runs out, and walking directions back to the car.
 Fuel price per litre, grade and consumption are set in Settings → Car & costs (built in: October 2026 prices).
 
+**v1.6.0:** Driving screen reworked after a real drive: the car glides with the GPS and sits low on a heading-up map,
+the green line starts at the car and shrinks as you drive, a compact turn card with a "Then" pill, lane arrows in a
+bubble at the junction (from OpenStreetMap turn lanes, so they also work with Google routes), a white turn arrow on
+the road, live traffic (Google) in yellow/red on the route and on the bottom bar, speed limits loaded 20 km at a time
+ahead of you, and a clearer voice that speaks earlier at higher speeds and lowers your music while it talks.
+
 See [PLAN.md](PLAN.md) for the full feature list.
 
 ## Install

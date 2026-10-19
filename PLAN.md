@@ -42,3 +42,4 @@ Design (all screens, logo, splash): https://claude.ai/artifact/9FMXf1izujP79r3BA
 | 8 | Driving screen: lanes, speed limit vs. my speed, speed cameras | Done (v1.3.0) |
 | 9 | Android Auto, nearby categories (fuel, parking, bus, metro, EV), UAE defaults, navigation with the screen off | Done (v1.4.0) |
 | 10 | Salik/Darb gates and trip cost, fuel cost, avoid tolls/highways, multi-stop navigation, Dubai parking (SMS 7275, alarm) | Done (v1.5.0) |
+| 11 | Driving polish: smooth car, shrinking route, compact card, lane bubbles, traffic colours, speed-limit chunks, better voice | Done (v1.6.0) |

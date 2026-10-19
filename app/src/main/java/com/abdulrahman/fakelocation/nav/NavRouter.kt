@@ -213,12 +213,15 @@ object NavRouter {
             .put("travelMode", if (mode == TravelMode.CAR) "DRIVE" else "WALK")
             .put("languageCode", "en")
         if (stops.size > 2) body.put("intermediates", JSONArray(stops.subList(1, stops.size - 1).map(::waypoint)))
-        if (mode == TravelMode.CAR) body.put("routingPreference", "TRAFFIC_AWARE")
+        if (mode == TravelMode.CAR) {
+            body.put("routingPreference", "TRAFFIC_AWARE")
+            body.put("extraComputations", JSONArray().put("TRAFFIC_ON_POLYLINE"))
+        }
         if (avoid.any) body.put("routeModifiers", JSONObject().put("avoidTolls", avoid.tolls).put("avoidHighways", avoid.highways))
         val json = api.post(
             "https://routes.googleapis.com/directions/v2:computeRoutes", body,
             "routes.distanceMeters,routes.duration,routes.legs.steps.distanceMeters,routes.legs.steps.polyline.encodedPolyline," +
-                "routes.legs.steps.navigationInstruction"
+                "routes.legs.steps.navigationInstruction,routes.polyline.encodedPolyline,routes.travelAdvisory.speedReadingIntervals"
         )
         return parseGoogle(json, trafficAware = mode == TravelMode.CAR)
     }
@@ -249,10 +252,37 @@ object NavRouter {
         }
         if (points.size < 2) throw IOException("Google route has no shape")
         steps += NavStep(Maneuver.ARRIVE, Instructions.ARRIVE_TEXT, Instructions.ARRIVE_TEXT, points.lastIndex)
-        return NavRoute(
+        val built = NavRoute(
             points, steps.map { it.copy(pointIndex = it.pointIndex.coerceIn(0, points.lastIndex)) },
             route.optDouble("distanceMeters", 0.0), GoogleApi.seconds(route.optString("duration")), trafficAware, stopPoints,
         )
+        return built.copy(traffic = googleTraffic(route, built.length))
+    }
+
+    /**
+     * Slow / jammed stretches from Google's speedReadingIntervals, which index the overview polyline.
+     * They're turned into distances along that polyline and scaled onto our step-by-step shape.
+     */
+    fun googleTraffic(route: JSONObject, length: Double): List<TrafficSpan> {
+        val intervals = route.optJSONObject("travelAdvisory")?.optJSONArray("speedReadingIntervals") ?: return emptyList()
+        val overview = Polyline.decode(route.optJSONObject("polyline")?.optString("encodedPolyline").orEmpty())
+        if (overview.size < 2 || length <= 0) return emptyList()
+        val along = DoubleArray(overview.size)
+        for (i in 1 until overview.size) along[i] = along[i - 1] + com.abdulrahman.fakelocation.data.distanceMeters(overview[i - 1], overview[i])
+        val scale = length / along.last().coerceAtLeast(1.0)
+        val spans = ArrayList<TrafficSpan>()
+        for (i in 0 until intervals.length()) {
+            val r = intervals.getJSONObject(i)
+            val level = when (r.optString("speed")) {
+                "SLOW" -> Traffic.SLOW
+                "TRAFFIC_JAM" -> Traffic.JAM
+                else -> continue
+            }
+            val from = along[r.optInt("startPolylinePointIndex", 0).coerceIn(0, overview.lastIndex)] * scale
+            val to = along[r.optInt("endPolylinePointIndex", overview.lastIndex).coerceIn(0, overview.lastIndex)] * scale
+            if (to > from) spans += TrafficSpan(from, to, level)
+        }
+        return spans
     }
 
     // endregion

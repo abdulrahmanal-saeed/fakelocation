@@ -364,7 +364,6 @@
     <string name="nav_camera_ahead">Speed camera ahead</string>
     <string name="nav_speed_limit_voice">Speed limit %1$d</string>
     <string name="nav_minutes">%1$d min</string>
-    <string name="nav_now">%1$s now</string>
 
     <!-- Notification -->
     <string name="notification_channel">Fake location status</string>
@@ -449,4 +448,7 @@
     <string name="settings_parking_alert_value">%1$d min before it ends</string>
     <string name="settings_reset_price">Use built-in price</string>
     <string name="car_tolls_avoided">No tolls ✓</string>
+    <string name="nav_voice_then">, then %1$s</string>
+    <string name="nav_voice_continue">Continue for %1$s</string>
+    <string name="nav_then_short">Then</string>
 </resources>

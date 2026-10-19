@@ -46,7 +46,7 @@ class CarMapScreen(carContext: CarContext, private val renderer: CarMapRenderer)
         // Only rebuild the template when something on it changes (hosts throttle template updates).
         val p = s.progress
         val key = listOf(s.status, s.muted, s.rerouting, p?.arrived, p?.nextStep?.text, p?.thenStep?.text,
-            p?.metersToNextStep?.let { (it / 10).roundToInt() }, p?.remainingSeconds?.let { (it / 30).roundToInt() }).toString()
+            p?.metersToNextStep?.let { (it / 10).roundToInt() }, s.roadInfo?.stepLanes?.size, p?.remainingSeconds?.let { (it / 30).roundToInt() }).toString()
         if (key != shownKey) {
             shownKey = key
             invalidate()
@@ -100,7 +100,7 @@ class CarMapScreen(carContext: CarContext, private val renderer: CarMapRenderer)
                 builder.setNavigationInfo(RoutingInfo.Builder().setLoading(true).build())
             else -> {
                 val routing = RoutingInfo.Builder()
-                    .setCurrentStep(CarUi.step(carContext, p.nextStep), CarUi.distance(p.metersToNextStep))
+                    .setCurrentStep(CarUi.step(carContext, p.nextStep, s.lanesFor(p.nextStep)), CarUi.distance(p.metersToNextStep))
                 p.thenStep?.let { routing.setNextStep(CarUi.step(carContext, it)) }
                 builder.setNavigationInfo(routing.build())
                 builder.setDestinationTravelEstimate(

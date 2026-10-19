@@ -6,59 +6,103 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import java.util.Locale
+import kotlin.math.abs
+import kotlin.math.atan2
 import kotlin.math.cos
 import kotlin.math.roundToInt
 import kotlin.math.sqrt
 
-/** Speed limits along the route (km/h per piece of road, 0 = unknown) and where the speed cameras are. */
+/**
+ * What OpenStreetMap knows about the road along a route: speed limit per piece of road (km/h, 0 = unknown),
+ * speed cameras, toll gantries and the lane arrows before each turn. Filled in chunks as you drive.
+ */
 data class RoadInfo(
     val limits: IntArray,
     val camerasAlong: List<Double>,
     /** Toll gantries mapped near the route (position, name), for gates the app doesn't know yet. */
     val gantries: List<Pair<LatLon, String>> = emptyList(),
+    /** Lanes before a step (by step index), for routes whose router didn't give them. */
+    val stepLanes: Map<Int, List<Lane>> = emptyMap(),
+    /** How far along the route this covers. */
+    val coveredTo: Double = 0.0,
 ) {
     fun limitAt(segment: Int): Int = limits.getOrElse(segment) { 0 }
 
     /** The next camera ahead of [along] metres, as distance from here. */
     fun nextCamera(along: Double): Double? = camerasAlong.firstOrNull { it > along - 10 }?.minus(along)
+
+    /** This plus a newer chunk. */
+    fun merge(other: RoadInfo): RoadInfo = RoadInfo(
+        IntArray(limits.size) { i -> other.limits.getOrElse(i) { 0 }.takeIf { it > 0 } ?: limits[i] },
+        (camerasAlong + other.camerasAlong).distinctBy { (it / 20).roundToInt() }.sorted(),
+        (gantries + other.gantries).distinctBy { it.first },
+        stepLanes + other.stepLanes,
+        maxOf(coveredTo, other.coveredTo),
+    )
+
+    companion object {
+        fun empty(route: NavRoute) = RoadInfo(IntArray((route.points.size - 1).coerceAtLeast(0)), emptyList())
+    }
 }
 
-/** A road from OpenStreetMap with a posted limit. */
-data class LimitedWay(val limitKmh: Int, val shape: List<LatLon>)
+/** A road from OpenStreetMap with its limit (0 = none) and lane arrows per direction. */
+data class MappedWay(
+    val limitKmh: Int,
+    val shape: List<LatLon>,
+    val lanesForward: String? = null,
+    val lanesBackward: String? = null,
+)
 
 /**
- * Looks up speed limits and speed cameras along a route from OpenStreetMap (Overpass API).
- * Coverage depends on what volunteers have mapped: unknown stretches simply show no limit.
+ * Looks up speed limits, cameras, gantries and lanes along a route from OpenStreetMap (Overpass API).
+ * Coverage depends on what volunteers have mapped: unknown stretches simply show nothing.
  */
 object RoadInfoFetcher {
 
-    suspend fun fetch(route: NavRoute): RoadInfo = withContext(Dispatchers.IO) {
-        val step = (route.points.size / 150).coerceAtLeast(1)
-        val line = (route.points.filterIndexed { i, _ -> i % step == 0 } + route.points.last())
-            .joinToString(",") { String.format(Locale.US, "%.5f,%.5f", it.lat, it.lon) }
-        val query = "[out:json][timeout:25];(way(around:15,$line)[highway][maxspeed];" +
-            "node(around:30,$line)[highway=speed_camera];node(around:25,$line)[highway=toll_gantry];);out tags geom;"
-        parse(route, Overpass.query(query))
+    const val CHUNK_METERS = 20_000.0
+
+    /** Road info for the part of [route] between [fromAlong] and [toAlong] metres. */
+    suspend fun fetch(route: NavRoute, fromAlong: Double = 0.0, toAlong: Double = CHUNK_METERS): RoadInfo = withContext(Dispatchers.IO) {
+        val part = route.slice(fromAlong.coerceAtLeast(0.0), toAlong.coerceAtMost(route.length))
+        if (part.size < 2) return@withContext RoadInfo.empty(route).copy(coveredTo = toAlong)
+        // Keep the shape faithful (bends included) but short enough for one query.
+        var tolerance = 5.0
+        var line = simplify(part, tolerance)
+        while (line.size > 400) {
+            tolerance *= 1.6
+            line = simplify(part, tolerance)
+        }
+        val coords = line.joinToString(",") { String.format(Locale.US, "%.6f,%.6f", it.lat, it.lon) }
+        val query = "[out:json][timeout:40];(" +
+            "way(around:20,$coords)[highway][~\"^(maxspeed|turn:lanes(:forward|:backward)?)$\"~\".\"];" +
+            "node(around:30,$coords)[highway=speed_camera];" +
+            "node(around:25,$coords)[highway=toll_gantry];" +
+            ");out tags geom;"
+        parse(route, Overpass.query(query), fromAlong, toAlong)
     }
 
-    fun parse(route: NavRoute, json: JSONObject): RoadInfo {
-        val ways = ArrayList<LimitedWay>()
+    fun parse(route: NavRoute, json: JSONObject, fromAlong: Double = 0.0, toAlong: Double = Double.MAX_VALUE): RoadInfo {
+        val ways = ArrayList<MappedWay>()
         val cameras = ArrayList<LatLon>()
         val gantries = ArrayList<Pair<LatLon, String>>()
-        val elements = json.optJSONArray("elements") ?: return RoadInfo(IntArray(route.points.size), emptyList())
-        for (i in 0 until elements.length()) {
+        val elements = json.optJSONArray("elements")
+        if (elements != null) for (i in 0 until elements.length()) {
             val e = elements.getJSONObject(i)
+            val tags = e.optJSONObject("tags")
             when (e.optString("type")) {
                 "way" -> {
-                    val limit = parseMaxspeed(e.optJSONObject("tags")?.optString("maxspeed").orEmpty()) ?: continue
                     val geometry = e.optJSONArray("geometry") ?: continue
-                    ways += LimitedWay(limit, (0 until geometry.length()).map {
+                    val shape = (0 until geometry.length()).map {
                         val g = geometry.getJSONObject(it)
                         LatLon(g.getDouble("lat"), g.getDouble("lon"))
-                    })
+                    }
+                    val limit = parseMaxspeed(tags?.optString("maxspeed").orEmpty()) ?: 0
+                    val plain = tags?.optString("turn:lanes")?.takeIf { it.isNotBlank() }
+                    val forward = tags?.optString("turn:lanes:forward")?.takeIf { it.isNotBlank() } ?: plain
+                    val backward = tags?.optString("turn:lanes:backward")?.takeIf { it.isNotBlank() }
+                    ways += MappedWay(limit, shape, forward, backward)
                 }
                 "node" -> {
-                    val tags = e.optJSONObject("tags")
                     val p = LatLon(e.getDouble("lat"), e.getDouble("lon"))
                     if (tags?.optString("highway") == "toll_gantry") {
                         gantries += p to (tags.optString("name:en").ifBlank { tags.optString("name") })
@@ -68,10 +112,18 @@ object RoadInfoFetcher {
                 }
             }
         }
-        return RoadInfo(assignLimits(route, ways), camerasAlong(route, cameras), gantries)
+        val first = route.along.indexOfFirst { it >= fromAlong }.coerceAtLeast(0)
+        val last = route.along.indexOfLast { it <= toAlong }.coerceAtLeast(first)
+        return RoadInfo(
+            assignLimits(route, ways.filter { it.limitKmh > 0 }, first, last),
+            camerasAlong(route, cameras),
+            gantries,
+            stepLanes(route, ways.filter { it.lanesForward != null || it.lanesBackward != null }, fromAlong, toAlong),
+            toAlong,
+        )
     }
 
-    /** "60" → 60, "30 mph" → 48. Anything else (e.g. "EG:urban", "signals") → null. */
+    /** "60" → 60, "30 mph" → 48. Anything else (e.g. "AE:urban", "signals") → null. */
     fun parseMaxspeed(value: String): Int? {
         val v = value.trim().lowercase(Locale.US)
         Regex("""^(\d{1,3})$""").find(v)?.let { return it.groupValues[1].toInt().takeIf { n -> n in 5..200 } }
@@ -79,28 +131,94 @@ object RoadInfoFetcher {
         return null
     }
 
-    /** For each piece of the route, the limit of the mapped road it runs along (within 12 m and same direction-ish). */
-    fun assignLimits(route: NavRoute, ways: List<LimitedWay>): IntArray {
+    /** For each piece of the route (in [from]..[to]), the limit of the mapped road it runs along. */
+    fun assignLimits(route: NavRoute, ways: List<MappedWay>, from: Int = 0, to: Int = route.points.size - 1): IntArray {
         val limits = IntArray((route.points.size - 1).coerceAtLeast(0))
         if (ways.isEmpty()) return limits
-        for (i in limits.indices) {
+        for (i in from until minOf(to + 1, limits.size)) {
             val a = route.points[i]
             val b = route.points[i + 1]
             val mid = LatLon((a.lat + b.lat) / 2, (a.lon + b.lon) / 2)
+            val heading = bearing(a, b)
             var best = Double.MAX_VALUE
             var bestLimit = 0
             for (way in ways) {
                 for (k in 0 until way.shape.size - 1) {
-                    val d = distanceToSegment(mid, way.shape[k], way.shape[k + 1])
-                    if (d < best) {
-                        best = d
-                        bestLimit = way.limitKmh
-                    }
+                    val d = project(mid, way.shape[k], way.shape[k + 1]).first
+                    if (d >= best || d > 15.0) continue
+                    // A crossing road isn't the road we're on.
+                    if (axisDiff(heading, bearing(way.shape[k], way.shape[k + 1])) > 35) continue
+                    best = d
+                    bestLimit = way.limitKmh
                 }
             }
-            if (best <= 12.0) limits[i] = bestLimit
+            limits[i] = bestLimit
         }
         return limits
+    }
+
+    /**
+     * Lane arrows before each turn: the mapped road we're on ~25 m before the junction, read in our direction
+     * (turn:lanes / :forward / :backward), with the lanes that lead our way marked valid.
+     */
+    fun stepLanes(route: NavRoute, ways: List<MappedWay>, fromAlong: Double, toAlong: Double): Map<Int, List<Lane>> {
+        if (ways.isEmpty()) return emptyMap()
+        val result = HashMap<Int, List<Lane>>()
+        route.steps.forEachIndexed { index, step ->
+            if (step.maneuver == Maneuver.DEPART || step.maneuver == Maneuver.ARRIVE || step.lanes.isNotEmpty()) return@forEachIndexed
+            val at = route.along[step.pointIndex]
+            if (at < fromAlong || at > toAlong || at < 40) return@forEachIndexed
+            val probe = route.pointAt(at - 25)
+            val heading = bearing(route.pointAt(at - 45), route.pointAt(at - 10))
+            var best = 12.0
+            var tag: String? = null
+            for (way in ways) for (k in 0 until way.shape.size - 1) {
+                val d = project(probe, way.shape[k], way.shape[k + 1]).first
+                if (d >= best) continue
+                val diff = angleDiff(heading, bearing(way.shape[k], way.shape[k + 1]))
+                val value = when {
+                    diff < 40 -> way.lanesForward
+                    diff > 140 -> way.lanesBackward
+                    else -> null
+                } ?: continue
+                best = d
+                tag = value
+            }
+            val lanes = tag?.let { lanesFor(it, step.maneuver) }
+            if (lanes != null) result[index] = lanes
+        }
+        return result
+    }
+
+    /** "left|through|through;right" read for [m]: null when no lane leads that way (then the tag is likely stale). */
+    fun lanesFor(tag: String, m: Maneuver): List<Lane>? {
+        val lanes = tag.split('|').map { lane -> lane.split(';').map(::token).ifEmpty { listOf("straight") } }
+        if (lanes.size < 2) return null
+        val wanted = wantedTokens(m)
+        val pick = wanted.firstOrNull { w -> lanes.any { w in it } } ?: return null
+        return lanes.map { Lane(it, pick in it) }
+    }
+
+    private fun token(raw: String) = when (raw.trim()) {
+        "left" -> "left"
+        "slight_left" -> "slight left"
+        "sharp_left" -> "sharp left"
+        "right" -> "right"
+        "slight_right" -> "slight right"
+        "sharp_right" -> "sharp right"
+        "reverse" -> "uturn"
+        else -> "straight" // through, none, merge_to_*, empty
+    }
+
+    private fun wantedTokens(m: Maneuver) = when (m) {
+        Maneuver.LEFT -> listOf("left", "sharp left", "slight left")
+        Maneuver.SHARP_LEFT -> listOf("sharp left", "left")
+        Maneuver.SLIGHT_LEFT -> listOf("slight left", "left", "straight")
+        Maneuver.RIGHT -> listOf("right", "sharp right", "slight right")
+        Maneuver.SHARP_RIGHT -> listOf("sharp right", "right")
+        Maneuver.SLIGHT_RIGHT -> listOf("slight right", "right", "straight")
+        Maneuver.UTURN -> listOf("uturn", "left")
+        else -> listOf("straight")
     }
 
     /** Distance along the route of each camera that sits on it (within 30 m), sorted. */
@@ -124,7 +242,33 @@ object RoadInfoFetcher {
         return at.takeIf { best <= maxMeters }
     }
 
-    private fun distanceToSegment(p: LatLon, a: LatLon, b: LatLon): Double = project(p, a, b).first
+    /** Douglas–Peucker: drop points that stay within [tolerance] metres of the simplified line. */
+    fun simplify(points: List<LatLon>, tolerance: Double): List<LatLon> {
+        if (points.size < 3) return points
+        val keep = BooleanArray(points.size)
+        keep[0] = true
+        keep[points.lastIndex] = true
+        val stack = ArrayDeque<Pair<Int, Int>>()
+        stack.addLast(0 to points.lastIndex)
+        while (stack.isNotEmpty()) {
+            val (s, e) = stack.removeLast()
+            var worst = -1.0
+            var index = -1
+            for (i in s + 1 until e) {
+                val d = project(points[i], points[s], points[e]).first
+                if (d > worst) {
+                    worst = d
+                    index = i
+                }
+            }
+            if (worst > tolerance && index > 0) {
+                keep[index] = true
+                stack.addLast(s to index)
+                stack.addLast(index to e)
+            }
+        }
+        return points.filterIndexed { i, _ -> keep[i] }
+    }
 
     /** Distance from [p] to segment a→b in metres, and where along the segment (0..1) the closest point is. */
     private fun project(p: LatLon, a: LatLon, b: LatLon): Pair<Double, Double> {
@@ -142,4 +286,15 @@ object RoadInfoFetcher {
         return sqrt(x * x + y * y) to t
     }
 
+    private fun bearing(a: LatLon, b: LatLon): Double {
+        val dx = (b.lon - a.lon) * cos(Math.toRadians(a.lat))
+        val dy = b.lat - a.lat
+        return (Math.toDegrees(atan2(dx, dy)) + 360) % 360
+    }
+
+    /** 0..180 between two headings. */
+    private fun angleDiff(a: Double, b: Double): Double = abs(((a - b + 540) % 360) - 180)
+
+    /** 0..90 between two lines, ignoring direction. */
+    private fun axisDiff(a: Double, b: Double): Double = angleDiff(a, b).let { if (it > 90) 180 - it else it }
 }

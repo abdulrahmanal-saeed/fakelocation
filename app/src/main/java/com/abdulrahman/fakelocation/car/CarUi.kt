@@ -47,15 +47,15 @@ object CarUi {
     fun distanceText(meters: Double): CharSequence =
         SpannableString(" ").apply { setSpan(DistanceSpan.create(distance(meters)), 0, 1, Spanned.SPAN_INCLUSIVE_INCLUSIVE) }
 
-    fun step(context: CarContext, step: NavStep): Step {
+    fun step(context: CarContext, step: NavStep, lanes: List<com.abdulrahman.fakelocation.nav.Lane> = step.lanes): Step {
         val builder = Step.Builder(step.text).setManeuver(maneuver(context, step))
         if (step.road.isNotBlank()) builder.setRoad(step.road)
-        if (step.lanes.isNotEmpty()) {
-            for (lane in step.lanes) {
+        if (lanes.isNotEmpty()) {
+            for (lane in lanes) {
                 val shape = laneShape(NavIcons.laneDirection(lane, step.maneuver))
                 builder.addLane(Lane.Builder().addDirection(LaneDirection.create(shape, lane.valid)).build())
             }
-            val image = NavIcons.lanesImage(context, step.lanes, step.maneuver)
+            val image = NavIcons.lanesImage(context, lanes, step.maneuver)
             builder.setLanesImage(CarIcon.Builder(IconCompat.createWithBitmap(image)).build())
         }
         return builder.build()
