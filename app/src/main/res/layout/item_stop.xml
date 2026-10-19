@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginBottom="8dp"
+    android:background="@drawable/bg_round"
+    android:backgroundTint="@color/ground"
+    android:foreground="?attr/selectableItemBackground"
+    android:gravity="center_vertical"
+    android:minHeight="64dp"
+    android:orientation="horizontal"
+    android:paddingVertical="8dp"
+    android:paddingStart="4dp"
+    android:paddingEnd="8dp">
+
+    <ImageView
+        android:id="@+id/handle"
+        android:layout_width="32dp"
+        android:layout_height="44dp"
+        android:contentDescription="@string/drag_to_reorder"
+        android:paddingHorizontal="6dp"
+        android:src="@drawable/ic_grip"
+        app:tint="@color/idle_dot" />
+
+    <TextView
+        android:id="@+id/letter"
+        style="@style/Text.Item"
+        android:layout_width="30dp"
+        android:layout_height="30dp"
+        android:background="@drawable/bg_circle"
+        android:backgroundTint="@color/ink"
+        android:gravity="center"
+        android:textColor="@color/surface"
+        android:textSize="14sp"
+        tools:text="A" />
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="12dp"
+        android:layout_marginEnd="8dp"
+        android:layout_weight="1"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/name"
+            style="@style/Text.Item"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:ellipsize="end"
+            android:maxLines="1"
+            tools:text="City Stars Mall" />
+
+        <TextView
+            android:id="@+id/detail"
+            style="@style/Text.Caption"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="1dp"
+            android:ellipsize="end"
+            android:maxLines="2"
+            android:textSize="12sp"
+            tools:text="5.1 km · 11m from A" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/waitBox"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:background="@drawable/bg_round"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:padding="2dp">
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/less"
+            style="@style/IconButton"
+            android:layout_width="34dp"
+            android:layout_height="34dp"
+            android:contentDescription="@string/less_wait"
+            app:backgroundTint="@color/surface"
+            app:cornerRadius="10dp"
+            app:icon="@drawable/ic_minus"
+            app:iconSize="14dp" />
+
+        <TextView
+            android:id="@+id/wait"
+            style="@style/Text.Item"
+            android:layout_width="wrap_content"
+            android:layout_height="34dp"
+            android:background="?attr/selectableItemBackground"
+            android:gravity="center"
+            android:minWidth="56dp"
+            android:textSize="13sp"
+            tools:text="10 min" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/more"
+            style="@style/IconButton"
+            android:layout_width="34dp"
+            android:layout_height="34dp"
+            android:contentDescription="@string/more_wait"
+            app:backgroundTint="@color/surface"
+            app:cornerRadius="10dp"
+            app:icon="@drawable/ic_plus"
+            app:iconSize="14dp" />
+    </LinearLayout>
+</LinearLayout>

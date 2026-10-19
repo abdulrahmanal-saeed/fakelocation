@@ -44,6 +44,15 @@
             android:windowSoftInputMode="adjustResize|stateVisible" />
 
         <activity
+            android:name=".ui.RouteEditorActivity"
+            android:exported="false"
+            android:windowSoftInputMode="adjustPan" />
+
+        <activity
+            android:name=".ui.RoutePlanActivity"
+            android:exported="false" />
+
+        <activity
             android:name=".ui.ShareReceiverActivity"
             android:excludeFromRecents="true"
             android:exported="true"

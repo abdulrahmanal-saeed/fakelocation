@@ -13,6 +13,7 @@ import com.abdulrahman.fakelocation.R
 import com.abdulrahman.fakelocation.data.Place
 import com.abdulrahman.fakelocation.data.PlacesRepository
 import com.abdulrahman.fakelocation.data.Prefs
+import com.abdulrahman.fakelocation.data.RoutesRepository
 import com.abdulrahman.fakelocation.data.format
 import com.abdulrahman.fakelocation.databinding.ActivityMainBinding
 import com.abdulrahman.fakelocation.geo.MapsLinkResolver
@@ -128,6 +129,35 @@ class MainActivity : AppCompatActivity() {
     }
 
     fun openSetup() = startActivity(SetupActivity.fromSettings(this))
+
+    fun openRouteEditor(routeId: Long? = null, addStop: Place? = null) =
+        startActivity(RouteEditorActivity.intent(this, routeId, addStop))
+
+    fun openRoutePlan(routeId: Long) = startActivity(RoutePlanActivity.intent(this, routeId))
+
+    /** Adds [place] as the next stop of a route the user picks (or a new one). */
+    fun addToRoute(place: Place) {
+        val routes = RoutesRepository.get(this).routes.value
+        if (routes.isEmpty()) {
+            openRouteEditor(addStop = place)
+            return
+        }
+        val names = listOf(getString(R.string.new_route)) + routes.map { it.name }
+        MaterialAlertDialogBuilder(this)
+            .setTitle(R.string.choose_route)
+            .setItems(names.toTypedArray()) { _, which ->
+                openRouteEditor(routeId = if (which == 0) null else routes[which - 1].id, addStop = place)
+            }
+            .show()
+    }
+
+    /** A new route that starts where the phone currently is (fake or real). */
+    fun newRouteFromHere() {
+        val session = MockState.session.value
+        val start = session?.let { Place(it.position, it.name) }
+            ?: prefs.lastRealLocation?.let { Place(it, getString(R.string.my_position)) }
+        openRouteEditor(addStop = start)
+    }
 
     private fun handleSharedText(intent: Intent?) {
         val text = intent?.getStringExtra(EXTRA_SHARED_TEXT) ?: return

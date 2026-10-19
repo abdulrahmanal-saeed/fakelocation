@@ -1,26 +1,42 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:id="@+id/root"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:background="@color/ground"
-    android:orientation="vertical"
-    android:paddingHorizontal="20dp">
-
-    <TextView
-        style="@style/Text.Heading"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="20dp"
-        android:text="@string/nav_routes" />
+    android:background="@color/ground">
 
     <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="1"
-        android:gravity="center"
+        android:layout_height="match_parent"
         android:orientation="vertical">
+
+        <TextView
+            style="@style/Text.Heading"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="20dp"
+            android:layout_marginTop="20dp"
+            android:text="@string/nav_routes" />
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/list"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:clipToPadding="false"
+            android:paddingHorizontal="20dp"
+            android:paddingTop="14dp"
+            android:paddingBottom="96dp" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/empty"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:gravity="center"
+        android:orientation="vertical"
+        android:paddingHorizontal="32dp"
+        android:visibility="gone">
 
         <FrameLayout
             android:layout_width="88dp"
@@ -42,7 +58,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="20dp"
-            android:text="@string/routes_coming_title" />
+            android:text="@string/routes_empty_title" />
 
         <TextView
             style="@style/Text.Caption"
@@ -51,7 +67,20 @@
             android:layout_marginTop="8dp"
             android:gravity="center"
             android:lineSpacingMultiplier="1.25"
-            android:text="@string/routes_coming_body"
+            android:text="@string/routes_empty_body"
             android:textSize="15sp" />
     </LinearLayout>
-</LinearLayout>
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/newRouteButton"
+        style="@style/Button.Ink"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|end"
+        android:layout_margin="20dp"
+        android:elevation="6dp"
+        android:paddingHorizontal="22dp"
+        android:text="@string/new_route"
+        app:cornerRadius="18dp"
+        app:icon="@drawable/ic_plus" />
+</FrameLayout>

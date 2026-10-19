@@ -64,6 +64,10 @@ class TeleportSheet : BottomSheetDialogFragment() {
                 }
             }
         }
+        binding.addToRouteButton.setOnClickListener {
+            (activity as? MainActivity)?.addToRoute(Place(position, name, address))
+            dismiss()
+        }
         binding.teleportButton.setOnClickListener {
             (activity as? MainActivity)?.teleport(Place(position, name ?: position.format(), address))
             dismiss()

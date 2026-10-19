@@ -8,7 +8,11 @@ Personal Android app that fakes the phone's GPS location, with route simulation 
 Google Maps links → teleport sheet, favorites, history, "My location" button that remembers the real position
 while faking, background service with Stop in the notification.
 
-Next: route editor on real streets, timing, trip engine and alarms. See [PLAN.md](PLAN.md).
+**v0.3.0:** routes. Add stops (search, long-press the map, or "Add to route" on any place), set the wait at each
+stop, choose car or walk, and the path is calculated on real streets with each street's travel time. Then pick
+the timing: start now, start at a time, or arrive by a time (the app works out when to leave).
+
+Next: the trip engine (moving along the route, waiting, alarms). See [PLAN.md](PLAN.md).
 
 ## Install
 

@@ -33,6 +33,6 @@ Design (all screens, logo, splash): https://claude.ai/artifact/9FMXf1izujP79r3BA
 | 0 | UI/UX design: logo, splash, every screen | Done – approved |
 | 1 | Engine: fake location service, map, teleport, real-location button | Done (v0.1.0) |
 | 2 | New look: splash, setup, bottom navigation, teleport sheet, search, coordinates, Google Maps links, favorites, history | Done (v0.2.0) |
-| 3 | Route editor, street routing, timing (start now / start at / arrive by), saved routes | Next |
-| 4 | Trip engine: movement at street speed, natural movement, waits, alarms (before stop, before wait ends, silent mode) | |
+| 3 | Route editor, street routing, timing (start now / start at / arrive by), saved routes | Done (v0.3.0) |
+| 4 | Trip engine: movement at street speed, natural movement, waits, alarms (before stop, before wait ends, silent mode) | Next |
 | 5 | Quick Settings tile, widget, notification controls, offline maps, settings | |

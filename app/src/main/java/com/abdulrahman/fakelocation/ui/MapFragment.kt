@@ -23,6 +23,7 @@ import com.abdulrahman.fakelocation.data.LatLon
 import com.abdulrahman.fakelocation.data.Place
 import com.abdulrahman.fakelocation.data.PlacesRepository
 import com.abdulrahman.fakelocation.data.Prefs
+import com.abdulrahman.fakelocation.data.distanceMeters
 import com.abdulrahman.fakelocation.data.format
 import com.abdulrahman.fakelocation.data.formatClock
 import com.abdulrahman.fakelocation.databinding.FragmentMapBinding
@@ -204,8 +205,8 @@ class MapFragment : Fragment(R.layout.fragment_map) {
             val center = binding.map.mapCenter
             main.showPlace(Place(LatLon(center.latitude, center.longitude)))
         }
-        binding.planRouteButton.setOnClickListener { main.selectTab(R.id.nav_routes) }
-        binding.routeFromHereButton.setOnClickListener { main.selectTab(R.id.nav_routes) }
+        binding.planRouteButton.setOnClickListener { main.newRouteFromHere() }
+        binding.routeFromHereButton.setOnClickListener { main.newRouteFromHere() }
         binding.moveButton.setOnClickListener { main.openSearch() }
         binding.stopButton.setOnClickListener { MockLocationService.stop(requireContext()) }
         binding.saveButton.setOnClickListener {
@@ -238,7 +239,7 @@ class MapFragment : Fragment(R.layout.fragment_map) {
             map.overlays.remove(selectionMarker)
             binding.activeName.text = session.name
             binding.activeCoords.text = session.position.format()
-            val saved = favorites.any { com.abdulrahman.fakelocation.data.distanceMeters(it.position, session.position) < 15.0 }
+            val saved = favorites.any { distanceMeters(it.position, session.position) < 15.0 }
             binding.saveButton.setText(if (saved) R.string.saved else R.string.save)
             binding.saveButton.setIconResource(if (saved) R.drawable.ic_star_filled else R.drawable.ic_star)
             timerHandler.post(timerTick)
