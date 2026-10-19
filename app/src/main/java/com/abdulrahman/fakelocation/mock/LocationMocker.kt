@@ -21,8 +21,32 @@ class LocationMocker(private val context: Context) {
     private val locationManager = context.getSystemService(LocationManager::class.java)
     private val fusedClient: FusedLocationProviderClient =
         LocationServices.getFusedLocationProviderClient(context)
-    private val providers = listOf(LocationManager.GPS_PROVIDER, LocationManager.NETWORK_PROVIDER)
+    private val allProviders = listOf(LocationManager.GPS_PROVIDER, LocationManager.NETWORK_PROVIDER)
     private var started = false
+
+    /**
+     * Whether the raw GPS chip is faked too. Turned off during in-app navigation so the app can read the real
+     * GPS; Google's location service (what Google Maps and most apps use) stays fake either way.
+     */
+    var fakeGpsChip = true
+        private set
+
+    private val providers get() = if (fakeGpsChip) allProviders else listOf(LocationManager.NETWORK_PROVIDER)
+
+    fun setFakeGpsChip(on: Boolean) {
+        if (on == fakeGpsChip) return
+        fakeGpsChip = on
+        if (!started) return
+        val gps = LocationManager.GPS_PROVIDER
+        if (on) {
+            runCatching { locationManager.removeTestProvider(gps) }
+            addTestProvider(gps)
+            locationManager.setTestProviderEnabled(gps, true)
+        } else {
+            runCatching { locationManager.setTestProviderEnabled(gps, false) }
+            runCatching { locationManager.removeTestProvider(gps) }
+        }
+    }
 
     /** Throws [SecurityException] when this app is not the selected mock location app. */
     @SuppressLint("MissingPermission")
@@ -49,7 +73,7 @@ class LocationMocker(private val context: Context) {
     @SuppressLint("MissingPermission")
     fun stop() {
         if (!started) return
-        for (provider in providers) {
+        for (provider in allProviders) {
             runCatching { locationManager.setTestProviderEnabled(provider, false) }
             runCatching { locationManager.removeTestProvider(provider) }
         }

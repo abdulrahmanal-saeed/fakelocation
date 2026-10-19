@@ -207,6 +207,20 @@
     </LinearLayout>
 
     <com.google.android.material.button.MaterialButton
+        android:id="@+id/navigateButton"
+        style="@style/MapFab"
+        android:layout_width="52dp"
+        android:layout_height="52dp"
+        android:layout_marginEnd="16dp"
+        android:layout_marginBottom="12dp"
+        android:contentDescription="@string/nav_open"
+        app:backgroundTint="@color/real"
+        app:icon="@drawable/ic_navigate"
+        app:iconTint="@color/surface"
+        app:layout_constraintBottom_toTopOf="@id/myLocationButton"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+    <com.google.android.material.button.MaterialButton
         android:id="@+id/myLocationButton"
         style="@style/MapFab"
         android:layout_width="52dp"

@@ -240,6 +240,7 @@ class MapFragment : Fragment(R.layout.fragment_map) {
 
     private fun setupControls() {
         binding.searchPill.setOnClickListener { main.openSearch() }
+        binding.navigateButton.setOnClickListener { startActivity(NavigateActivity.intent(requireContext())) }
         binding.myLocationButton.setOnClickListener {
             val trip = tripView
             if (tripShown && trip != null && !trip.follow) {

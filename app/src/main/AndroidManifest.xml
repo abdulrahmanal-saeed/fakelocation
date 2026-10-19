@@ -56,6 +56,11 @@
             android:exported="false" />
 
         <activity
+            android:name=".ui.NavigateActivity"
+            android:exported="false"
+            android:launchMode="singleTop" />
+
+        <activity
             android:name=".ui.AlarmActivity"
             android:excludeFromRecents="true"
             android:exported="false"
@@ -133,4 +138,10 @@
             android:exported="false"
             android:foregroundServiceType="location" />
     </application>
+
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.TTS_SERVICE" />
+        </intent>
+    </queries>
 </manifest>

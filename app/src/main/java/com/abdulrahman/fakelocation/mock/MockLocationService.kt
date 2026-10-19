@@ -77,6 +77,7 @@ class MockLocationService : LifecycleService() {
         super.onCreate()
         mocker = LocationMocker(this)
         prefs = Prefs(this)
+        mocker.setFakeGpsChip(!prefs.realGpsForNav)
         places = PlacesRepository.get(this)
         notifications = getSystemService(NotificationManager::class.java)
         createChannels()
@@ -100,6 +101,12 @@ class MockLocationService : LifecycleService() {
                 startTrip(route, intent.getLongExtra(EXTRA_START_AT, System.currentTimeMillis()))
             }
             ACTION_PAUSE, ACTION_RESUME, ACTION_SKIP, ACTION_ADD_WAIT -> tripControl(intent.action!!)
+            ACTION_REAL_GPS -> {
+                val real = intent.getBooleanExtra(EXTRA_REAL, false)
+                prefs.realGpsForNav = real
+                mocker.setFakeGpsChip(!real)
+                if (trip == null && session == null) stopSelf()
+            }
             ACTION_DISMISS_ALARM -> {
                 dismissAlarm()
                 if (trip == null && session == null) stopSelf()
@@ -586,6 +593,8 @@ class MockLocationService : LifecycleService() {
         const val ACTION_SKIP = "skip"
         const val ACTION_ADD_WAIT = "add_wait"
         private const val ACTION_DISMISS_ALARM = "dismiss_alarm"
+        private const val ACTION_REAL_GPS = "real_gps"
+        private const val EXTRA_REAL = "real"
         private const val EXTRA_LAT = "lat"
         private const val EXTRA_LON = "lon"
         private const val EXTRA_NAME = "name"
@@ -617,6 +626,12 @@ class MockLocationService : LifecycleService() {
         fun skip(context: Context) = send(context, ACTION_SKIP)
         fun addWait(context: Context) = send(context, ACTION_ADD_WAIT)
         fun dismissAlarm(context: Context) = send(context, ACTION_DISMISS_ALARM)
+
+        /** Navigation on: the app reads the real GPS chip while the fake location keeps running for other apps. */
+        fun setRealGpsForNavigation(context: Context, real: Boolean) {
+            Prefs(context).realGpsForNav = real
+            context.startService(actionIntent(context, ACTION_REAL_GPS).putExtra(EXTRA_REAL, real))
+        }
 
         fun actionIntent(context: Context, action: String): Intent =
             Intent(context, MockLocationService::class.java).setAction(action)

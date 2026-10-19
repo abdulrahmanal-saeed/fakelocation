@@ -13,6 +13,7 @@
     <color name="action">#C2410C</color>
     <color name="action_tint">#FFF4EC</color>
     <color name="real">#2563EB</color>
+    <color name="real_dark">#1D4ED8</color>
     <color name="success">#15803D</color>
     <color name="success_bg">#DCFCE7</color>
     <color name="idle_dot">#94A3B8</color>

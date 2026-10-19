@@ -30,6 +30,12 @@ Google Cloud setup: enable Map Tiles API, Routes API, Places API (New) and Geoco
 and (recommended) restrict it to Android apps with package `com.abdulrahman.fakelocation` and SHA-1
 `26:3F:24:75:BE:D1:E6:B5:02:49:80:07:17:F1:F9:B2:EE:25:3F:FD` (the app's signing key in `keystore/`).
 
+**v1.2.0:** real navigation, like Waze, on top of the fake location. The blue button on the map (or "Navigate
+here" on any place) gives turn-by-turn directions with voice for where you REALLY are, while the fake location or
+fake trip keeps running for other apps. During navigation the raw GPS chip is left real so the app can follow you;
+Google's location service (used by Google Maps and most apps) keeps reporting the fake position. Going off the
+route finds a new way automatically.
+
 See [PLAN.md](PLAN.md) for the full feature list.
 
 ## Install

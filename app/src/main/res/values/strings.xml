@@ -321,6 +321,37 @@
     <string name="widget_moving_sub">%1$s left · arrive %2$s %3$s</string>
     <string name="widget_waiting_sub">Leave %1$s · then %2$s</string>
 
+    <!-- Real navigation -->
+    <string name="nav_title">Navigate (real)</string>
+    <string name="nav_open">Navigate with my real location</string>
+    <string name="nav_here">Navigate here</string>
+    <string name="nav_my_location">My real location</string>
+    <string name="nav_choose_destination">Choose destination</string>
+    <string name="nav_choose_start">Choose start</string>
+    <string name="nav_swap">Swap start and destination</string>
+    <string name="nav_from_choice_real">My real location</string>
+    <string name="nav_from_choice_search">Search a place</string>
+    <string name="nav_waiting_gps">Waiting for your real GPS… (go near a window or outside)</string>
+    <string name="nav_routing">Finding the way…</string>
+    <string name="nav_route_failed">Couldn’t get a route. Check your internet.</string>
+    <string name="nav_pick_destination">Pick where you want to go</string>
+    <string name="nav_start">Start navigation</string>
+    <string name="nav_end">End</string>
+    <string name="nav_recenter">Follow my position</string>
+    <string name="nav_mute">Mute voice</string>
+    <string name="nav_eta">%1$s · %2$s</string>
+    <string name="nav_summary">%1$s</string>
+    <string name="nav_traffic">%1$s · Google live traffic</string>
+    <string name="nav_then">Then: %1$s</string>
+    <string name="nav_rerouting">Off the route · finding a new way…</string>
+    <string name="nav_go_to_start">Head to the start of the route · %1$s away</string>
+    <string name="nav_arrived">You have arrived</string>
+    <string name="nav_fake_on">Fake location still on for other apps · %1$s</string>
+    <string name="nav_fake_trip">Fake trip still running for other apps · %1$s</string>
+    <string name="nav_real_gps_note">While you navigate, the app reads the real GPS chip. Google Maps and most apps keep seeing the fake location.</string>
+    <string name="nav_in">In %1$s, %2$s</string>
+    <string name="nav_now">%1$s now</string>
+
     <!-- Notification -->
     <string name="notification_channel">Fake location status</string>
     <string name="notification_title">Fake location: %1$s</string>

@@ -64,6 +64,10 @@ class TeleportSheet : BottomSheetDialogFragment() {
                 }
             }
         }
+        binding.navigateHereButton.setOnClickListener {
+            startActivity(NavigateActivity.intent(requireContext(), Place(position, name ?: position.format(), address)))
+            dismiss()
+        }
         binding.addToRouteButton.setOnClickListener {
             (activity as? MainActivity)?.addToRoute(Place(position, name, address))
             dismiss()

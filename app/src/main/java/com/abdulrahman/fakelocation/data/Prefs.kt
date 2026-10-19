@@ -93,6 +93,15 @@ class Prefs(context: Context) {
         get() = prefs.getString("google_tile_session", null)
         set(value) = prefs.edit { if (value == null) remove("google_tile_session") else putString("google_tile_session", value) }
 
+    /** True while in-app navigation needs the real GPS chip (see LocationMocker.fakeGpsChip). */
+    var realGpsForNav: Boolean
+        get() = prefs.getBoolean("real_gps_nav", false)
+        set(value) = prefs.edit { putBoolean("real_gps_nav", value) }
+
+    var navMuted: Boolean
+        get() = prefs.getBoolean("nav_muted", false)
+        set(value) = prefs.edit { putBoolean("nav_muted", value) }
+
     /** The running or scheduled trip, so the service can pick it up again after a restart. */
     var activeTrip: String?
         get() = prefs.getString("trip", null)

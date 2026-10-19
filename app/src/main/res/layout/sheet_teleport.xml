@@ -103,12 +103,36 @@
         android:textSize="17sp"
         app:icon="@drawable/ic_pin" />
 
-    <com.google.android.material.button.MaterialButton
-        android:id="@+id/addToRouteButton"
-        style="@style/Button.Soft"
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="10dp"
-        android:text="@string/add_to_route"
-        app:icon="@drawable/ic_plus" />
+        android:orientation="horizontal">
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/addToRouteButton"
+            style="@style/Button.Soft"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="5dp"
+            android:layout_weight="1"
+            android:text="@string/add_to_route"
+            android:textSize="14sp"
+            app:icon="@drawable/ic_plus"
+            app:iconSize="16dp" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/navigateHereButton"
+            style="@style/Button.Soft"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="5dp"
+            android:layout_weight="1"
+            android:text="@string/nav_here"
+            android:textColor="@color/real_dark"
+            android:textSize="14sp"
+            app:icon="@drawable/ic_navigate"
+            app:iconSize="16dp"
+            app:iconTint="@color/real" />
+    </LinearLayout>
 </LinearLayout>
