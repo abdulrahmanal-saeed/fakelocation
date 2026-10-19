@@ -17,7 +17,11 @@ changes, slowing at turns and a little GPS drift), waits at every stop, and alar
 stop and 1 minute before a wait ends, even in silent mode. Pause, skip, +5 min and leave now from the map or the
 notification. Scheduled trips ("start at" / "arrive by") start by themselves.
 
-Next: Quick Settings tile, home-screen widget, offline maps. See [PLAN.md](PLAN.md).
+**v1.0.0:** Quick Settings tile (on = stop, off = go to your first favorite), home-screen widget with the trip
+status, a live countdown and buttons, and offline maps: areas you've viewed stay on the phone (limit and clear in
+Settings), with an "offline" banner on the map. Saved routes run without internet.
+
+See [PLAN.md](PLAN.md) for the full feature list.
 
 ## Install
 

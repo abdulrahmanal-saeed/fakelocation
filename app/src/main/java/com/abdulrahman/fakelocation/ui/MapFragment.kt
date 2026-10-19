@@ -109,6 +109,27 @@ class MapFragment : Fragment(R.layout.fragment_map) {
         }
     }
 
+    private val connectivity by lazy { requireContext().getSystemService(android.net.ConnectivityManager::class.java) }
+    private val networkCallback = object : android.net.ConnectivityManager.NetworkCallback() {
+        override fun onAvailable(network: android.net.Network) = showOffline(false)
+        override fun onLost(network: android.net.Network) = showOffline(connectivity.activeNetwork == null)
+    }
+
+    private fun showOffline(offline: Boolean) {
+        view?.post { _binding?.offlineBanner?.isVisible = offline }
+    }
+
+    override fun onStart() {
+        super.onStart()
+        showOffline(connectivity.activeNetwork == null)
+        runCatching { connectivity.registerDefaultNetworkCallback(networkCallback) }
+    }
+
+    override fun onStop() {
+        runCatching { connectivity.unregisterNetworkCallback(networkCallback) }
+        super.onStop()
+    }
+
     override fun onResume() {
         super.onResume()
         binding.map.onResume()

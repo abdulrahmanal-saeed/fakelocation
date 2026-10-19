@@ -35,6 +35,8 @@ import com.abdulrahman.fakelocation.trip.TripClock
 import com.abdulrahman.fakelocation.trip.TripPhase
 import com.abdulrahman.fakelocation.trip.TripPoint
 import com.abdulrahman.fakelocation.trip.TripRun
+import com.abdulrahman.fakelocation.system.QuickTileService
+import com.abdulrahman.fakelocation.system.StatusWidget
 import com.abdulrahman.fakelocation.ui.AlarmActivity
 import com.abdulrahman.fakelocation.ui.MainActivity
 import com.abdulrahman.fakelocation.ui.clockText
@@ -128,6 +130,7 @@ class MockLocationService : LifecycleService() {
         prefs.activeSession = next
         MockState.set(next)
         restartTicks()
+        refreshSurfaces(force = true)
     }
 
     // endregion
@@ -200,6 +203,7 @@ class MockLocationService : LifecycleService() {
             )
         )
         notifications.notify(NOTIFICATION_ID, tripNotification(run, point))
+        refreshSurfaces()
     }
 
     /** Each stop we wait at shows up in the place history. */
@@ -229,6 +233,7 @@ class MockLocationService : LifecycleService() {
         prefs.activeSession = fixed
         MockState.set(fixed)
         notifications.notify(NOTIFICATION_ID, fixedNotification(fixed))
+        refreshSurfaces(force = true)
     }
 
     private fun tripControl(action: String) {
@@ -254,6 +259,7 @@ class MockLocationService : LifecycleService() {
         saveTrip()
         handler.removeCallbacks(tick)
         handler.post(tick)
+        lastSurfaceKey = null
     }
 
     private fun endTrip() {
@@ -388,6 +394,25 @@ class MockLocationService : LifecycleService() {
         handler.post(tick)
     }
 
+    private var lastSurfaceKey: String? = null
+    private var lastSurfaceUpdate = 0L
+
+    /** Keeps the Quick Settings tile and the widget in step with what is running. */
+    private fun refreshSurfaces(force: Boolean = false) {
+        val run = trip
+        val now = System.currentTimeMillis()
+        val key = when {
+            run != null -> run.timeline.at(run.clock.at(now)).let { "${it.phase}:${it.stopIndex}:${run.clock.paused}:${run.timeline.totalMs}" }
+            session != null -> "fixed:${session?.position}"
+            else -> "off"
+        }
+        if (!force && key == lastSurfaceKey && now - lastSurfaceUpdate < SURFACE_REFRESH_MS) return
+        lastSurfaceKey = key
+        lastSurfaceUpdate = now
+        StatusWidget.update(this)
+        QuickTileService.refresh(this)
+    }
+
     private fun goForeground(notification: Notification) {
         ServiceCompat.startForeground(
             this, NOTIFICATION_ID, notification,
@@ -405,6 +430,7 @@ class MockLocationService : LifecycleService() {
         prefs.activeSession = null
         MockState.set(null)
         ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE)
+        refreshSurfaces(force = true)
         stopSelf()
     }
 
@@ -551,13 +577,14 @@ class MockLocationService : LifecycleService() {
         private const val ALERT_NOTIFICATION_ID = 2
         private const val INFO_NOTIFICATION_ID = 3
         private const val PUSH_INTERVAL_MS = 1000L
+        private const val SURFACE_REFRESH_MS = 30_000L
         private const val ACTION_TELEPORT = "teleport"
-        private const val ACTION_STOP = "stop"
+        const val ACTION_STOP = "stop"
         private const val ACTION_START_TRIP = "start_trip"
-        private const val ACTION_PAUSE = "pause"
-        private const val ACTION_RESUME = "resume"
-        private const val ACTION_SKIP = "skip"
-        private const val ACTION_ADD_WAIT = "add_wait"
+        const val ACTION_PAUSE = "pause"
+        const val ACTION_RESUME = "resume"
+        const val ACTION_SKIP = "skip"
+        const val ACTION_ADD_WAIT = "add_wait"
         private const val ACTION_DISMISS_ALARM = "dismiss_alarm"
         private const val EXTRA_LAT = "lat"
         private const val EXTRA_LON = "lon"
@@ -591,8 +618,11 @@ class MockLocationService : LifecycleService() {
         fun addWait(context: Context) = send(context, ACTION_ADD_WAIT)
         fun dismissAlarm(context: Context) = send(context, ACTION_DISMISS_ALARM)
 
+        fun actionIntent(context: Context, action: String): Intent =
+            Intent(context, MockLocationService::class.java).setAction(action)
+
         private fun send(context: Context, action: String) {
-            context.startService(Intent(context, MockLocationService::class.java).setAction(action))
+            context.startService(actionIntent(context, action))
         }
     }
 }

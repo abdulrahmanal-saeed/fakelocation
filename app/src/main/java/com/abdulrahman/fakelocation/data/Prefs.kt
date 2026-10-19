@@ -64,6 +64,11 @@ class Prefs(context: Context) {
         get() = prefs.getInt("traffic", 0)
         set(value) = prefs.edit { putInt("traffic", value) }
 
+    /** How much space map tiles may take on the phone, in MB. */
+    var mapCacheMb: Int
+        get() = prefs.getInt("map_cache_mb", 1000)
+        set(value) = prefs.edit { putInt("map_cache_mb", value) }
+
     /** The running or scheduled trip, so the service can pick it up again after a restart. */
     var activeTrip: String?
         get() = prefs.getString("trip", null)

@@ -14,6 +14,10 @@ import com.abdulrahman.fakelocation.data.Prefs
 import com.abdulrahman.fakelocation.databinding.FragmentSettingsBinding
 import com.abdulrahman.fakelocation.mock.AlarmPlayer
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import androidx.lifecycle.lifecycleScope
+import com.abdulrahman.fakelocation.App
+import com.abdulrahman.fakelocation.system.MapCache
+import kotlinx.coroutines.launch
 
 class SettingsFragment : Fragment(R.layout.fragment_settings) {
 
@@ -55,6 +59,32 @@ class SettingsFragment : Fragment(R.layout.fragment_settings) {
         binding.fullScreenRow.setOnClickListener { openFullScreenSettings() }
         binding.testAlarmRow.setOnClickListener { testAlarm() }
         binding.setupRow.setOnClickListener { (requireActivity() as MainActivity).openSetup() }
+        binding.offlineRow.setOnClickListener {
+            val options = listOf(300, 600, 1000, 2000)
+            MaterialAlertDialogBuilder(requireContext())
+                .setTitle(R.string.offline_limit_title)
+                .setSingleChoiceItems(options.map { megabytes(it.toLong() * 1024 * 1024) }.toTypedArray(), options.indexOf(prefs.mapCacheMb)) { dialog, which ->
+                    prefs.mapCacheMb = options[which]
+                    App.applyMapCacheLimit(options[which])
+                    render()
+                    dialog.dismiss()
+                }
+                .show()
+        }
+        binding.clearMapRow.setOnClickListener {
+            MaterialAlertDialogBuilder(requireContext())
+                .setTitle(R.string.clear_saved_map)
+                .setMessage(R.string.clear_saved_map_body)
+                .setPositiveButton(R.string.clear) { _, _ ->
+                    viewLifecycleOwner.lifecycleScope.launch {
+                        MapCache.clear()
+                        requireContext().toast(R.string.saved_map_cleared)
+                        render()
+                    }
+                }
+                .setNegativeButton(R.string.cancel, null)
+                .show()
+        }
     }
 
     override fun onResume() {
@@ -79,7 +109,15 @@ class SettingsFragment : Fragment(R.layout.fragment_settings) {
         b.fullScreenRow.isVisible = needsFullScreen
         b.fullScreenDivider.isVisible = needsFullScreen
         b.fullScreenStatus.setText(if (requireContext().canShowFullScreenAlarms()) R.string.full_screen_allowed else R.string.full_screen_needed)
+        viewLifecycleOwner.lifecycleScope.launch {
+            val used = MapCache.sizeBytes()
+            _binding?.offlineValue?.text = getString(R.string.offline_used, megabytes(used), megabytes(prefs.mapCacheMb * 1024L * 1024L))
+        }
     }
+
+    private fun megabytes(bytes: Long): String =
+        if (bytes >= 1000L * 1024 * 1024) String.format(java.util.Locale.US, "%.1f GB", bytes / 1024.0 / 1024 / 1024)
+        else "${bytes / 1024 / 1024} MB"
 
     private fun minutes(value: Int) = if (value == 0) getString(R.string.off) else getString(R.string.minutes_value, value)
 

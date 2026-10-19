@@ -178,6 +178,14 @@
     <string name="map_provider">Map provider</string>
     <string name="map_provider_osm">OpenStreetMap</string>
     <string name="setup_guide">Setup guide</string>
+    <string name="offline_maps">Offline map storage</string>
+    <string name="offline_maps_hint">Areas you’ve viewed stay on the phone and show without internet</string>
+    <string name="offline_used">%1$s of %2$s used</string>
+    <string name="offline_limit_title">Keep up to</string>
+    <string name="clear_saved_map">Clear saved map</string>
+    <string name="clear_saved_map_body">Map areas will download again the next time you view them.</string>
+    <string name="saved_map_cleared">Saved map cleared</string>
+    <string name="offline_banner">Offline · showing saved map areas. Saved routes still run.</string>
     <string name="about_section">About</string>
     <string name="version">Version</string>
     <string name="map_credit">Map data © OpenStreetMap contributors</string>
@@ -256,6 +264,26 @@
     <string name="hint_scheduled">Starts by itself at %1$s. Keep the app’s notification on.</string>
     <string name="hint_paused">Paused. Your position stays here until you resume.</string>
     <string name="hint_last_wait">Last stop. Stays here when the trip ends.</string>
+
+    <!-- Tile and widget -->
+    <string name="tile_off">Off</string>
+    <string name="tile_off_go">Off · tap for %1$s</string>
+    <string name="tile_on">On</string>
+    <string name="tile_trip">Trip running</string>
+    <string name="widget_name">Fake Location status</string>
+    <string name="widget_description">Shows the fake location or trip and lets you stop it</string>
+    <string name="widget_off">Fake location off</string>
+    <string name="widget_on">Fake location on</string>
+    <string name="widget_tap_place">Add a favorite to teleport from here</string>
+    <string name="widget_go">Go: %1$s</string>
+    <string name="widget_open">Open</string>
+    <string name="widget_starts">Trip starts %1$s</string>
+    <string name="widget_driving">Driving to %1$s</string>
+    <string name="widget_walking">Walking to %1$s</string>
+    <string name="widget_waiting">Waiting at %1$s</string>
+    <string name="widget_paused">Paused</string>
+    <string name="widget_moving_sub">%1$s left · arrive %2$s %3$s</string>
+    <string name="widget_waiting_sub">Leave %1$s · then %2$s</string>
 
     <!-- Notification -->
     <string name="notification_channel">Fake location status</string>

@@ -104,6 +104,23 @@
 
             <View style="@style/Divider" />
 
+            <LinearLayout android:id="@+id/offlineRow" style="@style/SettingsRow.Clickable">
+                <LinearLayout style="@style/SettingsRowText">
+                    <TextView style="@style/Text.Item" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/offline_maps" />
+                    <TextView android:id="@+id/offlineValue" style="@style/Text.Caption" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/offline_maps_hint" android:textSize="12sp" />
+                </LinearLayout>
+                <ImageView style="@style/SettingsChevron" />
+            </LinearLayout>
+
+            <View style="@style/Divider" />
+
+            <LinearLayout android:id="@+id/clearMapRow" style="@style/SettingsRow.Clickable">
+                <TextView style="@style/SettingsRowLabel" android:text="@string/clear_saved_map" />
+                <ImageView style="@style/SettingsChevron" />
+            </LinearLayout>
+
+            <View style="@style/Divider" />
+
             <LinearLayout android:id="@+id/setupRow" style="@style/SettingsRow.Clickable">
                 <TextView style="@style/SettingsRowLabel" android:text="@string/setup_guide" />
                 <ImageView style="@style/SettingsChevron" />

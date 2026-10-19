@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widgetRoot"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/widget_bg"
+    android:orientation="vertical"
+    android:padding="16dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <ImageView
+            android:id="@+id/widgetDot"
+            android:layout_width="10dp"
+            android:layout_height="10dp"
+            android:importantForAccessibility="no"
+            android:src="@drawable/widget_dot" />
+
+        <TextView
+            android:id="@+id/widgetStatus"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:layout_weight="1"
+            android:ellipsize="end"
+            android:fontFamily="sans-serif-medium"
+            android:letterSpacing="0.08"
+            android:maxLines="1"
+            android:text="@string/widget_off"
+            android:textAllCaps="true"
+            android:textColor="#FBBF77"
+            android:textSize="12sp" />
+
+        <Chronometer
+            android:id="@+id/widgetClock"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:fontFamily="monospace"
+            android:textColor="@color/surface"
+            android:textSize="18sp"
+            android:visibility="gone" />
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/widgetTitle"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:ellipsize="end"
+        android:fontFamily="sans-serif-medium"
+        android:maxLines="1"
+        android:textColor="@color/surface"
+        android:textSize="17sp" />
+
+    <TextView
+        android:id="@+id/widgetSubtitle"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="2dp"
+        android:ellipsize="end"
+        android:maxLines="1"
+        android:textColor="@color/muted_light"
+        android:textSize="13sp" />
+
+    <ProgressBar
+        android:id="@+id/widgetProgress"
+        style="?android:attr/progressBarStyleHorizontal"
+        android:layout_width="match_parent"
+        android:layout_height="6dp"
+        android:layout_marginTop="8dp"
+        android:max="1000"
+        android:progressTint="@color/fake"
+        android:progressBackgroundTint="#2E3A4D"
+        android:visibility="gone" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_marginTop="10dp"
+        android:layout_weight="1"
+        android:gravity="bottom"
+        android:orientation="horizontal">
+
+        <TextView
+            android:id="@+id/widgetButton1"
+            style="@style/WidgetButton"
+            android:background="@drawable/widget_button_soft"
+            android:textColor="@color/surface" />
+
+        <TextView
+            android:id="@+id/widgetButton2"
+            style="@style/WidgetButton"
+            android:layout_marginStart="8dp"
+            android:background="@drawable/widget_button_soft"
+            android:textColor="@color/surface" />
+
+        <TextView
+            android:id="@+id/widgetButton3"
+            style="@style/WidgetButton"
+            android:layout_marginStart="8dp"
+            android:background="@drawable/widget_button"
+            android:textColor="@color/ink" />
+    </LinearLayout>
+</LinearLayout>

@@ -190,6 +190,20 @@
                 android:textSize="14sp"
                 tools:text="00:42:10" />
         </LinearLayout>
+        <TextView
+            android:id="@+id/offlineBanner"
+            style="@style/Text.Caption"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:background="@drawable/bg_round"
+            android:backgroundTint="@color/ink_soft"
+            android:elevation="4dp"
+            android:paddingHorizontal="14dp"
+            android:paddingVertical="8dp"
+            android:text="@string/offline_banner"
+            android:textColor="@color/surface"
+            android:visibility="gone" />
     </LinearLayout>
 
     <com.google.android.material.button.MaterialButton

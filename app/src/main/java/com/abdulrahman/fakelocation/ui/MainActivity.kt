@@ -88,6 +88,12 @@ class MainActivity : AppCompatActivity() {
         handleSharedText(intent)
     }
 
+    override fun onStop() {
+        super.onStop()
+        // Favorites may have changed: keep the widget's "Go" button current.
+        com.abdulrahman.fakelocation.system.StatusWidget.update(this)
+    }
+
     fun selectTab(itemId: Int) {
         binding.bottomNav.selectedItemId = itemId
     }
