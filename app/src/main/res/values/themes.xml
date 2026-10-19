@@ -1,6 +1,60 @@
-<resources>
-    <style name="Theme.FakeLocation" parent="Theme.Material3.DayNight.NoActionBar">
-        <item name="colorPrimary">@color/brand_accent</item>
-        <item name="colorSecondary">@color/brand</item>
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <style name="Theme.FakeLocation" parent="Theme.Material3.Light.NoActionBar">
+        <item name="colorPrimary">@color/ink</item>
+        <item name="colorOnPrimary">@color/surface</item>
+        <item name="colorSecondary">@color/action</item>
+        <item name="colorSurface">@color/surface</item>
+        <item name="colorOnSurface">@color/ink</item>
+        <item name="colorOnSurfaceVariant">@color/muted</item>
+        <item name="android:colorBackground">@color/ground</item>
+        <item name="android:fontFamily">@font/manrope</item>
+        <item name="fontFamily">@font/manrope</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:windowLightNavigationBar" tools:targetApi="27">true</item>
+        <item name="bottomSheetDialogTheme">@style/ThemeOverlay.FakeLocation.BottomSheet</item>
+        <item name="materialAlertDialogTheme">@style/ThemeOverlay.FakeLocation.Dialog</item>
+        <item name="textAppearanceTitleLarge">@style/Text.Title</item>
+        <item name="textAppearanceBodyLarge">@style/Text.Body</item>
+        <item name="textAppearanceBodyMedium">@style/Text.Body</item>
+        <item name="textAppearanceLabelLarge">@style/Text.Button</item>
+        <item name="textAppearanceLabelMedium">@style/Text.Caption</item>
+    </style>
+
+    <style name="Theme.FakeLocation.Starting" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/ink</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/splash_icon</item>
+        <item name="postSplashScreenTheme">@style/Theme.FakeLocation</item>
+    </style>
+
+    <style name="Theme.FakeLocation.Transparent" parent="Theme.FakeLocation">
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowAnimationStyle">@null</item>
+    </style>
+
+    <style name="ThemeOverlay.FakeLocation.BottomSheet" parent="ThemeOverlay.Material3.BottomSheetDialog">
+        <item name="bottomSheetStyle">@style/Widget.FakeLocation.BottomSheet</item>
+        <item name="android:fontFamily">@font/manrope</item>
+        <item name="fontFamily">@font/manrope</item>
+    </style>
+
+    <style name="Widget.FakeLocation.BottomSheet" parent="Widget.Material3.BottomSheet.Modal">
+        <item name="backgroundTint">@color/surface</item>
+        <item name="shapeAppearance">@style/Shape.Sheet</item>
+    </style>
+
+    <style name="Shape.Sheet" parent="">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSizeTopLeft">28dp</item>
+        <item name="cornerSizeTopRight">28dp</item>
+        <item name="cornerSizeBottomLeft">0dp</item>
+        <item name="cornerSizeBottomRight">0dp</item>
+    </style>
+
+    <style name="ThemeOverlay.FakeLocation.Dialog" parent="ThemeOverlay.Material3.MaterialAlertDialog">
+        <item name="colorPrimary">@color/action</item>
+        <item name="android:fontFamily">@font/manrope</item>
+        <item name="fontFamily">@font/manrope</item>
     </style>
 </resources>

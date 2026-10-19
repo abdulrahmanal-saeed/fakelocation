@@ -1,6 +1,19 @@
 <resources>
-    <color name="brand">#1E3A8A</color>
-    <color name="brand_accent">#2563EB</color>
-    <color name="fake_pin">#DC2626</color>
-    <color name="real_dot">#2563EB</color>
+    <color name="ink">#0F1B2D</color>
+    <color name="ink_soft">#33404F</color>
+    <color name="muted">#556274</color>
+    <color name="muted_light">#B6C2D2</color>
+    <color name="line">#DCE2EA</color>
+    <color name="line_soft">#EEF1F5</color>
+    <color name="ground">#F4F6F9</color>
+    <color name="surface">#FFFFFF</color>
+    <color name="chip">#EEF1F5</color>
+    <color name="nav_active">#E8EDF5</color>
+    <color name="fake">#F2621F</color>
+    <color name="action">#C2410C</color>
+    <color name="action_tint">#FFF4EC</color>
+    <color name="real">#2563EB</color>
+    <color name="success">#15803D</color>
+    <color name="success_bg">#DCFCE7</color>
+    <color name="idle_dot">#94A3B8</color>
 </resources>

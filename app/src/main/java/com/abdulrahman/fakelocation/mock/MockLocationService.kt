@@ -1,4 +1,4 @@
-package com.abdulrahman.fakelocation
+package com.abdulrahman.fakelocation.mock
 
 import android.app.Notification
 import android.app.NotificationChannel
@@ -15,6 +15,13 @@ import androidx.core.app.NotificationCompat
 import androidx.core.app.ServiceCompat
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.LifecycleService
+import com.abdulrahman.fakelocation.R
+import com.abdulrahman.fakelocation.data.FakeSession
+import com.abdulrahman.fakelocation.data.LatLon
+import com.abdulrahman.fakelocation.data.PlacesRepository
+import com.abdulrahman.fakelocation.data.Prefs
+import com.abdulrahman.fakelocation.data.format
+import com.abdulrahman.fakelocation.ui.MainActivity
 
 /**
  * Foreground service that keeps re-sending the fake position every second.
@@ -24,13 +31,14 @@ class MockLocationService : LifecycleService() {
 
     private lateinit var mocker: LocationMocker
     private lateinit var prefs: Prefs
+    private lateinit var places: PlacesRepository
     private val handler = Handler(Looper.getMainLooper())
-    private var position: LatLon? = null
+    private var session: FakeSession? = null
 
     private val tick = object : Runnable {
         override fun run() {
-            position?.let {
-                runCatching { mocker.push(it.lat, it.lon) }
+            session?.let {
+                runCatching { mocker.push(it.position.lat, it.position.lon) }
                     .onFailure { e -> Log.w(TAG, "push failed", e) }
             }
             handler.postDelayed(this, PUSH_INTERVAL_MS)
@@ -41,6 +49,7 @@ class MockLocationService : LifecycleService() {
         super.onCreate()
         mocker = LocationMocker(this)
         prefs = Prefs(this)
+        places = PlacesRepository.get(this)
         createChannel()
     }
 
@@ -53,17 +62,18 @@ class MockLocationService : LifecycleService() {
             }
             ACTION_TELEPORT -> {
                 val target = LatLon(intent.getDoubleExtra(EXTRA_LAT, 0.0), intent.getDoubleExtra(EXTRA_LON, 0.0))
-                startMocking(target)
+                val name = intent.getStringExtra(EXTRA_NAME) ?: target.format()
+                startMocking(FakeSession(target, name, System.currentTimeMillis()), newVisit = true)
             }
             // Restarted by the system after being killed: restore the last position.
-            null -> prefs.activeFakeLocation?.let { startMocking(it) } ?: stopSelf()
+            null -> prefs.activeSession?.let { startMocking(it, newVisit = false) } ?: stopSelf()
         }
         return START_STICKY
     }
 
-    private fun startMocking(target: LatLon) {
+    private fun startMocking(next: FakeSession, newVisit: Boolean) {
         ServiceCompat.startForeground(
-            this, NOTIFICATION_ID, buildNotification(target),
+            this, NOTIFICATION_ID, buildNotification(next),
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION else 0
         )
         try {
@@ -73,9 +83,13 @@ class MockLocationService : LifecycleService() {
             stopMocking()
             return
         }
-        position = target
-        prefs.activeFakeLocation = target
-        MockState.setFakePosition(target)
+        if (newVisit) {
+            closeHistoryEntry()
+            prefs.activeHistoryId = places.startHistory(next.name, next.position, next.startedAt)
+        }
+        session = next
+        prefs.activeSession = next
+        MockState.set(next)
         handler.removeCallbacks(tick)
         handler.post(tick)
     }
@@ -83,11 +97,18 @@ class MockLocationService : LifecycleService() {
     private fun stopMocking() {
         handler.removeCallbacks(tick)
         mocker.stop()
-        position = null
-        prefs.activeFakeLocation = null
-        MockState.setFakePosition(null)
+        closeHistoryEntry()
+        session = null
+        prefs.activeSession = null
+        MockState.set(null)
         ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE)
         stopSelf()
+    }
+
+    private fun closeHistoryEntry() {
+        val id = prefs.activeHistoryId
+        if (id >= 0) places.finishHistory(id, System.currentTimeMillis())
+        prefs.activeHistoryId = -1
     }
 
     override fun onDestroy() {
@@ -103,7 +124,7 @@ class MockLocationService : LifecycleService() {
         getSystemService(NotificationManager::class.java).createNotificationChannel(channel)
     }
 
-    private fun buildNotification(target: LatLon): Notification {
+    private fun buildNotification(session: FakeSession): Notification {
         val openApp = PendingIntent.getActivity(
             this, 0, Intent(this, MainActivity::class.java), PendingIntent.FLAG_IMMUTABLE
         )
@@ -111,13 +132,16 @@ class MockLocationService : LifecycleService() {
             this, 1, Intent(this, MockLocationService::class.java).setAction(ACTION_STOP), PendingIntent.FLAG_IMMUTABLE
         )
         return NotificationCompat.Builder(this, CHANNEL_STATUS)
-            .setSmallIcon(R.drawable.ic_pin_white)
-            .setContentTitle(getString(R.string.notification_title))
-            .setContentText("%.5f, %.5f".format(target.lat, target.lon))
+            .setSmallIcon(R.drawable.ic_notification)
+            .setColor(ContextCompat.getColor(this, R.color.fake))
+            .setContentTitle(getString(R.string.notification_title, session.name))
+            .setContentText(session.position.format())
             .setContentIntent(openApp)
             .addAction(R.drawable.ic_stop, getString(R.string.stop), stop)
             .setOngoing(true)
             .setOnlyAlertOnce(true)
+            .setUsesChronometer(true)
+            .setWhen(session.startedAt)
             .build()
     }
 
@@ -130,12 +154,14 @@ class MockLocationService : LifecycleService() {
         private const val ACTION_STOP = "stop"
         private const val EXTRA_LAT = "lat"
         private const val EXTRA_LON = "lon"
+        private const val EXTRA_NAME = "name"
 
-        fun teleport(context: Context, target: LatLon) {
+        fun teleport(context: Context, target: LatLon, name: String?) {
             val intent = Intent(context, MockLocationService::class.java)
                 .setAction(ACTION_TELEPORT)
                 .putExtra(EXTRA_LAT, target.lat)
                 .putExtra(EXTRA_LON, target.lon)
+                .putExtra(EXTRA_NAME, name)
             ContextCompat.startForegroundService(context, intent)
         }
 

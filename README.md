@@ -4,11 +4,11 @@ Personal Android app that fakes the phone's GPS location, with route simulation 
 
 ## Status
 
-**Phase 1 (done):** map (OpenStreetMap), place search, long-press → teleport, "My location" button
-that remembers the real position while faking, background service with Stop in the notification.
+**v0.2.0:** new design (logo, splash, first-run setup, bottom navigation), long-press / search / coordinates /
+Google Maps links → teleport sheet, favorites, history, "My location" button that remembers the real position
+while faking, background service with Stop in the notification.
 
-Next phases: route editor on real streets (OSRM), wait time at each point, movement at street speed,
-alert 2 minutes before each point, saved routes.
+Next: route editor on real streets, timing, trip engine and alarms. See [PLAN.md](PLAN.md).
 
 ## Install
 
@@ -24,7 +24,9 @@ alert 2 minutes before each point, saved routes.
 ## Use
 
 - Long-press anywhere on the map → **Teleport here**.
-- Or search for a place at the top.
+- Or search a place, type coordinates, or paste a Google Maps link at the top.
+- In Google Maps: **Share** a place → **Fake Location** to open it straight in the app.
+- Star a place to keep it in **Places → Favorites**; every teleport is listed in **History**.
 - **Stop** (button or notification) returns the phone to its real GPS.
 
 ## Build locally

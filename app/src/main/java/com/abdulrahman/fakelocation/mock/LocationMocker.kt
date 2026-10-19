@@ -1,4 +1,4 @@
-package com.abdulrahman.fakelocation
+package com.abdulrahman.fakelocation.mock
 
 import android.annotation.SuppressLint
 import android.app.AppOpsManager

@@ -1,22 +1,122 @@
 <resources>
     <string name="app_name">Fake Location</string>
-    <string name="status_idle">Fake location is off</string>
-    <string name="status_fixed">Fake location: %1$.5f, %2$.5f</string>
-    <string name="teleport_title">Set fake location here?</string>
-    <string name="teleport_action">Teleport here</string>
-    <string name="cancel">Cancel</string>
+
+    <!-- Navigation -->
+    <string name="nav_map">Map</string>
+    <string name="nav_routes">Routes</string>
+    <string name="nav_places">Places</string>
+    <string name="nav_settings">Settings</string>
+
+    <!-- Map -->
+    <string name="search_hint">Search place, coordinates or link</string>
+    <string name="recent">Recent</string>
+    <string name="status_off">Fake location is off</string>
+    <string name="status_off_hint">Showing your real GPS</string>
+    <string name="status_on">FAKE LOCATION ON</string>
+    <string name="teleport">Teleport</string>
+    <string name="plan_route">Plan route</string>
+    <string name="map_tip">Tip: long-press anywhere on the map to drop a pin</string>
+    <string name="phone_thinks">PHONE THINKS YOU’RE AT</string>
+    <string name="move">Move</string>
+    <string name="save">Save</string>
+    <string name="saved">Saved</string>
+    <string name="route_from_here">Route from here</string>
     <string name="stop">Stop</string>
-    <string name="my_location">My location</string>
-    <string name="real_location_unknown">Real location not known yet. Turn off the fake location once so the app can read your GPS.</string>
-    <string name="real_location_cached">Showing your last real location (fake location is on)</string>
-    <string name="mock_setup_title">One-time setup needed</string>
-    <string name="mock_setup_message">Android only lets one app fake the location.\n\n1. Open Settings → About phone → Software information and tap \"Build number\" 7 times to enable Developer options.\n2. Open Developer options → \"Select mock location app\" and choose Fake Location.\n3. Come back and try again.</string>
-    <string name="open_developer_options">Open Developer options</string>
-    <string name="developer_options_disabled">Developer options are off. Enable them first (tap Build number 7 times).</string>
-    <string name="permission_needed">Location permission is required.</string>
-    <string name="notification_channel">Fake location status</string>
-    <string name="notification_title">Fake location active</string>
+    <string name="stop_long">Stop – back to real GPS</string>
+    <string name="my_location">My real location</string>
+    <string name="real_location_unknown">Your real location isn’t known yet. Stop the fake location once so the app can read your GPS.</string>
+    <string name="real_location_cached">Showing your last real location</string>
+
+    <!-- Teleport sheet -->
+    <string name="dropped_pin">Dropped pin</string>
+    <string name="finding_address">Finding address…</string>
+    <string name="from_you">%1$s from you</string>
+    <string name="teleport_here">Teleport here</string>
+    <string name="copy_coordinates">Copy coordinates</string>
+    <string name="coordinates_copied">Coordinates copied</string>
+    <string name="save_favorite">Save to favorites</string>
+    <string name="remove_favorite">Remove from favorites</string>
+
+    <!-- Favorites -->
+    <string name="favorite_name_title">Name this place</string>
+    <string name="favorite_name_hint">e.g. Home, Work, Club</string>
+    <string name="favorite_added">Saved to favorites</string>
+    <string name="favorite_removed">Removed from favorites</string>
+    <string name="rename">Rename</string>
+    <string name="delete">Delete</string>
+    <string name="cancel">Cancel</string>
+    <string name="go">Go</string>
+
+    <!-- Search -->
+    <string name="back">Back</string>
+    <string name="clear">Clear</string>
+    <string name="results">Results</string>
+    <string name="quick_input">Quick input</string>
+    <string name="enter_coordinates">Enter coordinates</string>
+    <string name="enter_coordinates_hint">Type or paste lat, lon</string>
+    <string name="paste_link">Paste Google Maps link</string>
+    <string name="paste_link_hint">Or share a place from Google Maps</string>
+    <string name="searching">Searching…</string>
+    <string name="no_results">No places found</string>
+    <string name="search_error">Search needs internet. Check your connection.</string>
+    <string name="coordinates_result">Coordinates</string>
+    <string name="reading_link">Reading link…</string>
+    <string name="link_failed">Couldn’t read a location from that link</string>
+    <string name="clipboard_empty">Clipboard is empty</string>
+
+    <!-- Coordinates sheet -->
+    <string name="go_to_coordinates">Go to coordinates</string>
+    <string name="latitude">Latitude</string>
+    <string name="longitude">Longitude</string>
+    <string name="paste_clipboard">Paste from clipboard</string>
+    <string name="show_on_map">Show on map</string>
+    <string name="invalid_coordinates">Latitude must be −90…90 and longitude −180…180</string>
+
+    <!-- Places -->
+    <string name="favorites">Favorites</string>
+    <string name="history">History</string>
+    <string name="add_favorite">Add favorite</string>
+    <string name="clear_history">Clear history</string>
+    <string name="no_favorites">No favorites yet. Tap the star on any place to save it.</string>
+    <string name="no_history">Places you teleport to show up here.</string>
+    <string name="history_now">Now · %1$s</string>
+    <string name="history_stayed">%1$s · stayed %2$s</string>
+    <string name="today">Today</string>
+    <string name="yesterday">Yesterday</string>
+
+    <!-- Routes -->
+    <string name="routes_coming_title">Routes are next</string>
+    <string name="routes_coming_body">Draw a route on real streets, wait at each stop, pick “arrive by” time and get an alarm 2 minutes before every stop.\n\nThis arrives in the next update.</string>
+
+    <!-- Settings -->
+    <string name="map_section">Map</string>
+    <string name="map_provider">Map provider</string>
+    <string name="map_provider_osm">OpenStreetMap</string>
     <string name="setup_guide">Setup guide</string>
-    <string name="search_hint">Search place</string>
-    <string name="search_failed">No results found</string>
+    <string name="about_section">About</string>
+    <string name="version">Version</string>
+    <string name="map_credit">Map data © OpenStreetMap contributors</string>
+
+    <!-- Setup -->
+    <string name="setup_overline">One-time setup</string>
+    <string name="setup_title">Let’s get your phone ready</string>
+    <string name="setup_subtitle">3 quick steps. You only do this once.</string>
+    <string name="step_location">Location access</string>
+    <string name="step_notifications">Notifications</string>
+    <string name="step_mock">Choose this app for fake location</string>
+    <string name="step_mock_hint">Required by Android</string>
+    <string name="step_mock_how">1. Settings → About phone → Software information → tap <b>Build number</b> 7 times\n2. Developer options → <b>Select mock location app</b> → Fake Location</string>
+    <string name="allowed">Allowed</string>
+    <string name="not_allowed">Not allowed yet</string>
+    <string name="done">Done</string>
+    <string name="allow">Allow</string>
+    <string name="open_developer_options">Open Developer options</string>
+    <string name="developer_options_disabled">Developer options are off. Tap “Build number” 7 times first.</string>
+    <string name="continue_to_map">Continue to map</string>
+    <string name="mock_not_selected">Pick Fake Location as the mock location app first</string>
+    <string name="permission_needed">Location permission is required.</string>
+
+    <!-- Notification -->
+    <string name="notification_channel">Fake location status</string>
+    <string name="notification_title">Fake location: %1$s</string>
 </resources>

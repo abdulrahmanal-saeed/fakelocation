@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:background="@drawable/bg_round"
+    android:foreground="?attr/selectableItemBackground"
+    android:gravity="center_vertical"
+    android:minHeight="66dp"
+    android:orientation="horizontal"
+    android:paddingVertical="12dp"
+    android:paddingStart="14dp"
+    android:paddingEnd="12dp">
+
+    <FrameLayout
+        android:id="@+id/iconBox"
+        android:layout_width="42dp"
+        android:layout_height="42dp"
+        android:background="@drawable/bg_round"
+        android:backgroundTint="@color/action_tint">
+
+        <ImageView
+            android:id="@+id/icon"
+            android:layout_width="20dp"
+            android:layout_height="20dp"
+            android:layout_gravity="center"
+            android:importantForAccessibility="no"
+            app:tint="@color/action"
+            tools:src="@drawable/ic_pin" />
+
+        <TextView
+            android:id="@+id/initial"
+            style="@style/Text.Item"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:textColor="@color/action"
+            android:textSize="16sp"
+            android:visibility="gone"
+            tools:text="H" />
+    </FrameLayout>
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="14dp"
+        android:layout_weight="1"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/title"
+            style="@style/Text.Item"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:ellipsize="end"
+            android:maxLines="1"
+            tools:text="City Stars Mall" />
+
+        <TextView
+            android:id="@+id/subtitle"
+            style="@style/Text.Caption"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:ellipsize="end"
+            android:maxLines="1"
+            android:textSize="12sp"
+            tools:text="Today, 09:12 · stayed 2h 10m" />
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/trailingText"
+        style="@style/Text.Caption"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="8dp"
+        android:visibility="gone"
+        tools:text="2.9 km" />
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/goButton"
+        style="@style/Button.Small"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="8dp"
+        android:text="@string/go"
+        android:visibility="gone" />
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/starButton"
+        style="@style/IconButton"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:layout_marginStart="8dp"
+        android:contentDescription="@string/save_favorite"
+        android:visibility="gone"
+        app:backgroundTint="@color/ground"
+        app:cornerRadius="12dp"
+        app:icon="@drawable/ic_star"
+        app:iconSize="18dp"
+        app:iconTint="@color/action" />
+</LinearLayout>
