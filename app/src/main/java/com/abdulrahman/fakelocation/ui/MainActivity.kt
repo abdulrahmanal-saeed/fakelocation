@@ -73,11 +73,18 @@ class MainActivity : AppCompatActivity() {
             true
         }
         showTab(binding.bottomNav.selectedItemId)
+        // A trip that is running or scheduled is shown on the map.
+        if (MockState.trip.value != null || prefs.activeTrip != null) selectTab(R.id.nav_map)
+        if (MockState.trip.value == null && prefs.activeTrip != null) {
+            // The service was stopped by the system; start it again so the trip picks up where it was.
+            androidx.core.content.ContextCompat.startForegroundService(this, Intent(this, MockLocationService::class.java))
+        }
         handleSharedText(intent)
     }
 
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
+        if (intent.getBooleanExtra(EXTRA_SHOW_MAP, false)) selectTab(R.id.nav_map)
         handleSharedText(intent)
     }
 
@@ -173,6 +180,12 @@ class MainActivity : AppCompatActivity() {
 
     companion object {
         const val EXTRA_SHARED_TEXT = "shared_text"
+        private const val EXTRA_SHOW_MAP = "show_map"
+
+        fun showMap(context: Context) =
+            Intent(context, MainActivity::class.java)
+                .putExtra(EXTRA_SHOW_MAP, true)
+                .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
         private const val TAG_MAP = "map"
         private const val TAG_ROUTES = "routes"
         private const val TAG_PLACES = "places"

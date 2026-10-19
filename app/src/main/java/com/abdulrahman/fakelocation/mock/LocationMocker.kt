@@ -38,12 +38,12 @@ class LocationMocker(private val context: Context) {
     }
 
     @SuppressLint("MissingPermission")
-    fun push(lat: Double, lon: Double, bearing: Float = 0f, speedMps: Float = 0f) {
+    fun push(lat: Double, lon: Double, bearing: Float = 0f, speedMps: Float = 0f, accuracy: Float = 3f) {
         if (!started) return
         for (provider in providers) {
-            locationManager.setTestProviderLocation(provider, buildLocation(provider, lat, lon, bearing, speedMps))
+            locationManager.setTestProviderLocation(provider, buildLocation(provider, lat, lon, bearing, speedMps, accuracy))
         }
-        fusedClient.setMockLocation(buildLocation("fused", lat, lon, bearing, speedMps))
+        fusedClient.setMockLocation(buildLocation("fused", lat, lon, bearing, speedMps, accuracy))
     }
 
     @SuppressLint("MissingPermission")
@@ -83,12 +83,12 @@ class LocationMocker(private val context: Context) {
         }
     }
 
-    private fun buildLocation(provider: String, lat: Double, lon: Double, bearing: Float, speedMps: Float) =
+    private fun buildLocation(provider: String, lat: Double, lon: Double, bearing: Float, speedMps: Float, accuracyM: Float) =
         Location(provider).apply {
             latitude = lat
             longitude = lon
             altitude = 30.0
-            accuracy = 3f
+            accuracy = accuracyM
             this.bearing = bearing
             speed = speedMps
             time = System.currentTimeMillis()

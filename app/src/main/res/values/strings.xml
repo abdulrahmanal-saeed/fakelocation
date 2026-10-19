@@ -89,7 +89,7 @@
     <string name="routes_empty_body">Plan a trip on real streets: add stops, choose how long to wait at each one, then pick when it should run.</string>
     <string name="new_route">New route</string>
     <string name="edit">Edit</string>
-    <string name="timing">Timing</string>
+    <string name="timing">Run</string>
     <string name="route_meta">%1$s · %2$d stops · %3$s · %4$s</string>
     <string name="route_meta_unrouted">%1$s · %2$d stops</string>
     <string name="mode_car">Car</string>
@@ -144,13 +144,36 @@
     <string name="timeline_mid_nowait">Pass through</string>
     <string name="timeline_final">Arrive and stay</string>
     <string name="trip_total">Total %1$s · %2$s</string>
-    <string name="save_timing">Save timing</string>
-    <string name="timing_saved">Timing saved</string>
-    <string name="trips_next_update">Running the trip (moving, waiting, alarms) arrives in the next update.</string>
+    <string name="start_trip">Start trip</string>
+    <string name="schedule_trip">Schedule trip</string>
+    <string name="trip_scheduled">Trip scheduled for %1$s</string>
+    <string name="replace_trip_title">Replace the running trip?</string>
+    <string name="replace_trip_body">Only one trip can run at a time.</string>
+    <string name="replace">Replace</string>
+    <string name="natural_movement">Natural movement</string>
+    <string name="natural_movement_hint">Speed varies, slows at turns, small GPS drift</string>
+    <string name="traffic_note">Includes +%1$d%% for traffic</string>
     <string name="arrive_too_soon">Too soon. Even starting now, you reach %1$s at</string>
     <string name="time_in_past">That time has already passed: it’s set for tomorrow.</string>
 
     <!-- Settings -->
+    <string name="alerts_section">Alerts</string>
+    <string name="alert_before_arriving">Before arriving at a stop</string>
+    <string name="alert_before_leaving">Before a wait ends</string>
+    <string name="minutes_value">%1$d min</string>
+    <string name="off">Off</string>
+    <string name="ring_in_silent">Ring in silent mode</string>
+    <string name="ring_in_silent_hint">Full-screen alarm on the alarm volume, like a clock app</string>
+    <string name="vibrate">Vibrate</string>
+    <string name="vibrate_hint">Strong pattern you can feel in a pocket</string>
+    <string name="full_screen_alarms">Full-screen alarms</string>
+    <string name="full_screen_allowed">Allowed</string>
+    <string name="full_screen_needed">Tap to allow (shows the alarm over the lock screen)</string>
+    <string name="movement_section">Movement</string>
+    <string name="traffic">Traffic (car trips)</string>
+    <string name="traffic_none">None</string>
+    <string name="traffic_value">+%1$d%% time</string>
+    <string name="test_alarm">Test alarm</string>
     <string name="map_section">Map</string>
     <string name="map_provider">Map provider</string>
     <string name="map_provider_osm">OpenStreetMap</string>
@@ -162,7 +185,9 @@
     <!-- Setup -->
     <string name="setup_overline">One-time setup</string>
     <string name="setup_title">Let’s get your phone ready</string>
-    <string name="setup_subtitle">3 quick steps. You only do this once.</string>
+    <string name="setup_subtitle">A few quick steps. You only do this once.</string>
+    <string name="step_alarms">Alarms over the lock screen</string>
+    <string name="step_alarms_hint">So stop alarms show even when the phone is locked</string>
     <string name="step_location">Location access</string>
     <string name="step_notifications">Notifications</string>
     <string name="step_mock">Choose this app for fake location</string>
@@ -177,6 +202,60 @@
     <string name="continue_to_map">Continue to map</string>
     <string name="mock_not_selected">Pick Fake Location as the mock location app first</string>
     <string name="permission_needed">Location permission is required.</string>
+
+    <!-- Trip -->
+    <string name="channel_alarms">Trip alarms</string>
+    <string name="channel_alerts_sound">Trip alerts</string>
+    <string name="channel_trip_info">Trip updates</string>
+    <string name="trip_starts_at">Trip starts at %1$s</string>
+    <string name="trip_driving_to">Driving to %1$s · %2$s</string>
+    <string name="trip_walking_to">Walking to %1$s · %2$s</string>
+    <string name="trip_waiting_at">Waiting at %1$s · %2$s</string>
+    <string name="trip_moving_text">%1$s · %2$s · %3$d km/h</string>
+    <string name="trip_waiting_text">Leaving in %1$s → %2$s</string>
+    <string name="trip_waiting_last">Final stop</string>
+    <string name="trip_paused_prefix">Paused · %1$s</string>
+    <string name="pause">Pause</string>
+    <string name="resume">Resume</string>
+    <string name="skip">Skip</string>
+    <string name="leave_now">Leave now</string>
+    <string name="plus_five">+5 min</string>
+    <string name="start_now_action">Start now</string>
+    <string name="cancel_trip">Cancel</string>
+    <string name="alarm_arriving_title">Arriving at %1$s · %2$s</string>
+    <string name="alarm_arriving_text">In %1$s</string>
+    <string name="alarm_leaving_title">Leaving %1$s in %2$s</string>
+    <string name="alarm_leaving_text">Next: %1$s · %2$s</string>
+    <string name="arrived_title">Arrived at %1$s · %2$s</string>
+    <string name="arrived_text">Waiting %1$s, leaving at %2$s</string>
+    <string name="finished_title">Trip finished</string>
+    <string name="finished_text">Staying at %1$s. Stop to go back to your real GPS.</string>
+    <string name="dismiss">Dismiss</string>
+    <string name="alarm_overline_arriving">ARRIVING SOON</string>
+    <string name="alarm_overline_leaving">LEAVING SOON</string>
+    <string name="alarm_until_reach">until you reach</string>
+    <string name="alarm_until_leave">until you leave</string>
+    <string name="alarm_footer">Rings even in silent mode</string>
+    <string name="mock_failed">Fake location stopped: pick Fake Location as the mock location app again.</string>
+
+    <!-- Trip on the map -->
+    <string name="next_stop">Next stop</string>
+    <string name="waiting_at">Waiting at</string>
+    <string name="trip_starts_at_stop">Trip starts at %1$s</string>
+    <string name="then_stop">then %1$s</string>
+    <string name="in_time">in %1$s</string>
+    <string name="stat_speed">Speed</string>
+    <string name="stat_done">Done</string>
+    <string name="stat_left_here">Left here</string>
+    <string name="stat_starts_in">Starts in</string>
+    <string name="stat_distance">Distance</string>
+    <string name="stat_arrive">Arrive %1$s</string>
+    <string name="kmh">%1$d km/h</string>
+    <string name="hint_alarm_before">Alarm rings %1$d min before %2$s</string>
+    <string name="hint_leave_alarm">“Leaving soon” alarm at %1$d:00 left</string>
+    <string name="hint_scheduled">Starts by itself at %1$s. Keep the app’s notification on.</string>
+    <string name="hint_paused">Paused. Your position stays here until you resume.</string>
+    <string name="hint_last_wait">Last stop. Stays here when the trip ends.</string>
 
     <!-- Notification -->
     <string name="notification_channel">Fake location status</string>

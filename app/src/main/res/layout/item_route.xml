@@ -59,7 +59,10 @@
                 style="@style/Button.Small"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="@string/timing" />
+                android:text="@string/timing"
+                app:icon="@drawable/ic_play"
+                app:iconSize="12dp"
+                xmlns:app="http://schemas.android.com/apk/res-auto" />
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/editButton"

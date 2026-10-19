@@ -150,6 +150,43 @@
                 android:layout_marginTop="18dp"
                 android:orientation="vertical" />
 
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="14dp"
+                android:background="@drawable/bg_round"
+                android:backgroundTint="@color/ground"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:padding="14dp">
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <TextView
+                        style="@style/Text.Item"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/natural_movement" />
+
+                    <TextView
+                        style="@style/Text.Caption"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/natural_movement_hint"
+                        android:textSize="12sp" />
+                </LinearLayout>
+
+                <com.google.android.material.materialswitch.MaterialSwitch
+                    android:id="@+id/naturalSwitch"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:contentDescription="@string/natural_movement" />
+            </LinearLayout>
+
             <TextView
                 android:id="@+id/total"
                 style="@style/Text.Caption"
@@ -169,21 +206,12 @@
         android:paddingTop="8dp"
         android:paddingBottom="16dp">
 
-        <TextView
-            style="@style/Text.Caption"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginBottom="10dp"
-            android:gravity="center"
-            android:text="@string/trips_next_update"
-            android:textSize="12sp" />
-
         <com.google.android.material.button.MaterialButton
-            android:id="@+id/saveButton"
+            android:id="@+id/startButton"
             style="@style/Button.Action"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:text="@string/save_timing"
-            app:icon="@drawable/ic_clock" />
+            android:text="@string/start_trip"
+            app:icon="@drawable/ic_play" />
     </LinearLayout>
 </LinearLayout>

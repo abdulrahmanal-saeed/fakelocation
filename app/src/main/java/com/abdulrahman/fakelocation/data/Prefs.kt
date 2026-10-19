@@ -38,6 +38,37 @@ class Prefs(context: Context) {
             }
         }
 
+    // Alerts and movement settings
+    var alertBeforeArriveMinutes: Int
+        get() = prefs.getInt("alert_arrive", 2)
+        set(value) = prefs.edit { putInt("alert_arrive", value) }
+
+    var alertBeforeLeaveMinutes: Int
+        get() = prefs.getInt("alert_leave", 1)
+        set(value) = prefs.edit { putInt("alert_leave", value) }
+
+    var ringInSilent: Boolean
+        get() = prefs.getBoolean("ring_silent", true)
+        set(value) = prefs.edit { putBoolean("ring_silent", value) }
+
+    var vibrate: Boolean
+        get() = prefs.getBoolean("vibrate", true)
+        set(value) = prefs.edit { putBoolean("vibrate", value) }
+
+    var naturalMovement: Boolean
+        get() = prefs.getBoolean("natural", true)
+        set(value) = prefs.edit { putBoolean("natural", value) }
+
+    /** Extra time added to car trips for traffic, in percent. */
+    var trafficPercent: Int
+        get() = prefs.getInt("traffic", 0)
+        set(value) = prefs.edit { putInt("traffic", value) }
+
+    /** The running or scheduled trip, so the service can pick it up again after a restart. */
+    var activeTrip: String?
+        get() = prefs.getString("trip", null)
+        set(value) = prefs.edit { if (value == null) remove("trip") else putString("trip", value) }
+
     var activeHistoryId: Long
         get() = prefs.getLong("history_id", -1)
         set(value) = prefs.edit { putLong("history_id", value) }

@@ -26,6 +26,81 @@
         app:layout_constraintTop_toTopOf="parent">
 
         <LinearLayout
+            android:id="@+id/tripCard"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@drawable/bg_round"
+            android:backgroundTint="@color/ink"
+            android:elevation="8dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:padding="14dp"
+            android:visibility="gone"
+            tools:visibility="visible">
+
+            <TextView
+                android:id="@+id/tripLetter"
+                style="@style/Text.Item"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:background="@drawable/bg_circle"
+                android:gravity="center"
+                android:textSize="17sp"
+                tools:text="C" />
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginHorizontal="14dp"
+                android:layout_weight="1"
+                android:orientation="vertical">
+
+                <TextView
+                    android:id="@+id/tripCaption"
+                    style="@style/Text.Caption"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textColor="@color/muted_light"
+                    tools:text="Next stop" />
+
+                <TextView
+                    android:id="@+id/tripTitle"
+                    style="@style/Text.Title"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:ellipsize="end"
+                    android:maxLines="1"
+                    android:textColor="@color/surface"
+                    android:textSize="18sp"
+                    tools:text="Tahrir Square" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:gravity="end"
+                android:orientation="vertical">
+
+                <TextView
+                    android:id="@+id/tripTime"
+                    style="@style/Text.Mono"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textColor="@color/surface"
+                    android:textSize="22sp"
+                    tools:text="4 min" />
+
+                <TextView
+                    android:id="@+id/tripSub"
+                    style="@style/Text.Caption"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textColor="@color/muted_light"
+                    tools:text="1.8 km" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <LinearLayout
             android:id="@+id/searchPill"
             android:layout_width="match_parent"
             android:layout_height="54dp"
@@ -232,6 +307,122 @@
                 android:layout_marginTop="12dp"
                 android:gravity="center"
                 android:text="@string/map_tip" />
+        </LinearLayout>
+
+        <!-- Trip -->
+        <LinearLayout
+            android:id="@+id/tripPanel"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:visibility="gone"
+            tools:visibility="visible">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="14dp"
+                android:orientation="horizontal">
+
+                <LinearLayout style="@style/TripStat">
+                    <TextView android:id="@+id/stat1Label" style="@style/TripStatLabel" tools:text="Speed" />
+                    <TextView android:id="@+id/stat1Value" style="@style/TripStatValue" tools:text="42 km/h" />
+                </LinearLayout>
+
+                <LinearLayout style="@style/TripStat">
+                    <TextView android:id="@+id/stat2Label" style="@style/TripStatLabel" tools:text="Done" />
+                    <TextView android:id="@+id/stat2Value" style="@style/TripStatValue" tools:text="6.9 km" />
+                </LinearLayout>
+
+                <LinearLayout style="@style/TripStat">
+                    <TextView android:id="@+id/stat3Label" style="@style/TripStatLabel" tools:text="Arrive D" />
+                    <TextView android:id="@+id/stat3Value" style="@style/TripStatValue" tools:text="15:00" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/progressRow"
+                android:layout_width="match_parent"
+                android:layout_height="26dp"
+                android:layout_marginTop="14dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="14dp"
+                android:background="@drawable/bg_round"
+                android:backgroundTint="@color/action_tint"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingHorizontal="12dp"
+                android:paddingVertical="10dp">
+
+                <ImageView
+                    android:layout_width="18dp"
+                    android:layout_height="18dp"
+                    android:importantForAccessibility="no"
+                    android:src="@drawable/ic_bell"
+                    app:tint="@color/action" />
+
+                <TextView
+                    android:id="@+id/tripHint"
+                    style="@style/Text.Caption"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="10dp"
+                    android:layout_weight="1"
+                    android:textColor="#9A3412"
+                    tools:text="Alarm rings 2 min before C" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="14dp"
+                android:orientation="horizontal">
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/tripButton1"
+                    style="@style/Button.Soft"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="4dp"
+                    android:layout_weight="1"
+                    android:minHeight="54dp"
+                    android:paddingHorizontal="4dp"
+                    android:textSize="14sp"
+                    app:iconSize="16dp"
+                    tools:text="Pause" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/tripButton2"
+                    style="@style/Button.Soft"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginHorizontal="4dp"
+                    android:layout_weight="1"
+                    android:minHeight="54dp"
+                    android:paddingHorizontal="4dp"
+                    android:textSize="14sp"
+                    app:iconSize="16dp"
+                    tools:text="Skip" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/tripStopButton"
+                    style="@style/Button.Ink"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="4dp"
+                    android:layout_weight="1"
+                    android:minHeight="54dp"
+                    android:paddingHorizontal="4dp"
+                    android:text="@string/stop"
+                    android:textSize="14sp"
+                    app:icon="@drawable/ic_stop"
+                    app:iconSize="14dp" />
+            </LinearLayout>
         </LinearLayout>
 
         <!-- Active -->

@@ -59,12 +59,14 @@ class MapFragment : Fragment(R.layout.fragment_map) {
     private val timerHandler = Handler(Looper.getMainLooper())
 
     private val main get() = requireActivity() as MainActivity
+    private var tripView: TripView? = null
+    private var tripShown = false
 
     private val realLocationCallback = object : LocationCallback() {
         override fun onLocationResult(result: LocationResult) {
             val location = result.lastLocation ?: return
             // While faking, the system hands us our own fake position, so ignore it.
-            if (location.isMockCompat() || MockState.session.value != null) return
+            if (location.isMockCompat() || MockState.isFaking) return
             val real = LatLon(location.latitude, location.longitude)
             prefs.lastRealLocation = real
             showRealMarker(real)
@@ -93,10 +95,16 @@ class MapFragment : Fragment(R.layout.fragment_map) {
 
         viewLifecycleOwner.lifecycleScope.launch {
             viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
-                combine(MockState.session, places.favorites) { s, f -> s to f }.collect { (session, favorites) ->
-                    renderSession(session, favorites)
-                    renderChips(favorites)
-                }
+                combine(MockState.session, MockState.trip, places.favorites) { s, t, f -> Triple(s, t, f) }
+                    .collect { (session, trip, favorites) ->
+                        if (trip != null) {
+                            renderTrip(trip)
+                        } else {
+                            if (tripShown) endTripView()
+                            renderSession(session, favorites)
+                            renderChips(favorites)
+                        }
+                    }
             }
         }
     }
@@ -145,7 +153,7 @@ class MapFragment : Fragment(R.layout.fragment_map) {
     /** Remember where we really are before the GPS starts reporting the fake position. */
     @SuppressLint("MissingPermission")
     fun rememberRealLocation() {
-        if (MockState.session.value != null || !requireContext().hasLocationPermission()) return
+        if (MockState.isFaking || !requireContext().hasLocationPermission()) return
         fusedClient.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, null).addOnSuccessListener { location ->
             if (location != null && !location.isMockCompat()) prefs.lastRealLocation = LatLon(location.latitude, location.longitude)
         }
@@ -200,7 +208,20 @@ class MapFragment : Fragment(R.layout.fragment_map) {
 
     private fun setupControls() {
         binding.searchPill.setOnClickListener { main.openSearch() }
-        binding.myLocationButton.setOnClickListener { goToMyLocation() }
+        binding.myLocationButton.setOnClickListener {
+            val trip = tripView
+            if (tripShown && trip != null && !trip.follow) {
+                trip.follow = true
+                MockState.trip.value?.let { trip.show(it) }
+            } else {
+                goToMyLocation()
+            }
+        }
+        // Dragging the map during a trip stops it from following the moving arrow.
+        binding.map.setOnTouchListener { _, event ->
+            if (event.actionMasked == android.view.MotionEvent.ACTION_MOVE) tripView?.follow = false
+            false
+        }
         binding.teleportButton.setOnClickListener {
             val center = binding.map.mapCenter
             main.showPlace(Place(LatLon(center.latitude, center.longitude)))
@@ -222,6 +243,34 @@ class MapFragment : Fragment(R.layout.fragment_map) {
                 }
             }
         }
+    }
+
+    private fun renderTrip(trip: com.abdulrahman.fakelocation.mock.TripUi) {
+        val view = tripView ?: TripView(binding).also { tripView = it }
+        if (!tripShown) {
+            tripShown = true
+            timerHandler.removeCallbacks(timerTick)
+            binding.map.overlays.remove(fakeMarker)
+            binding.map.overlays.remove(selectionMarker)
+            binding.searchPill.isVisible = false
+            binding.chipsScroll.isVisible = false
+            binding.activePill.isVisible = false
+            binding.idlePanel.isVisible = false
+            binding.activePanel.isVisible = false
+            binding.tripCard.isVisible = true
+            binding.tripPanel.isVisible = true
+            binding.map.controller.setZoom(16.5)
+        }
+        view.show(trip)
+        updateRealLocationTracking()
+    }
+
+    private fun endTripView() {
+        tripShown = false
+        tripView?.clear()
+        binding.tripCard.isVisible = false
+        binding.tripPanel.isVisible = false
+        binding.searchPill.isVisible = true
     }
 
     private fun renderSession(session: FakeSession?, favorites: List<Favorite>) {
@@ -288,7 +337,7 @@ class MapFragment : Fragment(R.layout.fragment_map) {
             return
         }
         val real = prefs.lastRealLocation
-        if (MockState.session.value != null) {
+        if (MockState.isFaking) {
             if (real == null) {
                 context.toast(R.string.real_location_unknown)
                 return
@@ -312,7 +361,7 @@ class MapFragment : Fragment(R.layout.fragment_map) {
     @SuppressLint("MissingPermission")
     private fun updateRealLocationTracking() {
         val shouldTrack = isAdded && !isHidden && requireContext().hasLocationPermission() &&
-            MockState.session.value == null && lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)
+            !MockState.isFaking && lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)
         if (shouldTrack && !trackingRealLocation) {
             val request = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 5_000L).build()
             fusedClient.requestLocationUpdates(request, realLocationCallback, Looper.getMainLooper())

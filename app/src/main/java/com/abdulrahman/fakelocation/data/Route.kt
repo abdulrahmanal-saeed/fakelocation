@@ -19,6 +19,11 @@ data class RoutePath(
 ) {
     val distanceMeters get() = legs.sumOf { it.distanceMeters }
     val durationSeconds get() = legs.sumOf { it.durationSeconds }
+
+    /** The same path, every piece taking [factor] times as long (e.g. 1.3 for heavy traffic). */
+    fun slower(factor: Double): RoutePath =
+        if (factor == 1.0) this
+        else copy(segmentSeconds = segmentSeconds.map { it * factor }, legs = legs.map { it.copy(durationSeconds = it.durationSeconds * factor) })
 }
 
 enum class TimingMode { NOW, START_AT, ARRIVE_BY }
@@ -34,6 +39,10 @@ data class Route(
     val timing: Timing = Timing(),
     val updatedAt: Long = System.currentTimeMillis(),
 ) {
+    /** The path with the traffic slowdown applied (cars only). */
+    fun travelPath(trafficPercent: Int): RoutePath? =
+        if (mode == TravelMode.CAR) path?.slower(1 + trafficPercent / 100.0) else path
+
     /** Waiting time that counts towards the trip: every stop except the last one. */
     val waitMinutes get() = stops.dropLast(1).sumOf { it.waitMinutes }
 }

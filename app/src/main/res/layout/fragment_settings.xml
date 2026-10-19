@@ -19,19 +19,83 @@
             android:layout_marginTop="20dp"
             android:text="@string/nav_settings" />
 
-        <TextView
-            style="@style/Text.Overline"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="20dp"
-            android:layout_marginBottom="8dp"
-            android:text="@string/map_section" />
+        <TextView style="@style/SettingsSection" android:text="@string/alerts_section" />
 
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:background="@drawable/bg_round"
-            android:orientation="vertical">
+        <LinearLayout style="@style/SettingsCard">
+
+            <LinearLayout android:id="@+id/arriveRow" style="@style/SettingsRow.Clickable">
+                <TextView style="@style/SettingsRowLabel" android:text="@string/alert_before_arriving" />
+                <TextView android:id="@+id/arriveValue" style="@style/SettingsRowValue.Accent" />
+            </LinearLayout>
+
+            <View style="@style/Divider" />
+
+            <LinearLayout android:id="@+id/leaveRow" style="@style/SettingsRow.Clickable">
+                <TextView style="@style/SettingsRowLabel" android:text="@string/alert_before_leaving" />
+                <TextView android:id="@+id/leaveValue" style="@style/SettingsRowValue.Accent" />
+            </LinearLayout>
+
+            <View style="@style/Divider" />
+
+            <LinearLayout style="@style/SettingsRow">
+                <LinearLayout style="@style/SettingsRowText">
+                    <TextView style="@style/Text.Item" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/ring_in_silent" />
+                    <TextView style="@style/Text.Caption" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/ring_in_silent_hint" android:textSize="12sp" />
+                </LinearLayout>
+                <com.google.android.material.materialswitch.MaterialSwitch android:id="@+id/silentSwitch" android:layout_width="wrap_content" android:layout_height="wrap_content" android:contentDescription="@string/ring_in_silent" />
+            </LinearLayout>
+
+            <View style="@style/Divider" />
+
+            <LinearLayout style="@style/SettingsRow">
+                <LinearLayout style="@style/SettingsRowText">
+                    <TextView style="@style/Text.Item" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/vibrate" />
+                    <TextView style="@style/Text.Caption" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/vibrate_hint" android:textSize="12sp" />
+                </LinearLayout>
+                <com.google.android.material.materialswitch.MaterialSwitch android:id="@+id/vibrateSwitch" android:layout_width="wrap_content" android:layout_height="wrap_content" android:contentDescription="@string/vibrate" />
+            </LinearLayout>
+
+            <View android:id="@+id/fullScreenDivider" style="@style/Divider" />
+
+            <LinearLayout android:id="@+id/fullScreenRow" style="@style/SettingsRow.Clickable">
+                <LinearLayout style="@style/SettingsRowText">
+                    <TextView style="@style/Text.Item" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/full_screen_alarms" />
+                    <TextView android:id="@+id/fullScreenStatus" style="@style/Text.Caption" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textSize="12sp" />
+                </LinearLayout>
+                <ImageView style="@style/SettingsChevron" />
+            </LinearLayout>
+
+            <View style="@style/Divider" />
+
+            <LinearLayout android:id="@+id/testAlarmRow" style="@style/SettingsRow.Clickable">
+                <TextView style="@style/SettingsRowLabel" android:text="@string/test_alarm" />
+                <ImageView style="@style/SettingsChevron" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <TextView style="@style/SettingsSection" android:text="@string/movement_section" />
+
+        <LinearLayout style="@style/SettingsCard">
+
+            <LinearLayout style="@style/SettingsRow">
+                <LinearLayout style="@style/SettingsRowText">
+                    <TextView style="@style/Text.Item" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/natural_movement" />
+                    <TextView style="@style/Text.Caption" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/natural_movement_hint" android:textSize="12sp" />
+                </LinearLayout>
+                <com.google.android.material.materialswitch.MaterialSwitch android:id="@+id/naturalSwitch" android:layout_width="wrap_content" android:layout_height="wrap_content" android:contentDescription="@string/natural_movement" />
+            </LinearLayout>
+
+            <View style="@style/Divider" />
+
+            <LinearLayout android:id="@+id/trafficRow" style="@style/SettingsRow.Clickable">
+                <TextView style="@style/SettingsRowLabel" android:text="@string/traffic" />
+                <TextView android:id="@+id/trafficValue" style="@style/SettingsRowValue.Accent" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <TextView style="@style/SettingsSection" android:text="@string/map_section" />
+
+        <LinearLayout style="@style/SettingsCard">
 
             <LinearLayout style="@style/SettingsRow">
                 <TextView style="@style/SettingsRowLabel" android:text="@string/map_provider" />
@@ -40,30 +104,15 @@
 
             <View style="@style/Divider" />
 
-            <LinearLayout
-                android:id="@+id/setupRow"
-                style="@style/SettingsRow"
-                android:background="?attr/selectableItemBackground"
-                android:clickable="true"
-                android:focusable="true">
+            <LinearLayout android:id="@+id/setupRow" style="@style/SettingsRow.Clickable">
                 <TextView style="@style/SettingsRowLabel" android:text="@string/setup_guide" />
                 <ImageView style="@style/SettingsChevron" />
             </LinearLayout>
         </LinearLayout>
 
-        <TextView
-            style="@style/Text.Overline"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="20dp"
-            android:layout_marginBottom="8dp"
-            android:text="@string/about_section" />
+        <TextView style="@style/SettingsSection" android:text="@string/about_section" />
 
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:background="@drawable/bg_round"
-            android:orientation="vertical">
+        <LinearLayout style="@style/SettingsCard">
 
             <LinearLayout style="@style/SettingsRow">
                 <TextView style="@style/SettingsRowLabel" android:text="@string/version" />
@@ -73,7 +122,7 @@
             <View style="@style/Divider" />
 
             <LinearLayout style="@style/SettingsRow">
-                <TextView style="@style/SettingsRowLabel" android:text="@string/map_credit" android:textStyle="normal" android:textSize="13sp" />
+                <TextView style="@style/SettingsRowLabel" android:text="@string/map_credit" android:textSize="13sp" android:textStyle="normal" />
             </LinearLayout>
         </LinearLayout>
     </LinearLayout>

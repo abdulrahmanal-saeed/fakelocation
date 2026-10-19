@@ -22,6 +22,13 @@ import com.abdulrahman.fakelocation.data.formatDistance
 import com.abdulrahman.fakelocation.data.formatDuration
 import com.abdulrahman.fakelocation.databinding.ActivityRoutePlanBinding
 import com.abdulrahman.fakelocation.databinding.ItemTimelineBinding
+import com.abdulrahman.fakelocation.data.Prefs
+import com.abdulrahman.fakelocation.data.TravelMode
+import com.abdulrahman.fakelocation.mock.LocationMocker
+import com.abdulrahman.fakelocation.mock.MockLocationService
+import com.abdulrahman.fakelocation.mock.MockState
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import android.widget.Toast
 import com.google.android.material.timepicker.MaterialTimePicker
 import com.google.android.material.timepicker.TimeFormat
 import java.util.Calendar
@@ -32,6 +39,7 @@ class RoutePlanActivity : AppCompatActivity() {
     private lateinit var binding: ActivityRoutePlanBinding
     private lateinit var repo: RoutesRepository
     private lateinit var route: Route
+    private lateinit var prefs: Prefs
     private var mode = TimingMode.NOW
     private var pickedTime: Long? = null
     private val refresh = Handler(Looper.getMainLooper())
@@ -49,6 +57,7 @@ class RoutePlanActivity : AppCompatActivity() {
         setContentView(binding.root)
         binding.root.padForSystemBars(top = true, bottom = true)
         repo = RoutesRepository.get(this)
+        prefs = Prefs(this)
         val loaded = repo.get(intent.getLongExtra(EXTRA_ROUTE_ID, -1))
         if (loaded?.path == null || loaded.stops.size < 2) {
             finish()
@@ -78,11 +87,9 @@ class RoutePlanActivity : AppCompatActivity() {
             render()
         }
         binding.timeButton.setOnClickListener { pickTime() }
-        binding.saveButton.setOnClickListener {
-            repo.save(route.copy(timing = Timing(mode, if (mode == TimingMode.NOW) null else pickedTime)))
-            toast(R.string.timing_saved)
-            finish()
-        }
+        binding.naturalSwitch.isChecked = prefs.naturalMovement
+        binding.naturalSwitch.setOnCheckedChangeListener { _, checked -> prefs.naturalMovement = checked }
+        binding.startButton.setOnClickListener { startTrip() }
         render()
     }
 
@@ -96,8 +103,54 @@ class RoutePlanActivity : AppCompatActivity() {
         super.onPause()
     }
 
+    /** The path with the traffic setting applied, as the trip will actually run it. */
+    private val travelPath get() = route.travelPath(prefs.trafficPercent)!!
+
+    private fun startAt(now: Long): Long {
+        val time = pickedTime ?: now
+        return when (mode) {
+            TimingMode.NOW -> now
+            TimingMode.START_AT -> time
+            TimingMode.ARRIVE_BY -> Schedule.startFor(route.stops, travelPath, time).coerceAtLeast(now)
+        }
+    }
+
+    private fun startTrip() {
+        if (!hasLocationPermission() || !LocationMocker.isSelectedMockApp(this)) {
+            MaterialAlertDialogBuilder(this)
+                .setTitle(R.string.step_mock)
+                .setMessage(R.string.mock_not_selected)
+                .setPositiveButton(R.string.setup_guide) { _, _ -> startActivity(SetupActivity.fromSettings(this)) }
+                .setNegativeButton(R.string.cancel, null)
+                .show()
+            return
+        }
+        if (MockState.trip.value != null) {
+            MaterialAlertDialogBuilder(this)
+                .setTitle(R.string.replace_trip_title)
+                .setMessage(R.string.replace_trip_body)
+                .setPositiveButton(R.string.replace) { _, _ -> launchTrip() }
+                .setNegativeButton(R.string.cancel, null)
+                .show()
+            return
+        }
+        launchTrip()
+    }
+
+    private fun launchTrip() {
+        val saved = route.copy(timing = Timing(mode, if (mode == TimingMode.NOW) null else pickedTime))
+        repo.save(saved)
+        val start = startAt(System.currentTimeMillis())
+        MockLocationService.startTrip(this, saved, start)
+        if (start > System.currentTimeMillis() + 60_000) {
+            Toast.makeText(this, getString(R.string.trip_scheduled, "${clockText(start)} ${dayText(start)}"), Toast.LENGTH_LONG).show()
+        }
+        startActivity(MainActivity.showMap(this))
+        finish()
+    }
+
     private fun defaultTime(): Long {
-        val path = route.path!!
+        val path = travelPath
         val base = System.currentTimeMillis() + if (mode == TimingMode.ARRIVE_BY) Schedule.totalMillis(route.stops, path) else 0L
         return roundUp(base + 30 * 60_000L)
     }
@@ -144,7 +197,8 @@ class RoutePlanActivity : AppCompatActivity() {
     private fun dayText(time: Long) = getString(if (DateUtils.isToday(time)) R.string.today_lower else R.string.tomorrow_lower)
 
     private fun render() {
-        val path = route.path ?: return
+        if (route.path == null) return
+        val path = travelPath
         val stops = route.stops
         val now = System.currentTimeMillis()
         val lastName = stops.last().name
@@ -156,13 +210,8 @@ class RoutePlanActivity : AppCompatActivity() {
             binding.timeButton.text = "$label ${clockText(time)} · ${dayText(time)}"
         }
 
-        var startAt = when (mode) {
-            TimingMode.NOW -> now
-            TimingMode.START_AT -> time ?: now
-            TimingMode.ARRIVE_BY -> Schedule.startFor(stops, path, time ?: now)
-        }
-        val tooSoon = mode == TimingMode.ARRIVE_BY && startAt < now
-        if (tooSoon) startAt = now
+        val tooSoon = mode == TimingMode.ARRIVE_BY && Schedule.startFor(stops, path, time ?: now) < now
+        val startAt = startAt(now)
         val times = Schedule.times(stops, path, startAt)
         val arrival = times.last().arriveAt
 
@@ -200,9 +249,13 @@ class RoutePlanActivity : AppCompatActivity() {
             }
             binding.timeline.addView(row.root)
         }
-        binding.total.text = getString(
-            R.string.trip_total, formatDuration(Schedule.totalMillis(stops, path)), formatDistance(path.distanceMeters)
-        )
+        val total = getString(R.string.trip_total, formatDuration(Schedule.totalMillis(stops, path)), formatDistance(path.distanceMeters))
+        binding.total.text = if (route.mode == TravelMode.CAR && prefs.trafficPercent > 0) {
+            total + " · " + getString(R.string.traffic_note, prefs.trafficPercent)
+        } else {
+            total
+        }
+        binding.startButton.setText(if (startAt > now + 60_000) R.string.schedule_trip else R.string.start_trip)
     }
 
     companion object {

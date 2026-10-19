@@ -56,6 +56,11 @@ class SetupActivity : AppCompatActivity() {
             }
         }
         binding.openDeveloperOptions.setOnClickListener { openDeveloperOptions() }
+        binding.allowAlarms.setOnClickListener {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                startActivity(Intent(Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT, Uri.fromParts("package", packageName, null)))
+            }
+        }
         binding.continueButton.setOnClickListener { finishSetup() }
     }
 
@@ -82,6 +87,12 @@ class SetupActivity : AppCompatActivity() {
         binding.stepMockStatus.setText(if (mock) R.string.done else R.string.step_mock_hint)
         binding.stepMockDetails.isVisible = !mock
         binding.stepMock.setBackgroundResource(if (mock) R.drawable.bg_round else R.drawable.bg_step_focus)
+
+        val alarms = canShowFullScreenAlarms()
+        binding.stepAlarms.isVisible = Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE
+        markStep(binding.stepAlarmsBadge, "4", alarms)
+        binding.stepAlarmsStatus.setText(if (alarms) R.string.allowed else R.string.step_alarms_hint)
+        binding.allowAlarms.isVisible = !alarms
     }
 
     private fun markStep(badge: TextView, number: String, done: Boolean) {

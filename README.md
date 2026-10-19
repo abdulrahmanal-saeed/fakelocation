@@ -12,7 +12,12 @@ while faking, background service with Stop in the notification.
 stop, choose car or walk, and the path is calculated on real streets with each street's travel time. Then pick
 the timing: start now, start at a time, or arrive by a time (the app works out when to leave).
 
-Next: the trip engine (moving along the route, waiting, alarms). See [PLAN.md](PLAN.md).
+**v0.4.0:** trips run. The fake position moves along the route at each street's speed (with natural speed
+changes, slowing at turns and a little GPS drift), waits at every stop, and alarms ring 2 minutes before each
+stop and 1 minute before a wait ends, even in silent mode. Pause, skip, +5 min and leave now from the map or the
+notification. Scheduled trips ("start at" / "arrive by") start by themselves.
+
+Next: Quick Settings tile, home-screen widget, offline maps. See [PLAN.md](PLAN.md).
 
 ## Install
 

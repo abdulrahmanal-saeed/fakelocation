@@ -132,6 +132,27 @@
             </LinearLayout>
         </LinearLayout>
 
+        <!-- Step: full-screen alarms (Android 14+) -->
+        <LinearLayout
+            android:id="@+id/stepAlarms"
+            style="@style/SetupStep"
+            android:layout_marginTop="10dp">
+
+            <TextView android:id="@+id/stepAlarmsBadge" style="@style/SetupBadge" android:text="4" />
+
+            <LinearLayout style="@style/SetupStepText">
+                <TextView style="@style/Text.Item" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/step_alarms" />
+                <TextView android:id="@+id/stepAlarmsStatus" style="@style/Text.Caption" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/step_alarms_hint" />
+            </LinearLayout>
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/allowAlarms"
+                style="@style/Button.Small"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/allow" />
+        </LinearLayout>
+
         <Space
             android:layout_width="match_parent"
             android:layout_height="0dp"
