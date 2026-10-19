@@ -93,6 +93,57 @@
             </LinearLayout>
         </LinearLayout>
 
+        <TextView style="@style/SettingsSection" android:text="@string/settings_lanes" />
+
+        <LinearLayout style="@style/SettingsCard">
+
+            <LinearLayout style="@style/SettingsRow">
+                <LinearLayout style="@style/SettingsRowText">
+                    <TextView style="@style/Text.Item" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/settings_lane_guidance" />
+                    <TextView style="@style/Text.Caption" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/settings_lane_guidance_hint" android:textSize="12sp" />
+                </LinearLayout>
+                <com.google.android.material.materialswitch.MaterialSwitch android:id="@+id/laneGuidanceSwitch" android:layout_width="wrap_content" android:layout_height="wrap_content" android:contentDescription="@string/settings_lane_guidance" />
+            </LinearLayout>
+
+            <View style="@style/Divider" />
+
+            <LinearLayout style="@style/SettingsRow">
+                <LinearLayout style="@style/SettingsRowText">
+                    <TextView style="@style/Text.Item" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/settings_lane_camera" />
+                    <TextView style="@style/Text.Caption" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/settings_lane_camera_hint" android:textSize="12sp" />
+                </LinearLayout>
+                <com.google.android.material.materialswitch.MaterialSwitch android:id="@+id/laneCameraSwitch" android:layout_width="wrap_content" android:layout_height="wrap_content" android:contentDescription="@string/settings_lane_camera" />
+            </LinearLayout>
+
+            <View style="@style/Divider" />
+
+            <LinearLayout style="@style/SettingsRow">
+                <TextView style="@style/SettingsRowLabel" android:text="@string/settings_gnss" />
+                <TextView android:id="@+id/gnssValue" style="@style/SettingsRowValue" />
+            </LinearLayout>
+
+            <View style="@style/Divider" />
+
+            <LinearLayout android:id="@+id/voiceRow" style="@style/SettingsRow.Clickable">
+                <TextView style="@style/SettingsRowLabel" android:text="@string/settings_voice" />
+                <TextView android:id="@+id/voiceValue" style="@style/SettingsRowValue.Accent" />
+            </LinearLayout>
+
+            <View style="@style/Divider" />
+
+            <LinearLayout android:id="@+id/voiceRateRow" style="@style/SettingsRow.Clickable">
+                <TextView style="@style/SettingsRowLabel" android:text="@string/settings_voice_rate" />
+                <TextView android:id="@+id/voiceRateValue" style="@style/SettingsRowValue.Accent" />
+            </LinearLayout>
+
+            <View style="@style/Divider" />
+
+            <LinearLayout android:id="@+id/testVoiceRow" style="@style/SettingsRow.Clickable">
+                <TextView style="@style/SettingsRowLabel" android:text="@string/settings_voice_test" />
+                <ImageView style="@style/SettingsChevron" />
+            </LinearLayout>
+        </LinearLayout>
+
         <TextView style="@style/SettingsSection" android:text="@string/settings_costs" />
 
         <LinearLayout style="@style/SettingsCard">

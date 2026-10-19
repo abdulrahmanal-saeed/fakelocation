@@ -97,6 +97,12 @@ class NavigateActivity : AppCompatActivity() {
     private val pickStop = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         SearchActivity.placeFrom(result.data)?.let { NavSession.addStop(it) }
     }
+    private val askCamera = registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        if (!granted) Prefs(this).laneCamera = false
+        render(NavSession.state.value)
+    }
+    private var laneCamera: LaneCamera? = null
+    private var askedCamera = false
     private var shownStops: Pair<List<Place>, Int>? = null
     private val stopMarkers = mutableListOf<Marker>()
 
@@ -126,6 +132,8 @@ class NavigateActivity : AppCompatActivity() {
     }
 
     override fun onStop() {
+        laneCamera?.stop()
+        laneCamera = null
         NavSession.release()
         super.onStop()
     }
@@ -262,6 +270,7 @@ class NavigateActivity : AppCompatActivity() {
 
         drawRoute(s)
         drawMe(s)
+        renderLanes(s)
         if (navigating) renderDriving(s) else renderPlanning(s)
         binding.map.invalidate()
     }
@@ -362,6 +371,47 @@ class NavigateActivity : AppCompatActivity() {
         val road = p.currentStep?.road.orEmpty()
         binding.streetPill.isVisible = road.isNotBlank()
         binding.streetPill.text = road
+    }
+
+    /** Which lane you're in, the lanes for the next turn, and the camera that helps tell. */
+    private fun renderLanes(s: NavSession.State) {
+        val prefs = Prefs(this)
+        val car = s.navigating && s.mode == TravelMode.CAR && prefs.laneGuidance
+        val p = s.progress
+        val show = car && s.laneCount >= 2
+        binding.laneRow.isVisible = show
+        if (show) {
+            val step = p?.nextStep
+            val arrows = s.lanesFor(step).takeIf { p != null && p.metersToNextStep < 800 && it.size == s.laneCount }
+            binding.laneStrip.set(s.laneCount, s.lane, arrows, step?.maneuver ?: com.abdulrahman.fakelocation.nav.Maneuver.STRAIGHT)
+            val advice = s.laneAdvice
+            binding.laneAdvice.isVisible = advice != null && arrows != null
+            if (advice != null) {
+                val n = kotlin.math.abs(advice)
+                binding.laneAdvice.text = when {
+                    advice == 0 -> getString(R.string.lane_good)
+                    advice > 0 -> resources.getQuantityString(R.plurals.lane_move_right, n, n)
+                    else -> resources.getQuantityString(R.plurals.lane_move_left, n, n)
+                }
+                binding.laneAdvice.backgroundTintList = android.content.res.ColorStateList.valueOf(
+                    ContextCompat.getColor(this, if (advice == 0) R.color.route_green else R.color.traffic_slow))
+            }
+        }
+        // The lane camera: only while driving, when switched on in Settings.
+        val wantCamera = car && prefs.laneCamera
+        val allowed = ContextCompat.checkSelfPermission(this, android.Manifest.permission.CAMERA) == android.content.pm.PackageManager.PERMISSION_GRANTED
+        if (wantCamera && !allowed && !askedCamera) {
+            askedCamera = true
+            askCamera.launch(android.Manifest.permission.CAMERA)
+        }
+        val on = wantCamera && allowed
+        binding.laneCameraCard.isVisible = on
+        if (on && laneCamera == null) {
+            laneCamera = LaneCamera(this, this, binding.lanePreview, binding.laneOverlay).also { it.start() }
+        } else if (!on && laneCamera != null) {
+            laneCamera?.stop()
+            laneCamera = null
+        }
     }
 
     /** "Fuel ≈ AED 3.10 · Salik AED 10 (2 gates)". */

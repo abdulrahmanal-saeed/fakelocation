@@ -361,6 +361,38 @@
             </LinearLayout>
         </LinearLayout>
 
+        <LinearLayout
+            android:id="@+id/laneRow"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:visibility="gone"
+            tools:visibility="visible">
+
+            <com.abdulrahman.fakelocation.ui.LaneStrip
+                android:id="@+id/laneStrip"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:elevation="6dp" />
+
+            <TextView
+                android:id="@+id/laneAdvice"
+                style="@style/Text.Item"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:background="@drawable/bg_pill"
+                android:elevation="6dp"
+                android:paddingHorizontal="12dp"
+                android:paddingVertical="6dp"
+                android:textSize="14sp"
+                android:visibility="gone"
+                tools:text="Move 2 lanes right"
+                tools:visibility="visible" />
+        </LinearLayout>
+
         <TextView
             android:id="@+id/banner"
             style="@style/Text.Caption"
@@ -468,9 +500,38 @@
         android:visibility="gone"
         app:layout_constraintBottom_toTopOf="@id/bottomBarrier"
         app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintStart_toEndOf="@id/laneCameraCard"
         tools:text="Financial Center Rd"
         tools:visibility="visible" />
+
+    <FrameLayout
+        android:id="@+id/laneCameraCard"
+        android:layout_width="96dp"
+        android:layout_height="128dp"
+        android:layout_marginStart="12dp"
+        android:layout_marginBottom="14dp"
+        android:background="@drawable/bg_round"
+        android:backgroundTint="#000000"
+        android:clipToOutline="true"
+        android:elevation="6dp"
+        android:visibility="gone"
+        app:layout_constraintBottom_toTopOf="@id/bottomBarrier"
+        app:layout_constraintStart_toStartOf="parent"
+        tools:targetApi="31"
+        tools:visibility="visible">
+
+        <androidx.camera.view.PreviewView
+            android:id="@+id/lanePreview"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            app:implementationMode="compatible"
+            app:scaleType="fitCenter" />
+
+        <com.abdulrahman.fakelocation.ui.LaneOverlay
+            android:id="@+id/laneOverlay"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent" />
+    </FrameLayout>
 
     <androidx.constraintlayout.widget.Barrier
         android:id="@+id/bottomBarrier"

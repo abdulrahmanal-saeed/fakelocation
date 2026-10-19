@@ -451,4 +451,32 @@
     <string name="nav_voice_then">, then %1$s</string>
     <string name="nav_voice_continue">Continue for %1$s</string>
     <string name="nav_then_short">Then</string>
+    <string name="nav_voice_lanes_right">Move %1$s to the right</string>
+    <string name="nav_voice_lanes_left">Move %1$s to the left</string>
+    <!-- Lanes -->
+    <string name="lane_good">Good lane ✓</string>
+    <plurals name="lane_move_right">
+        <item quantity="one">Move %d lane right →</item>
+        <item quantity="other">Move %d lanes right →</item>
+    </plurals>
+    <plurals name="lane_move_left">
+        <item quantity="one">← Move %d lane left</item>
+        <item quantity="other">← Move %d lanes left</item>
+    </plurals>
+    <string name="settings_lanes">LANES &amp; VOICE</string>
+    <string name="settings_lane_guidance">Lane guidance</string>
+    <string name="settings_lane_guidance_hint">Shows which lane you\'re in and which to take. Uses the motion sensors; turns and lane changes are counted.</string>
+    <string name="settings_lane_camera">Lane camera (experimental)</string>
+    <string name="settings_lane_camera_hint">Phone in a dashboard holder, back camera facing the road. Sees the lane lines to catch lane changes and the yellow edge line.</string>
+    <string name="settings_gnss">GPS precision</string>
+    <string name="settings_gnss_dual">Dual-frequency (L1 + L5) ✓</string>
+    <string name="settings_gnss_single">Single frequency (seen so far)</string>
+    <string name="settings_voice">Voice</string>
+    <string name="settings_voice_best">Best available</string>
+    <string name="settings_voice_loading">Loading voices… try again in a second</string>
+    <string name="settings_voice_rate">Speaking speed</string>
+    <string name="settings_voice_test">Test the voice</string>
+    <string name="voice_slow">Slower</string>
+    <string name="voice_normal">Normal</string>
+    <string name="voice_fast">Faster</string>
 </resources>

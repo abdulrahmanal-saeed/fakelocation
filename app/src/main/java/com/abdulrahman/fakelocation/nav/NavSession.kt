@@ -2,6 +2,7 @@ package com.abdulrahman.fakelocation.nav
 
 import android.annotation.SuppressLint
 import android.content.Context
+import android.location.GnssStatus
 import android.location.Location
 import android.location.LocationListener
 import android.location.LocationManager
@@ -81,6 +82,14 @@ object NavSession {
         /** The next toll gate ahead while driving, and how far. */
         val nextToll: TollPass? = null,
         val tollMeters: Double? = null,
+        /** Lanes here in our direction and which one we're in (1 = leftmost; 0 = unknown). */
+        val laneCount: Int = 0,
+        val lane: Int = 0,
+        val laneSource: LaneTracker.Source? = null,
+        /** Lanes to move for the next turn (+ right, − left, 0 = you're in a good lane, null = unknown). */
+        val laneAdvice: Int? = null,
+        /** The GPS uses a second frequency (L5/E5a): metre-level fixes. */
+        val dualFrequency: Boolean = false,
     ) {
         val navigating get() = status == Status.NAVIGATING
 
@@ -117,6 +126,22 @@ object NavSession {
     private var heldLimit = 0
     private var heldLimitAlong = 0.0
     private var focusRequest: AudioFocusRequest? = null
+    private val laneTracker = LaneTracker()
+    private var laneSensors: LaneSensors? = null
+    /** Index of the step we last drove past (−2: a new route just came in, don't count its start as a turn). */
+    private var lastStepIndex = -1
+    private val gnssCallback = object : GnssStatus.Callback() {
+        override fun onSatelliteStatusChanged(status: GnssStatus) {
+            var dual = false
+            for (i in 0 until status.satelliteCount) {
+                if (status.usedInFix(i) && status.hasCarrierFrequencyHz(i) && status.getCarrierFrequencyHz(i) in 1.16e9..1.19e9) dual = true
+            }
+            if (dual != state.value.dualFrequency) {
+                _state.update { it.copy(dualFrequency = dual) }
+                if (dual) Prefs(app).seenDualFrequency = true
+            }
+        }
+    }
 
     private val locationManager get() = app.getSystemService(LocationManager::class.java)
     private val fused by lazy { LocationServices.getFusedLocationProviderClient(app) }
@@ -222,6 +247,8 @@ object NavSession {
     fun start() {
         if (state.value.route == null) return
         routeStopBase = 0
+        laneTracker.reset()
+        lastStepIndex = -1
         _state.update { it.copy(status = Status.NAVIGATING, stopsReached = 0) }
         startListening()
         ContextCompat.startForegroundService(app, NavigationService.intent(app))
@@ -270,6 +297,7 @@ object NavSession {
         roadInfoJob?.cancel()
         roadInfoFailedAt = 0L
         heldLimitAlong = 0.0
+        if (state.value.navigating) lastStepIndex = -2
         fetchRoadInfo(route, 0.0)
         lastFix?.let { onLocation(it) }
     }
@@ -322,6 +350,10 @@ object NavSession {
             }
         }
         if (beeper == null) beeper = runCatching { ToneGenerator(AudioManager.STREAM_NOTIFICATION, 90) }.getOrNull()
+        if (Prefs(app).laneGuidance) {
+            laneSensors = LaneSensors(app) { t, rate -> laneTracker.onYawRate(t, rate) }.also { it.start() }
+        }
+        runCatching { locationManager.registerGnssStatusCallback(gnssCallback, android.os.Handler(Looper.getMainLooper())) }
         // The GPS chip itself: real even while a fake location runs for other apps.
         runCatching { locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 1000L, 0f, gpsListener, Looper.getMainLooper()) }
         // Without a fake location, Google's location service is real too and gets a first fix faster.
@@ -334,6 +366,9 @@ object NavSession {
         if (!listening) return
         listening = false
         runCatching { locationManager.removeUpdates(gpsListener) }
+        runCatching { locationManager.unregisterGnssStatusCallback(gnssCallback) }
+        laneSensors?.stop()
+        laneSensors = null
         fused.removeLocationUpdates(fusedCallback)
         MockLocationService.setRealGpsForNavigation(app, false)
     }
@@ -367,6 +402,13 @@ object NavSession {
         val reached = if (route != null && progress != null && s.navigating) {
             routeStopBase + route.stopsAlong.count { it <= progress.alongMeters + 30 }
         } else s.stopsReached
+        val lanes = if (s.navigating && route != null && progress != null && s.mode == TravelMode.CAR && Prefs(app).laneGuidance) {
+            trackLane(location, route, progress, s)
+        } else null
+        _state.update {
+            it.copy(laneCount = lanes?.first ?: 0, lane = lanes?.second ?: 0, laneAdvice = lanes?.third,
+                laneSource = if (lanes != null) laneTracker.source else null)
+        }
         _state.update {
             it.copy(real = here, bearing = bearing, speedKmh = speed, limitKmh = limit, progress = progress,
                 speeding = if (over) true else if (speed <= limit || limit == 0) false else it.speeding,
@@ -415,6 +457,12 @@ object NavSession {
         val then = p.thenStep?.takeIf { route.along[it.pointIndex] - route.along[step.pointIndex] < 120 && it.maneuver != Maneuver.DEPART }
         val thenText = then?.let { app.getString(R.string.nav_voice_then, it.spoken.lowercase(Locale.US)) }.orEmpty()
         val what = step.spoken.lowercase(Locale.US)
+        val advice = state.value.laneAdvice
+        if (advice != null && advice != 0 && d in now..early && sinceTurn > 30 && spoken.add("$index:lane")) {
+            val n = kotlin.math.abs(advice)
+            speak(app.getString(if (advice > 0) R.string.nav_voice_lanes_right else R.string.nav_voice_lanes_left,
+                if (n == 1) "one lane" else "$n lanes"), queue = true)
+        }
         when {
             d <= now && spoken.add("$index:now") ->
                 speak(step.spoken + thenText)
@@ -425,6 +473,48 @@ object NavSession {
             d > 2500 && sinceTurn in 30.0..400.0 && spoken.add("$index:continue") ->
                 speak(app.getString(R.string.nav_voice_continue, spokenDistance(d)))
         }
+    }
+
+    /** Feeds the lane tracker with this fix; returns lane count, our lane and the advice for the next turn. */
+    private fun trackLane(location: Location, route: NavRoute, p: NavProgress, s: State): Triple<Int, Int, Int?> {
+        val road = TripTimeline.bearing(route.pointAt(p.alongMeters), route.pointAt(p.alongMeters + 20)).toDouble()
+        val stepLanes = s.lanesFor(p.nextStep).takeIf { p.metersToNextStep < 600 }.orEmpty()
+        val mapped = s.roadInfo?.laneCountAt(p.segment) ?: 0
+        val count = if (stepLanes.size >= 2) stepLanes.size else mapped
+        // Drove past a turn: you're on that side's edge lane now.
+        val current = p.currentStep?.let { route.steps.indexOf(it) } ?: -1
+        if (current != lastStepIndex) {
+            if (lastStepIndex != -2 && current >= 0) laneTracker.onTurn(route.steps[current].maneuver)
+            lastStepIndex = current
+        }
+        val mps = if (location.hasSpeed()) location.speed.toDouble() else speedKmh(location) / 3.6
+        val gpsBearing = if (location.hasBearing() && location.speed > 1.5f) location.bearing.toDouble() else null
+        laneTracker.onFix(System.currentTimeMillis(), mps, gpsBearing, road, count)
+        // A metre-accurate fix (dual-frequency GPS) on a divided road says roughly which lane we're in.
+        if (s.dualFrequency && location.hasAccuracy() && location.accuracy <= 2.0f && count >= 2 && p.offRouteMeters < 8) {
+            val a = route.points[p.segment]
+            val b = route.points[p.segment + 1]
+            val cross = (b.lon - a.lon) * (location.latitude - a.lat) - (b.lat - a.lat) * (location.longitude - a.lon)
+            val offset = if (cross > 0) -p.offRouteMeters else p.offRouteMeters // + = right of the line
+            laneTracker.onPositionHint(((offset + count * 1.75) / 3.5).toInt().coerceIn(0, count - 1) + 1)
+        }
+        val lane = laneTracker.lane
+        val targets = stepLanes.withIndex().filter { it.value.valid }.map { it.index + 1 }
+        val advice = when {
+            lane == 0 || targets.isEmpty() || laneTracker.count != stepLanes.size -> null
+            lane in targets -> 0
+            else -> targets.minByOrNull { kotlin.math.abs(it - lane) }!! - lane
+        }
+        return Triple(laneTracker.count, lane, advice)
+    }
+
+    /** What the lane camera saw (from the navigation screen). */
+    fun onCameraEvent(event: LaneDetector.Event) {
+        when (event) {
+            is LaneDetector.Event.LaneChange -> laneTracker.onCameraLaneChange(System.currentTimeMillis(), event.direction)
+            LaneDetector.Event.LeftEdge -> laneTracker.onLeftEdgeSeen()
+        }
+        _state.update { it.copy(lane = laneTracker.lane, laneSource = laneTracker.source) }
     }
 
     private fun heldLimit(mapped: Int, along: Double): Int {
@@ -462,13 +552,11 @@ object NavSession {
                 .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
                 .build()
         )
-        val voices = runCatching { engine.voices }.getOrNull().orEmpty()
-            .filter { it.locale.language == "en" && !it.isNetworkConnectionRequired && "notinstalled" !in it.features.orEmpty() }
-        val best = voices.maxByOrNull { v ->
-            v.quality * 10 + (if (v.locale.country == "US") 3 else if (v.locale.country == "GB") 2 else 0) - v.latency
-        }
-        if (best != null) engine.voice = best else engine.language = Locale.US
-        engine.setSpeechRate(0.95f)
+        val prefs = Prefs(app)
+        val voices = englishVoices(engine)
+        val chosen = voices.firstOrNull { it.name == prefs.navVoice } ?: voices.firstOrNull()
+        if (chosen != null) engine.voice = chosen else engine.language = Locale.US
+        engine.setSpeechRate(prefs.navSpeechRate)
         engine.setPitch(1.0f)
         engine.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
             override fun onStart(utteranceId: String?) = Unit
@@ -478,7 +566,36 @@ object NavSession {
         })
     }
 
-    private fun speak(text: String) {
+    /** Installed English voices that work offline, best first. */
+    private fun englishVoices(engine: TextToSpeech): List<android.speech.tts.Voice> =
+        runCatching { engine.voices }.getOrNull().orEmpty()
+            .filter { it.locale.language == "en" && !it.isNetworkConnectionRequired && "notinstalled" !in it.features.orEmpty() }
+            .sortedByDescending { v -> v.quality * 10 + (if (v.locale.country == "US") 3 else if (v.locale.country == "GB") 2 else 0) - v.latency / 100 }
+
+    /** For Settings: the voices to choose from (name, label). Empty until the voice engine has started. */
+    fun voiceChoices(): List<Pair<String, String>> {
+        val engine = tts
+        if (engine == null) {
+            tts = TextToSpeech(app) { status -> ttsReady = status == TextToSpeech.SUCCESS; if (ttsReady) setUpVoice() }
+            return emptyList()
+        }
+        if (!ttsReady) return emptyList()
+        return englishVoices(engine).mapIndexed { i, v ->
+            val country = v.locale.displayCountry.ifBlank { v.locale.country }
+            v.name to "Voice ${i + 1} · $country" + if (v.quality >= android.speech.tts.Voice.QUALITY_HIGH) " · HD" else ""
+        }
+    }
+
+    /** Applies the voice settings and says a sample sentence. */
+    fun previewVoice() {
+        if (!ttsReady) return
+        setUpVoice()
+        val wasMuted = state.value.muted
+        if (wasMuted) return
+        speak("In 400 meters, turn right. Then keep left.")
+    }
+
+    private fun speak(text: String, queue: Boolean = false) {
         if (text.isBlank() || state.value.muted || !ttsReady) return
         // Turn music down while the voice talks, like other navigation apps.
         val audio = app.getSystemService(AudioManager::class.java)
@@ -492,7 +609,7 @@ object NavSession {
             .build()
         focusRequest = request
         audio.requestAudioFocus(request)
-        tts?.speak(text, TextToSpeech.QUEUE_FLUSH, null, text)
+        tts?.speak(text, if (queue) TextToSpeech.QUEUE_ADD else TextToSpeech.QUEUE_FLUSH, null, text)
     }
 
     private fun releaseFocus() {

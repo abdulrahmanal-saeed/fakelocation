@@ -26,6 +26,7 @@ class SettingsFragment : Fragment(R.layout.fragment_settings) {
     private lateinit var prefs: Prefs
     private var google: GoogleSettings? = null
     private var costs: CostSettings? = null
+    private val lanes = LaneSettings(this) { _binding }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         _binding = FragmentSettingsBinding.bind(view)
@@ -63,6 +64,7 @@ class SettingsFragment : Fragment(R.layout.fragment_settings) {
         binding.setupRow.setOnClickListener { (requireActivity() as MainActivity).openSetup() }
         google = GoogleSettings(this, binding) { }.also { it.setUp() }
         costs = CostSettings(this, binding).also { it.setUp() }
+        lanes.setUp()
         binding.offlineRow.setOnClickListener {
             val options = listOf(300, 600, 1000, 2000)
             MaterialAlertDialogBuilder(requireContext())
@@ -105,6 +107,7 @@ class SettingsFragment : Fragment(R.layout.fragment_settings) {
         val b = _binding ?: return
         google?.render()
         costs?.render()
+        lanes.render()
         b.arriveValue.text = minutes(prefs.alertBeforeArriveMinutes)
         b.leaveValue.text = minutes(prefs.alertBeforeLeaveMinutes)
         b.trafficValue.text = trafficLabel(prefs.trafficPercent)

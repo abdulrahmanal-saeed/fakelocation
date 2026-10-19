@@ -61,6 +61,13 @@ bubble at the junction (from OpenStreetMap turn lanes, so they also work with Go
 the road, live traffic (Google) in yellow/red on the route and on the bottom bar, speed limits loaded 20 km at a time
 ahead of you, and a clearer voice that speaks earlier at higher speeds and lowers your music while it talks.
 
+**v1.7.0:** Lane guidance (like Amap, without HD maps): a lane strip shows how many lanes the road has (from
+OpenStreetMap), which one you're in and, before a turn, which lanes to take, with "Move 2 lanes right" on screen and
+by voice. Your lane is estimated from turns (a right turn puts you in the right lane), lane changes seen by the
+gyroscope against the road's direction, an optional lane camera (back camera in a dashboard holder: lane lines and the
+yellow edge line) and metre-accurate dual-frequency GPS when the phone has it. Voice and speaking speed can be chosen
+in Settings → Lanes & voice.
+
 See [PLAN.md](PLAN.md) for the full feature list.
 
 ## Install

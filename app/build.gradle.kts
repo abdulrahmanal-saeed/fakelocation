@@ -11,8 +11,8 @@ android {
         applicationId = "com.abdulrahman.fakelocation"
         minSdk = 26
         targetSdk = 36
-        versionCode = 11
-        versionName = "1.6.0"
+        versionCode = 12
+        versionName = "1.7.0"
     }
 
     signingConfigs {
@@ -62,6 +62,9 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-service:2.9.4")
     implementation("org.osmdroid:osmdroid-android:6.1.20")
     implementation("androidx.car.app:app:1.4.0")
+    implementation("androidx.camera:camera-camera2:1.5.1")
+    implementation("androidx.camera:camera-lifecycle:1.5.1")
+    implementation("androidx.camera:camera-view:1.5.1")
 
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.json:json:20240303")

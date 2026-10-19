@@ -113,6 +113,32 @@ class Prefs(context: Context) {
         get() = prefs.getLong("history_id", -1)
         set(value) = prefs.edit { putLong("history_id", value) }
 
+    // region Lanes and voice
+
+    var laneGuidance: Boolean
+        get() = prefs.getBoolean("lane_guidance", true)
+        set(value) = prefs.edit { putBoolean("lane_guidance", value) }
+
+    var laneCamera: Boolean
+        get() = prefs.getBoolean("lane_camera", false)
+        set(value) = prefs.edit { putBoolean("lane_camera", value) }
+
+    /** This phone's GPS has been seen using a second frequency (L5). */
+    var seenDualFrequency: Boolean
+        get() = prefs.getBoolean("dual_freq", false)
+        set(value) = prefs.edit { putBoolean("dual_freq", value) }
+
+    /** Chosen text-to-speech voice name ("" = the best one found). */
+    var navVoice: String
+        get() = prefs.getString("nav_voice", "").orEmpty()
+        set(value) = prefs.edit { putString("nav_voice", value) }
+
+    var navSpeechRate: Float
+        get() = prefs.getFloat("nav_speech_rate", 0.95f)
+        set(value) = prefs.edit { putFloat("nav_speech_rate", value) }
+
+    // endregion
+
     // region Driving costs and parking (UAE)
 
     var avoidTolls: Boolean

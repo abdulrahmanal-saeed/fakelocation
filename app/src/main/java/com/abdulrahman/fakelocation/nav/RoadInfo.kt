@@ -25,8 +25,12 @@ data class RoadInfo(
     val stepLanes: Map<Int, List<Lane>> = emptyMap(),
     /** How far along the route this covers. */
     val coveredTo: Double = 0.0,
+    /** Lanes in our direction per piece of road (0 = unknown). */
+    val laneCounts: IntArray = IntArray(0),
 ) {
     fun limitAt(segment: Int): Int = limits.getOrElse(segment) { 0 }
+
+    fun laneCountAt(segment: Int): Int = laneCounts.getOrElse(segment) { 0 }
 
     /** The next camera ahead of [along] metres, as distance from here. */
     fun nextCamera(along: Double): Double? = camerasAlong.firstOrNull { it > along - 10 }?.minus(along)
@@ -38,6 +42,9 @@ data class RoadInfo(
         (gantries + other.gantries).distinctBy { it.first },
         stepLanes + other.stepLanes,
         maxOf(coveredTo, other.coveredTo),
+        IntArray(maxOf(laneCounts.size, other.laneCounts.size)) { i ->
+            other.laneCounts.getOrElse(i) { 0 }.takeIf { it > 0 } ?: laneCounts.getOrElse(i) { 0 }
+        },
     )
 
     companion object {
@@ -51,6 +58,9 @@ data class MappedWay(
     val shape: List<LatLon>,
     val lanesForward: String? = null,
     val lanesBackward: String? = null,
+    /** Number of lanes each way (0 = unknown). */
+    val countForward: Int = 0,
+    val countBackward: Int = 0,
 )
 
 /**
@@ -74,7 +84,7 @@ object RoadInfoFetcher {
         }
         val coords = line.joinToString(",") { String.format(Locale.US, "%.6f,%.6f", it.lat, it.lon) }
         val query = "[out:json][timeout:40];(" +
-            "way(around:20,$coords)[highway][~\"^(maxspeed|turn:lanes(:forward|:backward)?)$\"~\".\"];" +
+            "way(around:20,$coords)[highway][~\"^(maxspeed|lanes(:forward|:backward)?|turn:lanes(:forward|:backward)?)$\"~\".\"];" +
             "node(around:30,$coords)[highway=speed_camera];" +
             "node(around:25,$coords)[highway=toll_gantry];" +
             ");out tags geom;"
@@ -100,7 +110,14 @@ object RoadInfoFetcher {
                     val plain = tags?.optString("turn:lanes")?.takeIf { it.isNotBlank() }
                     val forward = tags?.optString("turn:lanes:forward")?.takeIf { it.isNotBlank() } ?: plain
                     val backward = tags?.optString("turn:lanes:backward")?.takeIf { it.isNotBlank() }
-                    ways += MappedWay(limit, shape, forward, backward)
+                    val oneway = tags?.optString("oneway") == "yes" || tags?.optString("junction") == "roundabout" ||
+                        tags?.optString("highway").orEmpty().startsWith("motorway")
+                    val total = tags?.optString("lanes")?.toIntOrNull() ?: 0
+                    fun count(key: String, turn: String?, half: Boolean) =
+                        tags?.optString(key)?.toIntOrNull() ?: turn?.split('|')?.size ?: if (half && total >= 2) total / 2 else 0
+                    val countForward = if (oneway) total.takeIf { it > 0 } ?: forward?.split('|')?.size ?: 0 else count("lanes:forward", forward, true)
+                    val countBackward = if (oneway) 0 else count("lanes:backward", backward, true)
+                    ways += MappedWay(limit, shape, forward, backward, countForward.coerceIn(0, 8), countBackward.coerceIn(0, 8))
                 }
                 "node" -> {
                     val p = LatLon(e.getDouble("lat"), e.getDouble("lon"))
@@ -120,6 +137,7 @@ object RoadInfoFetcher {
             gantries,
             stepLanes(route, ways.filter { it.lanesForward != null || it.lanesBackward != null }, fromAlong, toAlong),
             toAlong,
+            assignLaneCounts(route, ways.filter { it.countForward > 0 || it.countBackward > 0 }, first, last),
         )
     }
 
@@ -155,6 +173,33 @@ object RoadInfoFetcher {
             limits[i] = bestLimit
         }
         return limits
+    }
+
+    /** For each piece of the route, how many lanes the mapped road has in our direction. */
+    fun assignLaneCounts(route: NavRoute, ways: List<MappedWay>, from: Int = 0, to: Int = route.points.size - 1): IntArray {
+        val counts = IntArray((route.points.size - 1).coerceAtLeast(0))
+        if (ways.isEmpty()) return counts
+        for (i in from until minOf(to + 1, counts.size)) {
+            val a = route.points[i]
+            val b = route.points[i + 1]
+            val mid = LatLon((a.lat + b.lat) / 2, (a.lon + b.lon) / 2)
+            val heading = bearing(a, b)
+            var best = 15.0
+            for (way in ways) for (k in 0 until way.shape.size - 1) {
+                val d = project(mid, way.shape[k], way.shape[k + 1]).first
+                if (d >= best) continue
+                val diff = angleDiff(heading, bearing(way.shape[k], way.shape[k + 1]))
+                val n = when {
+                    diff < 35 -> way.countForward
+                    diff > 145 -> way.countBackward
+                    else -> 0
+                }
+                if (n <= 0) continue
+                best = d
+                counts[i] = n
+            }
+        }
+        return counts
     }
 
     /**
