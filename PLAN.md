@@ -44,3 +44,4 @@ Design (all screens, logo, splash): https://claude.ai/artifact/9FMXf1izujP79r3BA
 | 10 | Salik/Darb gates and trip cost, fuel cost, avoid tolls/highways, multi-stop navigation, Dubai parking (SMS 7275, alarm) | Done (v1.5.0) |
 | 11 | Driving polish: smooth car, shrinking route, compact card, lane bubbles, traffic colours, speed-limit chunks, better voice | Done (v1.6.0) |
 | 12 | Lane-level guidance: lane counts, lane tracking (turns + gyroscope + camera + dual-frequency GPS), lane advice, voice choice | Done (v1.7.0) |
+| 13 | Louder voice: pause/lower music, volume raise and boost, Bluetooth call channel to cut the car radio | Done (v1.8.0) |

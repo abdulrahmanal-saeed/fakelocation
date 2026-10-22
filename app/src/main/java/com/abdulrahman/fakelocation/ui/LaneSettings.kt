@@ -10,6 +10,7 @@ import com.abdulrahman.fakelocation.R
 import com.abdulrahman.fakelocation.data.Prefs
 import com.abdulrahman.fakelocation.databinding.FragmentSettingsBinding
 import com.abdulrahman.fakelocation.nav.NavSession
+import com.abdulrahman.fakelocation.nav.VoiceOutput
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 
 /** The "Lanes & voice" settings: lane guidance, the lane camera, GPS precision and the navigation voice. */
@@ -36,6 +37,24 @@ class LaneSettings(private val fragment: Fragment, private val binding: () -> Fr
             }
         }
         b.voiceRow.setOnClickListener { chooseVoice() }
+        b.voiceLevelRow.setOnClickListener { chooseVoiceLevel(context) { render() } }
+        b.musicRow.setOnClickListener {
+            val options = listOf(true to R.string.music_pause, false to R.string.music_lower)
+            MaterialAlertDialogBuilder(context)
+                .setTitle(R.string.settings_music)
+                .setSingleChoiceItems(options.map { context.getString(it.second) }.toTypedArray(), if (prefs.pauseMusicForVoice) 0 else 1) { d, which ->
+                    prefs.pauseMusicForVoice = options[which].first
+                    render()
+                    d.dismiss()
+                }
+                .show()
+        }
+        b.voiceCallSwitch.setOnCheckedChangeListener { _, on ->
+            if (on != prefs.voiceOverCall) {
+                prefs.voiceOverCall = on
+                NavSession.previewVoice()
+            }
+        }
         b.voiceRateRow.setOnClickListener {
             val current = rates.indexOfFirst { kotlin.math.abs(it.first - prefs.navSpeechRate) < 0.01f }.coerceAtLeast(1)
             MaterialAlertDialogBuilder(context)
@@ -80,7 +99,32 @@ class LaneSettings(private val fragment: Fragment, private val binding: () -> Fr
         b.gnssValue.setText(if (prefs.seenDualFrequency) R.string.settings_gnss_dual else R.string.settings_gnss_single)
         val voices = NavSession.voiceChoices()
         b.voiceValue.text = voices.firstOrNull { it.first == prefs.navVoice }?.second ?: context.getString(R.string.settings_voice_best)
+        b.voiceLevelValue.setText(levelLabel(prefs.voiceLevel))
+        b.musicValue.setText(if (prefs.pauseMusicForVoice) R.string.music_pause else R.string.music_lower)
+        b.voiceCallSwitch.isChecked = prefs.voiceOverCall
         val rate = rates.minByOrNull { kotlin.math.abs(it.first - prefs.navSpeechRate) }!!
         b.voiceRateValue.setText(rate.second)
     }
+}
+
+fun levelLabel(level: VoiceOutput.Level) = when (level) {
+    VoiceOutput.Level.MEDIA -> R.string.voice_level_media
+    VoiceOutput.Level.LOUD -> R.string.voice_level_loud
+    VoiceOutput.Level.LOUDER -> R.string.voice_level_louder
+    VoiceOutput.Level.MAX -> R.string.voice_level_max
+}
+
+/** Pick how loud the navigation voice is; plays a sample with the new level. */
+fun chooseVoiceLevel(context: android.content.Context, done: () -> Unit) {
+    val prefs = Prefs(context)
+    val levels = VoiceOutput.Level.entries
+    MaterialAlertDialogBuilder(context)
+        .setTitle(R.string.settings_voice_level)
+        .setSingleChoiceItems(levels.map { context.getString(levelLabel(it)) }.toTypedArray(), levels.indexOf(prefs.voiceLevel)) { _, which ->
+            prefs.voiceLevel = levels[which]
+            NavSession.previewVoice()
+            done()
+        }
+        .setPositiveButton(R.string.save, null)
+        .show()
 }

@@ -133,6 +133,21 @@ class Prefs(context: Context) {
         get() = prefs.getString("nav_voice", "").orEmpty()
         set(value) = prefs.edit { putString("nav_voice", value) }
 
+    var voiceLevel: com.abdulrahman.fakelocation.nav.VoiceOutput.Level
+        get() = runCatching { com.abdulrahman.fakelocation.nav.VoiceOutput.Level.valueOf(prefs.getString("voice_level", null)!!) }
+            .getOrDefault(com.abdulrahman.fakelocation.nav.VoiceOutput.Level.LOUD)
+        set(value) = prefs.edit { putString("voice_level", value.name) }
+
+    /** Pause the music while the voice talks (true) or only lower it (false). */
+    var pauseMusicForVoice: Boolean
+        get() = prefs.getBoolean("pause_music", true)
+        set(value) = prefs.edit { putBoolean("pause_music", value) }
+
+    /** Speak over the Bluetooth call channel, which makes most car stereos cut the radio. */
+    var voiceOverCall: Boolean
+        get() = prefs.getBoolean("voice_call", false)
+        set(value) = prefs.edit { putBoolean("voice_call", value) }
+
     var navSpeechRate: Float
         get() = prefs.getFloat("nav_speech_rate", 0.95f)
         set(value) = prefs.edit { putFloat("nav_speech_rate", value) }

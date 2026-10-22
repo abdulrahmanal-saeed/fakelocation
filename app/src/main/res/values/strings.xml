@@ -479,4 +479,15 @@
     <string name="voice_slow">Slower</string>
     <string name="voice_normal">Normal</string>
     <string name="voice_fast">Faster</string>
+    <string name="settings_voice_level">Voice volume</string>
+    <string name="voice_level_media">Same as music</string>
+    <string name="voice_level_loud">Loud</string>
+    <string name="voice_level_louder">Louder</string>
+    <string name="voice_level_max">Maximum</string>
+    <string name="settings_music">Music while it talks</string>
+    <string name="music_pause">Pause it</string>
+    <string name="music_lower">Lower it</string>
+    <string name="settings_voice_call">Voice over Bluetooth call</string>
+    <string name="settings_voice_call_hint">Plays directions like a phone call, so most car stereos cut the radio and play them on the car speakers. Needs the phone paired with the car.</string>
+    <string name="nav_volume_title">Navigation voice</string>
 </resources>

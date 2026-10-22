@@ -68,6 +68,11 @@ gyroscope against the road's direction, an optional lane camera (back camera in 
 yellow edge line) and metre-accurate dual-frequency GPS when the phone has it. Voice and speaking speed can be chosen
 in Settings → Lanes & voice.
 
+**v1.8.0:** A navigation voice you hear over loud music: it pauses (or lowers) whatever is playing while it talks,
+turns the volume up for the sentence and back after, and boosts the voice itself (Settings → Lanes & voice → Voice
+volume, or long-press the speaker button while driving). "Voice over Bluetooth call" plays directions like a phone
+call so most car stereos cut the radio.
+
 See [PLAN.md](PLAN.md) for the full feature list.
 
 ## Install

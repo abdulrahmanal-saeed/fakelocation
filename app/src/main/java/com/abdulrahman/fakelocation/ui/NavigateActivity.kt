@@ -202,6 +202,11 @@ class NavigateActivity : AppCompatActivity() {
             if (s.navigating) render(s) else s.route?.let { fit(it) } ?: s.real?.let { binding.map.controller.animateTo(GeoPoint(it.lat, it.lon)) }
         }
         binding.muteFab.setOnClickListener { NavSession.toggleMute() }
+        // Long press: how loud the voice is, right from the driving screen.
+        binding.muteFab.setOnLongClickListener {
+            chooseVoiceLevel(this) { }
+            true
+        }
         binding.addStopChip.setOnClickListener { pickStop.launch(Intent(this, SearchActivity::class.java)) }
         binding.addStopFab.setOnClickListener { pickStop.launch(Intent(this, SearchActivity::class.java)) }
         binding.avoidTollsChip.setOnClickListener {

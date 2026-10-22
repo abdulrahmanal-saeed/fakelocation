@@ -131,6 +131,30 @@
 
             <View style="@style/Divider" />
 
+            <LinearLayout android:id="@+id/voiceLevelRow" style="@style/SettingsRow.Clickable">
+                <TextView style="@style/SettingsRowLabel" android:text="@string/settings_voice_level" />
+                <TextView android:id="@+id/voiceLevelValue" style="@style/SettingsRowValue.Accent" />
+            </LinearLayout>
+
+            <View style="@style/Divider" />
+
+            <LinearLayout android:id="@+id/musicRow" style="@style/SettingsRow.Clickable">
+                <TextView style="@style/SettingsRowLabel" android:text="@string/settings_music" />
+                <TextView android:id="@+id/musicValue" style="@style/SettingsRowValue.Accent" />
+            </LinearLayout>
+
+            <View style="@style/Divider" />
+
+            <LinearLayout style="@style/SettingsRow">
+                <LinearLayout style="@style/SettingsRowText">
+                    <TextView style="@style/Text.Item" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/settings_voice_call" />
+                    <TextView style="@style/Text.Caption" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/settings_voice_call_hint" android:textSize="12sp" />
+                </LinearLayout>
+                <com.google.android.material.materialswitch.MaterialSwitch android:id="@+id/voiceCallSwitch" android:layout_width="wrap_content" android:layout_height="wrap_content" android:contentDescription="@string/settings_voice_call" />
+            </LinearLayout>
+
+            <View style="@style/Divider" />
+
             <LinearLayout android:id="@+id/voiceRateRow" style="@style/SettingsRow.Clickable">
                 <TextView style="@style/SettingsRowLabel" android:text="@string/settings_voice_rate" />
                 <TextView android:id="@+id/voiceRateValue" style="@style/SettingsRowValue.Accent" />

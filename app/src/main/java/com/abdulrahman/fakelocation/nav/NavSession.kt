@@ -6,8 +6,6 @@ import android.location.GnssStatus
 import android.location.Location
 import android.location.LocationListener
 import android.location.LocationManager
-import android.media.AudioAttributes
-import android.media.AudioFocusRequest
 import android.media.AudioManager
 import android.media.ToneGenerator
 import android.os.Build
@@ -125,7 +123,7 @@ object NavSession {
     /** The last posted limit seen, kept on screen a little while over unmapped bits of the same road. */
     private var heldLimit = 0
     private var heldLimitAlong = 0.0
-    private var focusRequest: AudioFocusRequest? = null
+    private val voice by lazy { VoiceOutput(app) }
     private val laneTracker = LaneTracker()
     private var laneSensors: LaneSensors? = null
     /** Index of the step we last drove past (−2: a new route just came in, don't count its start as a turn). */
@@ -546,12 +544,7 @@ object NavSession {
     /** A clear offline English voice on the navigation audio channel. */
     private fun setUpVoice() {
         val engine = tts ?: return
-        engine.setAudioAttributes(
-            AudioAttributes.Builder()
-                .setUsage(AudioAttributes.USAGE_ASSISTANCE_NAVIGATION_GUIDANCE)
-                .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
-                .build()
-        )
+        engine.setAudioAttributes(voice.attributes())
         val prefs = Prefs(app)
         val voices = englishVoices(engine)
         val chosen = voices.firstOrNull { it.name == prefs.navVoice } ?: voices.firstOrNull()
@@ -560,9 +553,10 @@ object NavSession {
         engine.setPitch(1.0f)
         engine.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
             override fun onStart(utteranceId: String?) = Unit
-            override fun onDone(utteranceId: String?) = releaseFocus()
+            override fun onDone(utteranceId: String?) = voiceDone()
+            override fun onStop(utteranceId: String?, interrupted: Boolean) = voiceDone()
             @Deprecated("Deprecated in Java")
-            override fun onError(utteranceId: String?) = releaseFocus()
+            override fun onError(utteranceId: String?) = voiceDone()
         })
     }
 
@@ -597,24 +591,20 @@ object NavSession {
 
     private fun speak(text: String, queue: Boolean = false) {
         if (text.isBlank() || state.value.muted || !ttsReady) return
-        // Turn music down while the voice talks, like other navigation apps.
-        val audio = app.getSystemService(AudioManager::class.java)
-        val request = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK)
-            .setAudioAttributes(
-                AudioAttributes.Builder()
-                    .setUsage(AudioAttributes.USAGE_ASSISTANCE_NAVIGATION_GUIDANCE)
-                    .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
-                    .build()
-            )
-            .build()
-        focusRequest = request
-        audio.requestAudioFocus(request)
-        tts?.speak(text, if (queue) TextToSpeech.QUEUE_ADD else TextToSpeech.QUEUE_FLUSH, null, text)
+        // Music paused or lowered, volume up and the voice boosted for the sentence (see VoiceOutput).
+        voice.begin {
+            val params = android.os.Bundle().apply {
+                putInt(TextToSpeech.Engine.KEY_PARAM_SESSION_ID, voice.sessionId)
+                putFloat(TextToSpeech.Engine.KEY_PARAM_VOLUME, 1f)
+            }
+            val result = tts?.speak(text, if (queue) TextToSpeech.QUEUE_ADD else TextToSpeech.QUEUE_FLUSH, params, text + System.nanoTime())
+            if (result != TextToSpeech.SUCCESS) voice.end()
+        }
     }
 
-    private fun releaseFocus() {
-        focusRequest?.let { app.getSystemService(AudioManager::class.java).abandonAudioFocusRequest(it) }
-        focusRequest = null
+    /** Callbacks come from the voice engine's thread. */
+    private fun voiceDone() {
+        android.os.Handler(Looper.getMainLooper()).post { voice.end() }
     }
 
     // endregion
