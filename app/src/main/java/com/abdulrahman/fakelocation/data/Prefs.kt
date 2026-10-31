@@ -71,10 +71,20 @@ class Prefs(context: Context) {
         get() = prefs.getInt("map_cache_mb", 1000)
         set(value) = prefs.edit { putInt("map_cache_mb", value) }
 
+    /** Own OSRM server for car routes, tried before the public ones ("" = public servers only). */
+    var osrmServer: String
+        get() = prefs.getString("osrm_server", "").orEmpty()
+        set(value) = prefs.edit { putString("osrm_server", value.trim()) }
+
+    /** Own Valhalla server, tried before the public one ("" = public server only). */
+    var valhallaServer: String
+        get() = prefs.getString("valhalla_server", "").orEmpty()
+        set(value) = prefs.edit { putString("valhalla_server", value.trim()) }
+
     // Google Maps (optional). The key is typed in by the user in Settings.
     var googleApiKey: String
-        get() = prefs.getString("google_key", "").orEmpty()
-        set(value) = prefs.edit { putString("google_key", value.trim()) }
+        get() = prefs.getString(KEY_GOOGLE, "").orEmpty()
+        set(value) = prefs.edit { putString(KEY_GOOGLE, value.trim()) }
 
     val hasGoogleKey get() = googleApiKey.isNotBlank()
 
@@ -203,6 +213,73 @@ class Prefs(context: Context) {
         set(value) = prefs.edit { if (value == null) remove("parking") else putString("parking", value.toJson()) }
 
     // endregion
+
+    // region Backup and reset
+
+    /** This phone's user settings for a backup (see [BACKUP_SETTINGS]); the Google key only when asked for. */
+    fun settingsForBackup(includeGoogleKey: Boolean): Map<String, Any> {
+        val out = LinkedHashMap<String, Any>()
+        for ((key, value) in prefs.all) {
+            if (value == null || key !in BACKUP_SETTINGS || (key == KEY_GOOGLE && !includeGoogleKey)) continue
+            out[key] = value
+        }
+        return out
+    }
+
+    /**
+     * Puts settings from a backup in place. With [replace], settings the backup doesn't have go back to their
+     * defaults too, except the Google key, which is only replaced by a backup that has one.
+     */
+    fun restoreSettings(values: Map<String, Any>, replace: Boolean) = prefs.edit {
+        if (replace) for (key in BACKUP_SETTINGS.keys) if (key != KEY_GOOGLE || KEY_GOOGLE in values) remove(key)
+        for ((key, value) in values) {
+            when (value) {
+                is Boolean -> putBoolean(key, value)
+                is Int -> putInt(key, value)
+                is Float -> putFloat(key, value)
+                is String -> putString(key, value)
+            }
+        }
+        remove("google_tile_session")
+    }
+
+    /** Back to the defaults for these settings (one of the RESET_ lists). */
+    fun reset(keys: Collection<String>) = prefs.edit { keys.forEach { remove(it) } }
+
+    // endregion
+
+    companion object {
+        const val KEY_GOOGLE = "google_key"
+
+        private val FUEL_PRICES = FuelType.entries.map { "fuel_price_${it.name}" }
+
+        /**
+         * Settings that go into a backup, with their type. Running state (trip, fake position, last real position…)
+         * stays out, and so does the lane camera, which needs the camera permission on the new phone first.
+         */
+        val BACKUP_SETTINGS: Map<String, SettingType> = buildMap {
+            for (key in listOf("alert_arrive", "alert_leave", "traffic", "map_cache_mb", "parking_alert_min", "parking_hours")) {
+                put(key, SettingType.INT)
+            }
+            for (key in listOf(
+                "ring_silent", "vibrate", "natural", "google_routes", "google_search", "nav_muted", "lane_guidance",
+                "pause_music", "voice_call", "avoid_tolls", "avoid_highways",
+            )) put(key, SettingType.BOOLEAN)
+            for (key in listOf("nav_speech_rate", "fuel_consumption") + FUEL_PRICES) put(key, SettingType.FLOAT)
+            for (key in listOf(
+                KEY_GOOGLE, "map_provider", "nav_voice", "voice_level", "fuel_type", "plate", "recent_zones",
+                "osrm_server", "valhalla_server",
+            )) put(key, SettingType.STRING)
+        }
+
+        // What "Reset to defaults" clears on each Settings page. The plate and the Google key are kept.
+        val RESET_ALERTS = listOf("alert_arrive", "alert_leave", "ring_silent", "vibrate")
+        val RESET_MOVEMENT = listOf("natural", "traffic")
+        val RESET_LANES = listOf("lane_guidance", "lane_camera", "nav_voice", "voice_level", "pause_music", "voice_call", "nav_speech_rate")
+        val RESET_COSTS = listOf("fuel_type", "fuel_consumption", "parking_alert_min") + FUEL_PRICES
+        val RESET_GOOGLE = listOf("map_provider", "google_routes", "google_search", "google_tile_session")
+        val RESET_MAP = listOf("map_cache_mb", "osrm_server", "valhalla_server")
+    }
 
     private fun readLatLon(key: String): LatLon? {
         if (!prefs.contains("${key}_lat")) return null

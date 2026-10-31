@@ -198,6 +198,24 @@
         <item name="tint">@color/idle_dot</item>
         <item name="android:importantForAccessibility">no</item>
     </style>
+    <!-- One Settings page (Alerts, Car & costs…): hidden until opened from the main list. -->
+    <style name="SettingsPage">
+        <item name="android:layout_width">match_parent</item>
+        <item name="android:layout_height">wrap_content</item>
+        <item name="android:layout_marginTop">20dp</item>
+        <item name="android:orientation">vertical</item>
+        <item name="android:visibility">gone</item>
+    </style>
+    <!-- ✓ / ! in a small circle next to a setup check. -->
+    <style name="HealthBadge" parent="Text.Item">
+        <item name="android:layout_width">28dp</item>
+        <item name="android:layout_height">28dp</item>
+        <item name="android:layout_marginEnd">12dp</item>
+        <item name="android:gravity">center</item>
+        <item name="android:textSize">15sp</item>
+        <item name="android:background">@drawable/bg_circle</item>
+        <item name="android:importantForAccessibility">no</item>
+    </style>
     <style name="SetupStep">
         <item name="android:layout_width">match_parent</item>
         <item name="android:layout_height">wrap_content</item>

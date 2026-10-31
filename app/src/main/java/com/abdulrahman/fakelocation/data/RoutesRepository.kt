@@ -33,6 +33,13 @@ class RoutesRepository private constructor(private val file: File) {
         write()
     }
 
+    /** Every route at once, from a restored backup. */
+    @Synchronized
+    fun replaceAll(routes: List<Route>) {
+        _routes.value = routes
+        write()
+    }
+
     private fun load() {
         if (!file.exists()) return
         try {
