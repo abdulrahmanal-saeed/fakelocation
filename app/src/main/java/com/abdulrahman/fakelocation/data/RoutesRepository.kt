@@ -33,6 +33,14 @@ class RoutesRepository private constructor(private val file: File) {
         write()
     }
 
+    /** Puts a deleted route back as it was, edit time included (Undo). */
+    @Synchronized
+    fun restore(route: Route) {
+        if (_routes.value.any { it.id == route.id }) return
+        _routes.value = (_routes.value + route).sortedByDescending { it.updatedAt }
+        write()
+    }
+
     /** Every route at once, from a restored backup. */
     @Synchronized
     fun replaceAll(routes: List<Route>) {

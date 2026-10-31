@@ -189,7 +189,10 @@ class TripView(private val binding: FragmentMapBinding) {
         val b1 = binding.tripButton1
         val b2 = binding.tripButton2
         binding.tripStopButton.setText(if (p.phase == TripPhase.SCHEDULED) R.string.cancel_trip else R.string.stop)
-        binding.tripStopButton.setOnClickListener { MockLocationService.stop(context) }
+        binding.tripStopButton.setOnClickListener {
+            it.confirmHaptic()
+            MockLocationService.stop(context)
+        }
         when (p.phase) {
             TripPhase.WAITING -> {
                 b1.isVisible = true
@@ -321,12 +324,12 @@ class TripView(private val binding: FragmentMapBinding) {
             val canvas = Canvas(bitmap)
             val paint = Paint(Paint.ANTI_ALIAS_FLAG)
             val c = size / 2f
-            paint.color = ContextCompat.getColor(context, R.color.surface)
+            paint.color = ContextCompat.getColor(context, R.color.white)
             canvas.drawCircle(c, c, c, paint)
             paint.color = ContextCompat.getColor(context, R.color.fake)
             canvas.drawCircle(c, c, c - 3 * density, paint)
             canvas.rotate(step.toFloat(), c, c)
-            paint.color = ContextCompat.getColor(context, R.color.surface)
+            paint.color = ContextCompat.getColor(context, R.color.white)
             val s = 7 * density
             val path = Path().apply {
                 moveTo(c, c - s * 1.3f)

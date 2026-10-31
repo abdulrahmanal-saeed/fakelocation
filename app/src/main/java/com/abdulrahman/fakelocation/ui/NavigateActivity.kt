@@ -72,8 +72,8 @@ class NavigateActivity : AppCompatActivity() {
     private val routeCasing by lazy { line(R.color.route_green_dark, 13f) }
     private val routeLine by lazy { line(R.color.route_green, 9f) }
     private val trafficLines = mutableListOf<Polyline>()
-    private val turnShaft by lazy { line(R.color.surface, 6f) }
-    private val turnHead by lazy { line(R.color.surface, 6f).apply { outlinePaint.strokeCap = Paint.Cap.ROUND } }
+    private val turnShaft by lazy { line(R.color.white, 6f) }
+    private val turnHead by lazy { line(R.color.white, 6f).apply { outlinePaint.strokeCap = Paint.Cap.ROUND } }
     private val laneBubble by lazy { marker(Marker.ANCHOR_BOTTOM) }
     private var laneBubbleKey: Any? = null
     private val me by lazy { marker(Marker.ANCHOR_CENTER) }

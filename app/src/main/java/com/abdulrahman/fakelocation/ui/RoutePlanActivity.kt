@@ -226,6 +226,7 @@ class RoutePlanActivity : AppCompatActivity() {
         val saved = route.copy(timing = timing)
         repo.save(saved)
         val start = startAt(System.currentTimeMillis())
+        binding.startButton.confirmHaptic()
         MockLocationService.startTrip(this, saved, start)
         if (start > System.currentTimeMillis() + 60_000) {
             Toast.makeText(this, getString(R.string.trip_scheduled, "${clockText(start)} ${dayName(start)}"), Toast.LENGTH_LONG).show()
