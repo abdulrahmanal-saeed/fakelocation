@@ -11,8 +11,8 @@ android {
         applicationId = "com.abdulrahman.fakelocation"
         minSdk = 26
         targetSdk = 36
-        versionCode = 18
-        versionName = "2.2.0"
+        versionCode = 19
+        versionName = "2.3.0"
     }
 
     signingConfigs {
@@ -29,6 +29,13 @@ android {
     buildTypes {
         getByName("debug") {
             signingConfig = signingConfigs.getByName("debug")
+        }
+        // Smaller, faster APK (R8). Same key as the debug build, so either installs over the other.
+        getByName("release") {
+            signingConfig = signingConfigs.getByName("debug")
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
     }
 

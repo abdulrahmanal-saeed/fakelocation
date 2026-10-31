@@ -85,7 +85,10 @@ class MainActivity : AppCompatActivity() {
             androidx.core.content.ContextCompat.startForegroundService(this, Intent(this, MockLocationService::class.java))
         }
         handleSharedText(intent)
-        if (savedInstanceState == null) WhatsNew.showIfUpdated(this)
+        if (savedInstanceState == null) {
+            WhatsNew.showIfUpdated(this)
+            lifecycleScope.launch { com.abdulrahman.fakelocation.system.UpdateChecker.checkDaily(this@MainActivity) }
+        }
     }
 
     override fun onNewIntent(intent: Intent) {

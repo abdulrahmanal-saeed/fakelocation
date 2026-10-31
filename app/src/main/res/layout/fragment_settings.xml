@@ -166,6 +166,13 @@
 
                 <View style="@style/Divider" />
 
+                <LinearLayout android:id="@+id/updateRow" style="@style/SettingsRow.Clickable">
+                    <TextView style="@style/SettingsRowLabel" android:text="@string/update_check" />
+                    <TextView android:id="@+id/updateValue" style="@style/SettingsRowValue" />
+                </LinearLayout>
+
+                <View style="@style/Divider" />
+
                 <LinearLayout android:id="@+id/whatsNewRow" style="@style/SettingsRow.Clickable">
                     <TextView style="@style/SettingsRowLabel" android:text="@string/whats_new" />
                     <ImageView style="@style/SettingsChevron" />

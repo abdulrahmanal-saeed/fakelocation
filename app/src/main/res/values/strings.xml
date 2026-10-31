@@ -694,7 +694,18 @@
     <string name="theme_dark">Dark</string>
     <string name="whats_new">What’s new</string>
     <string name="whats_new_title">What’s new in %1$s</string>
-    <string name="whats_new_body">• Settings: a setup check with Fix buttons, pages, reset, backup &amp; restore, your own routing servers.\n\n• Fake trips: speed 0.5×–3× (also during a trip), there and back, several times in a row, weekly routes.\n\n• Move: joystick, and wander around a place.\n\n• Routes: import GPX / KML, export GPX.\n\n• Navigation: other ways to choose from, Home / Work, night map, drive log, share arrival time, parking when you arrive.\n\n• Dark theme, undo after deleting, drag favorites to sort them, a favorites widget, shortcuts on the app icon.</string>
+    <string name="whats_new_body">• Settings: a setup check with Fix buttons, pages, reset, backup &amp; restore, your own routing servers.\n\n• Fake trips: speed 0.5×–3× (also during a trip), there and back, several times in a row, weekly routes.\n\n• Move: joystick, and wander around a place.\n\n• Routes: import GPX / KML, export GPX.\n\n• Navigation: other ways to choose from, Home / Work, night map, drive log, share arrival time, parking when you arrive.\n\n• Dark theme, undo after deleting, drag favorites to sort them, a favorites widget, shortcuts on the app icon.\n\n• The app now tells you when a newer build is ready (Settings → About → Check for updates).</string>
+
+    <!-- Updates -->
+    <string name="update_check">Check for updates</string>
+    <string name="update_checking">Checking…</string>
+    <string name="update_none">Up to date</string>
+    <string name="update_available">%1$s available</string>
+    <string name="update_failed">Couldn’t check</string>
+    <string name="update_title">Version %1$s is ready</string>
+    <string name="update_body">Download the new APK and install it over this one. Your places, routes and settings stay.</string>
+    <string name="update_download">Download</string>
+    <string name="update_later">Later</string>
 
     <!-- Launcher shortcuts -->
     <string name="shortcut_go_to">Go to %1$s</string>
