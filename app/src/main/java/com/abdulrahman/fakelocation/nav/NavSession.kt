@@ -106,6 +106,8 @@ object NavSession {
         val fixId: Long = 0,
         /** No GPS for a few seconds (a tunnel): the position is being estimated along the route. */
         val gpsLost: Boolean = false,
+        /** Inside an average speed check: the zone, your average so far and how far it still goes. */
+        val averageCheck: AverageSpeedCheck.Status? = null,
     ) {
         val navigating get() = status == Status.NAVIGATING
 
@@ -147,7 +149,8 @@ object NavSession {
             if (state.value.navigating) handler.postDelayed(this, 1000L)
         }
     }
-    private var offRouteCount = 0
+    private val offRoute = OffRouteDetector()
+    private val averageCheck = AverageSpeedCheck()
     private var lastReroute = 0L
     /** Stops already passed when the current route was made (it only contains the ones after). */
     private var routeStopBase = 0
@@ -342,7 +345,8 @@ object NavSession {
     private fun setRoute(route: NavRoute, options: List<NavRoute> = emptyList()) {
         tracker = NavTracker(route)
         spoken.clear()
-        offRouteCount = 0
+        offRoute.reset()
+        averageCheck.reset()
         val car = state.value.mode == TravelMode.CAR
         val prefs = Prefs(app)
         _state.update {
@@ -588,6 +592,9 @@ object NavSession {
         val toStart = if (route != null && s.from != null && (progress?.alongMeters ?: 0.0) < 1) distanceMeters(here, route.points.first()) else 0.0
         val toll = progress?.let { p -> s.tolls.firstOrNull { it.alongMeters > p.alongMeters - 10 } }
         val tollMeters = toll?.let { it.alongMeters - progress.alongMeters }?.takeIf { it < 1500 }
+        val average = if (progress != null && s.mode == TravelMode.CAR) {
+            averageCheck.update(s.roadInfo?.averageZones.orEmpty(), progress.alongMeters, System.currentTimeMillis())
+        } else null
         val reached = if (route != null && progress != null && s.navigating) {
             routeStopBase + route.stopsAlong.count { it <= progress.alongMeters + 30 }
         } else s.stopsReached
@@ -603,24 +610,39 @@ object NavSession {
         }
         _state.update {
             it.copy(real = here, bearing = bearing, speedKmh = speed, limitKmh = limit, progress = progress,
-                fixId = it.fixId + 1, gpsLost = estimated,
+                fixId = it.fixId + 1, gpsLost = estimated, averageCheck = average,
                 speeding = if (over) true else if (speed <= limit || limit == 0) false else it.speeding,
                 cameraMeters = camera, toStartMeters = if (toStart > NavTracker.OFF_ROUTE_METERS) toStart else 0.0,
                 nextToll = toll?.takeIf { tollMeters != null }, tollMeters = tollMeters, stopsReached = reached)
         }
         if (s.navigating) trackDrive(location, here, progress, s)
-        if (s.navigating && route != null && progress != null) guide(route, progress, camera, limit)
+        if (s.navigating && route != null && progress != null) {
+            // Estimated positions are on the route by definition; a route that starts elsewhere isn't "off" yet.
+            val off = !estimated && state.value.toStartMeters == 0.0 && offRoute.update(
+                progress.offRouteMeters,
+                if (location.hasAccuracy()) location.accuracy else null,
+                speed.toDouble(),
+                if (location.hasBearing() && location.speed > 1.5f) location.bearing else null,
+                TripTimeline.bearing(route.points[progress.segment], route.points[progress.segment + 1]),
+            )
+            guide(route, progress, camera, limit, off)
+        }
     }
 
-    private fun guide(route: NavRoute, p: NavProgress, camera: Double?, limit: Int) {
+    private fun guide(route: NavRoute, p: NavProgress, camera: Double?, limit: Int, off: Boolean) {
         val s = state.value
-        // Off the route: wait for a few fixes (GPS jumps), then find a new way from here.
-        if (p.offRouteMeters > NavTracker.OFF_ROUTE_METERS && s.toStartMeters == 0.0) offRouteCount++ else offRouteCount = 0
-        if (offRouteCount >= 3 && System.currentTimeMillis() - lastReroute > 15_000) {
+        // Off the route (see OffRouteDetector): find a new way from here.
+        if (off && System.currentTimeMillis() - lastReroute > OffRouteDetector.REROUTE_GAP_MS) {
             lastReroute = System.currentTimeMillis()
             _state.update { it.copy(from = null) } // from now on, routes start where you are
             plan()
             return
+        }
+        state.value.averageCheck?.takeIf { it.entered }?.let { check ->
+            if (spoken.add("average:${check.zone.fromAlong.roundToInt()}")) {
+                speak(app.getString(R.string.nav_average_voice, spokenDistance(check.zone.length)) +
+                    if (check.zone.limitKmh > 0) " " + app.getString(R.string.nav_speed_limit_voice, check.zone.limitKmh) + "." else "")
+            }
         }
         if (camera != null && camera < 400 && spoken.add("camera:${(p.alongMeters + camera).roundToInt() / 50}")) {
             speak(app.getString(R.string.nav_camera_ahead) + if (limit > 0) ". " + app.getString(R.string.nav_speed_limit_voice, limit) else "")

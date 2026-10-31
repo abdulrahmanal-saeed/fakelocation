@@ -81,6 +81,7 @@ class NavigateActivity : AppCompatActivity() {
         }
     }
     private val choices by lazy { RouteChoices(binding) }
+    private val traffic by lazy { TrafficLayer(binding.map, lifecycleScope) }
     private var nightShown: Boolean? = null
     private val askCamera = registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         if (!granted) Prefs(this).laneCamera = false
@@ -126,10 +127,12 @@ class NavigateActivity : AppCompatActivity() {
         super.onResume()
         binding.map.onResume()
         layers.start()
+        applyTraffic()
     }
 
     override fun onPause() {
         layers.stop()
+        traffic.stop()
         binding.map.removeCallbacks(autoRecenter)
         binding.map.onPause()
         super.onPause()
@@ -234,6 +237,11 @@ class NavigateActivity : AppCompatActivity() {
         }
         binding.workButton.setOnLongClickListener { pickWork.launch(Intent(this, SearchActivity::class.java)); true }
         binding.shareFab.setOnClickListener { shareEta(NavSession.state.value) }
+        binding.trafficFab.setOnClickListener {
+            val prefs = Prefs(this)
+            prefs.trafficOnMap = !prefs.trafficOnMap
+            applyTraffic()
+        }
     }
 
     /** "On my way to Dubai Mall, arriving around 18:42 (12 min). Where I am: <map link>" to WhatsApp, SMS… */
@@ -244,6 +252,16 @@ class NavigateActivity : AppCompatActivity() {
         val text = getString(R.string.nav_share_text, s.to?.name ?: "", clockText(arrive), ((p.remainingSeconds + 59) / 60).toInt()) +
             (here?.let { "\n" + getString(R.string.nav_share_where, it) } ?: "")
         startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, text), getString(R.string.nav_share_eta)))
+    }
+
+    /** Live traffic over the map: with a Google key, on unless turned off with the button (remembered). */
+    private fun applyTraffic() {
+        val prefs = Prefs(this)
+        binding.trafficFab.isVisible = prefs.hasGoogleKey
+        val on = prefs.hasGoogleKey && prefs.trafficOnMap
+        binding.trafficFab.setIconTintResource(if (on) R.color.real else R.color.muted)
+        androidx.core.view.ViewCompat.setStateDescription(binding.trafficFab, getString(if (on) R.string.tile_on else R.string.tile_off))
+        traffic.show(on)
     }
 
     /** Dark map at night (Settings → Map & routing); not on satellite pictures, which can't be darkened usefully. */
@@ -313,6 +331,7 @@ class NavigateActivity : AppCompatActivity() {
     private fun renderPlanning(s: NavSession.State) {
         binding.speedRow.isVisible = false
         binding.cameraChip.isVisible = false
+        binding.averageChip.isVisible = false
         binding.tollChip.isVisible = false
         binding.streetPill.isVisible = false
         binding.banner.isVisible = false
@@ -367,6 +386,15 @@ class NavigateActivity : AppCompatActivity() {
         binding.speedLimit.text = s.limitKmh.toString()
         binding.cameraChip.isVisible = s.cameraMeters != null
         binding.cameraChip.text = s.cameraMeters?.let { formatDistance(it) }
+        val average = s.averageCheck
+        binding.averageChip.isVisible = average != null
+        if (average != null) {
+            val avg = average.averageKmh?.toString() ?: "–"
+            binding.averageChip.text = if (average.zone.limitKmh > 0) {
+                getString(R.string.nav_average_chip_limit, avg, average.zone.limitKmh, formatDistance(average.leftMeters))
+            } else getString(R.string.nav_average_chip, avg, formatDistance(average.leftMeters))
+            binding.averageChip.setTextColor(ContextCompat.getColor(this, if (average.over) R.color.limit_red else R.color.ink))
+        }
         val toll = s.nextToll
         val tollMeters = s.tollMeters
         binding.tollChip.isVisible = toll != null && tollMeters != null

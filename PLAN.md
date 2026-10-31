@@ -53,6 +53,6 @@ Design (all screens, logo, splash): https://claude.ai/artifact/9FMXf1izujP79r3BA
 | 19 | Refactor & release: split big screens/service, R8 release build, update checker | Done (v2.3.0) |
 | 20 | Smooth driving: car drawn every frame along the road, smooth heading and zoom (out before turns), tunnels (dead reckoning), auto-recenter | Done (v2.4.0) |
 | 21 | Real location: blue dot every second with accuracy circle and compass cone, GPS smoothing (Kalman) | Done (v2.5.0) |
-| 22 | Navigation: faster off-route, Google traffic on the map, average-speed zones | Planned (v2.6.0) |
+| 22 | Navigation: faster off-route, Google traffic on the map, average-speed zones | Done (v2.6.0) |
 | 23 | Fake movement: smooth trip arrow, faster location updates option | Planned (v2.7.0) |
 | 24 | Vector map (MapLibre) for the Navigate screen, beta | Planned (v2.8.0) |
