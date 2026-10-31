@@ -1,16 +1,26 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
-    <style name="Theme.FakeLocation" parent="Theme.Material3.Light.NoActionBar">
+    <!-- Light Material base; values-night swaps it for the dark one. -->
+    <style name="Base.FakeLocation" parent="Theme.Material3.Light.NoActionBar" />
+
+    <style name="Theme.FakeLocation" parent="Base.FakeLocation">
         <item name="colorPrimary">@color/ink</item>
         <item name="colorOnPrimary">@color/surface</item>
         <item name="colorSecondary">@color/action</item>
         <item name="colorSurface">@color/surface</item>
         <item name="colorOnSurface">@color/ink</item>
         <item name="colorOnSurfaceVariant">@color/muted</item>
+        <item name="colorOutline">@color/line</item>
+        <!-- Dialogs and sheets use the container colours: keep them the app's own card colour in both themes. -->
+        <item name="colorSurfaceContainerLowest">@color/surface</item>
+        <item name="colorSurfaceContainerLow">@color/surface</item>
+        <item name="colorSurfaceContainer">@color/surface</item>
+        <item name="colorSurfaceContainerHigh">@color/surface</item>
+        <item name="colorSurfaceContainerHighest">@color/chip</item>
         <item name="android:colorBackground">@color/ground</item>
         <item name="android:fontFamily">@font/manrope</item>
         <item name="fontFamily">@font/manrope</item>
-        <item name="android:windowLightStatusBar">true</item>
-        <item name="android:windowLightNavigationBar" tools:targetApi="27">true</item>
+        <item name="android:windowLightStatusBar">@bool/light_system_bars</item>
+        <item name="android:windowLightNavigationBar" tools:targetApi="27">@bool/light_system_bars</item>
         <item name="bottomSheetDialogTheme">@style/ThemeOverlay.FakeLocation.BottomSheet</item>
         <item name="materialAlertDialogTheme">@style/ThemeOverlay.FakeLocation.Dialog</item>
         <item name="textAppearanceTitleLarge">@style/Text.Title</item>
@@ -21,7 +31,8 @@
     </style>
 
     <style name="Theme.FakeLocation.Starting" parent="Theme.SplashScreen">
-        <item name="windowSplashScreenBackground">@color/ink</item>
+        <!-- The logo is made for the dark navy, in both themes. -->
+        <item name="windowSplashScreenBackground">@color/splash_bg</item>
         <item name="windowSplashScreenAnimatedIcon">@drawable/splash_icon</item>
         <item name="postSplashScreenTheme">@style/Theme.FakeLocation</item>
     </style>

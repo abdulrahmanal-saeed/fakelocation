@@ -27,6 +27,10 @@ data class RoadInfo(
     val coveredTo: Double = 0.0,
     /** Lanes in our direction per piece of road (0 = unknown). */
     val laneCounts: IntArray = IntArray(0),
+    /** Stretches where the average speed between two cameras is checked. */
+    val averageZones: List<AverageZone> = emptyList(),
+    /** Traffic lights on the route, metres along it. */
+    val lightsAlong: List<Double> = emptyList(),
 ) {
     fun limitAt(segment: Int): Int = limits.getOrElse(segment) { 0 }
 
@@ -34,6 +38,12 @@ data class RoadInfo(
 
     /** The next camera ahead of [along] metres, as distance from here. */
     fun nextCamera(along: Double): Double? = camerasAlong.firstOrNull { it > along - 10 }?.minus(along)
+
+    /** The next traffic light ahead of [along] metres, as distance from here. */
+    fun nextLight(along: Double): Double? = lightsAlong.firstOrNull { it > along - 5 }?.minus(along)
+
+    /** True when a traffic light is at the junction [at] metres along (just before it or in it). */
+    fun lightAt(at: Double): Boolean = lightsAlong.any { it in at - 45..at + 15 }
 
     /** This plus a newer chunk. */
     fun merge(other: RoadInfo): RoadInfo = RoadInfo(
@@ -45,11 +55,25 @@ data class RoadInfo(
         IntArray(maxOf(laneCounts.size, other.laneCounts.size)) { i ->
             other.laneCounts.getOrElse(i) { 0 }.takeIf { it > 0 } ?: laneCounts.getOrElse(i) { 0 }
         },
+        (averageZones + other.averageZones).distinctBy { (it.fromAlong / 20).roundToInt() }.sortedBy { it.fromAlong },
+        onePerJunction(lightsAlong + other.lightsAlong),
     )
 
     companion object {
         fun empty(route: NavRoute) = RoadInfo(IntArray((route.points.size - 1).coerceAtLeast(0)), emptyList())
+
+        /** Lights a few metres apart (one on each corner of a junction) are one junction's light. */
+        fun onePerJunction(along: List<Double>): List<Double> {
+            val out = ArrayList<Double>()
+            for (a in along.sorted()) if (out.isEmpty() || a - out.last() >= 45) out += a
+            return out
+        }
     }
+}
+
+/** An average speed check on the route: from [fromAlong] to [toAlong] metres along it, limit in km/h (0 = unknown). */
+data class AverageZone(val fromAlong: Double, val toAlong: Double, val limitKmh: Int) {
+    val length get() = toAlong - fromAlong
 }
 
 /** A road from OpenStreetMap with its limit (0 = none) and lane arrows per direction. */
@@ -87,14 +111,23 @@ object RoadInfoFetcher {
             "way(around:20,$coords)[highway][~\"^(maxspeed|lanes(:forward|:backward)?|turn:lanes(:forward|:backward)?)$\"~\".\"];" +
             "node(around:30,$coords)[highway=speed_camera];" +
             "node(around:25,$coords)[highway=toll_gantry];" +
+            "node(around:25,$coords)[highway=traffic_signals];" +
             ");out tags geom;"
-        parse(route, Overpass.query(query), fromAlong, toAlong)
+        val info = parse(route, Overpass.query(query), fromAlong, toAlong)
+        // Average speed checks on their own (rare, and a problem there mustn't cost the speed limits and lanes).
+        val zones = runCatching {
+            val zoneQuery = "[out:json][timeout:25];rel(around:30,$coords)[type=enforcement][enforcement=average_speed];out tags geom;"
+            parse(route, Overpass.query(zoneQuery), fromAlong, toAlong).averageZones
+        }.onFailure { android.util.Log.w("RoadInfo", "average speed checks didn't load", it) }.getOrDefault(emptyList())
+        info.copy(averageZones = zones)
     }
 
     fun parse(route: NavRoute, json: JSONObject, fromAlong: Double = 0.0, toAlong: Double = Double.MAX_VALUE): RoadInfo {
         val ways = ArrayList<MappedWay>()
         val cameras = ArrayList<LatLon>()
         val gantries = ArrayList<Pair<LatLon, String>>()
+        val lights = ArrayList<LatLon>()
+        val zones = ArrayList<AverageZone>()
         val elements = json.optJSONArray("elements")
         if (elements != null) for (i in 0 until elements.length()) {
             val e = elements.getJSONObject(i)
@@ -119,12 +152,13 @@ object RoadInfoFetcher {
                     val countBackward = if (oneway) 0 else count("lanes:backward", backward, true)
                     ways += MappedWay(limit, shape, forward, backward, countForward.coerceIn(0, 8), countBackward.coerceIn(0, 8))
                 }
+                "relation" -> averageZone(route, e)?.let { zones += it }
                 "node" -> {
                     val p = LatLon(e.getDouble("lat"), e.getDouble("lon"))
-                    if (tags?.optString("highway") == "toll_gantry") {
-                        gantries += p to (tags.optString("name:en").ifBlank { tags.optString("name") })
-                    } else {
-                        cameras += p
+                    when (tags?.optString("highway")) {
+                        "toll_gantry" -> gantries += p to (tags.optString("name:en").ifBlank { tags.optString("name") })
+                        "traffic_signals" -> lights += p
+                        else -> cameras += p
                     }
                 }
             }
@@ -138,7 +172,44 @@ object RoadInfoFetcher {
             stepLanes(route, ways.filter { it.lanesForward != null || it.lanesBackward != null }, fromAlong, toAlong),
             toAlong,
             assignLaneCounts(route, ways.filter { it.countForward > 0 || it.countBackward > 0 }, first, last),
+            zones.sortedBy { it.fromAlong },
+            RoadInfo.onePerJunction(lights.mapNotNull { alongOf(route, it, 15.0) }),
         )
+    }
+
+    /**
+     * An OpenStreetMap average speed check (a relation with type=enforcement, enforcement=average_speed): where it
+     * starts ("from", else the first camera) and ends ("to", else the last camera) along the route. Null when it
+     * isn't on the route or runs the other way.
+     */
+    fun averageZone(route: NavRoute, relation: JSONObject): AverageZone? {
+        val tags = relation.optJSONObject("tags") ?: return null
+        if (tags.optString("enforcement") != "average_speed") return null
+        val members = relation.optJSONArray("members") ?: return null
+        val starts = ArrayList<LatLon>()
+        val ends = ArrayList<LatLon>()
+        val devices = ArrayList<LatLon>()
+        for (i in 0 until members.length()) {
+            val m = members.getJSONObject(i)
+            val shape = if (m.has("lat") && m.has("lon")) {
+                listOf(LatLon(m.getDouble("lat"), m.getDouble("lon")))
+            } else {
+                val g = m.optJSONArray("geometry") ?: continue
+                (0 until g.length()).mapNotNull { g.optJSONObject(it) }.filter { it.has("lat") }.map { LatLon(it.getDouble("lat"), it.getDouble("lon")) }
+            }
+            if (shape.isEmpty()) continue
+            when (m.optString("role")) {
+                "from" -> starts += shape.first()
+                "to" -> ends += shape.last()
+                "device" -> devices += shape.first()
+            }
+        }
+        val near = 40.0
+        val deviceAlongs = devices.mapNotNull { alongOf(route, it, near) }.sorted()
+        val from = starts.firstNotNullOfOrNull { alongOf(route, it, near) } ?: deviceAlongs.firstOrNull() ?: return null
+        val to = ends.firstNotNullOfOrNull { alongOf(route, it, near) } ?: deviceAlongs.lastOrNull()?.takeIf { deviceAlongs.size >= 2 } ?: return null
+        if (to - from < 200) return null
+        return AverageZone(from, to, parseMaxspeed(tags.optString("maxspeed")) ?: 0)
     }
 
     /** "60" → 60, "30 mph" → 48. Anything else (e.g. "AE:urban", "signals") → null. */

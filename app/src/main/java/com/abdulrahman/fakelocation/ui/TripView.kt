@@ -9,6 +9,8 @@ import android.graphics.Paint
 import android.graphics.Path
 import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.Drawable
+import android.os.SystemClock
+import android.view.Choreographer
 import android.view.View
 import android.widget.LinearLayout
 import android.widget.TextView
@@ -21,6 +23,8 @@ import com.abdulrahman.fakelocation.data.formatDuration
 import com.abdulrahman.fakelocation.databinding.FragmentMapBinding
 import com.abdulrahman.fakelocation.mock.MockLocationService
 import com.abdulrahman.fakelocation.mock.TripUi
+import com.abdulrahman.fakelocation.nav.HeadingSmoother
+import com.abdulrahman.fakelocation.trip.TripPoint
 import com.abdulrahman.fakelocation.trip.TripPhase
 import com.abdulrahman.fakelocation.trip.TripTimeline
 import org.osmdroid.util.GeoPoint
@@ -29,8 +33,12 @@ import org.osmdroid.views.overlay.Marker
 import org.osmdroid.views.overlay.Polyline
 import kotlin.math.roundToInt
 
-/** Draws a running trip on the map screen: route lines, stop letters, the moving arrow, the top card and the controls. */
-class TripView(private val binding: FragmentMapBinding) {
+/**
+ * Draws a running trip on the map screen: route lines, stop letters, the moving arrow, the top card and the controls.
+ * The arrow moves on every screen frame: the trip's own timeline says exactly where it is at any moment, so between
+ * the service's once-a-second updates it glides instead of jumping.
+ */
+class TripView(private val binding: FragmentMapBinding) : Choreographer.FrameCallback {
 
     private val context: Context = binding.root.context
     private val map: MapView = binding.map
@@ -60,14 +68,57 @@ class TripView(private val binding: FragmentMapBinding) {
         setOnMarkerClickListener { _, _ -> true }
     }
     private val pin: Drawable = ContextCompat.getDrawable(context, R.drawable.marker_fake)!!
+    private var latest: TripUi? = null
+    private var latestAt = 0L
+    private val heading = HeadingSmoother()
+    private var running = false
+    private var queued = false
+    private var lastLineAt = 0L
 
     fun show(trip: TripUi) {
+        latest = trip
+        latestAt = SystemClock.uptimeMillis()
         drawOverlays(trip)
         bindTopCard(trip)
         bindPanel(trip)
+        queueFrame()
+    }
+
+    /** The map is on screen: glide the arrow. */
+    fun start() {
+        running = true
+        queueFrame()
+    }
+
+    fun stop() {
+        running = false
+        queued = false
+        Choreographer.getInstance().removeFrameCallback(this)
+    }
+
+    private fun queueFrame() {
+        if (!running || queued) return
+        if (latest?.let { it.point.phase == TripPhase.MOVING && !it.paused } != true) return
+        queued = true
+        Choreographer.getInstance().postFrameCallback(this)
+    }
+
+    override fun doFrame(frameTimeNanos: Long) {
+        queued = false
+        val trip = latest ?: return
+        if (!running || trip.point.phase != TripPhase.MOVING || trip.paused) return
+        // The trip clock runs at the speed of real time; don't run ahead if the service stops sending.
+        val ahead = (SystemClock.uptimeMillis() - latestAt).coerceIn(0L, 1500L)
+        val point = trip.timeline.at(trip.t + ahead)
+        val now = SystemClock.uptimeMillis()
+        drawPosition(trip, point, lines = now - lastLineAt > 100)
+        if (point.phase == TripPhase.MOVING) queueFrame()
     }
 
     fun clear() {
+        stop()
+        latest = null
+        heading.reset()
         map.overlays.remove(doneLine)
         map.overlays.remove(restLine)
         map.overlays.remove(mover)
@@ -97,23 +148,49 @@ class TripView(private val binding: FragmentMapBinding) {
             map.overlays.addAll(stopMarkers)
             drawnTimeline = timeline
         }
-        val here = GeoPoint(trip.point.position.lat, trip.point.position.lon)
-        val k = trip.point.pointIndex.coerceIn(0, points.lastIndex)
-        if (trip.point.phase == TripPhase.SCHEDULED) {
-            doneLine.setPoints(emptyList())
-            restLine.setPoints(points.map { GeoPoint(it.lat, it.lon) })
-        } else {
-            doneLine.setPoints(points.subList(0, k + 1).map { GeoPoint(it.lat, it.lon) } + here)
-            restLine.setPoints(listOf(here) + points.subList((k + 1).coerceAtMost(points.size), points.size).map { GeoPoint(it.lat, it.lon) })
+        // Moving with frames running, the frames draw the arrow; otherwise draw it now.
+        if (!(running && trip.point.phase == TripPhase.MOVING && !trip.paused)) {
+            drawPosition(trip, trip.point, lines = true, animate = true)
+        }
+    }
+
+    private fun drawPosition(trip: TripUi, point: TripPoint, lines: Boolean, animate: Boolean = false) {
+        val points = trip.timeline.path.points
+        val here = GeoPoint(point.position.lat, point.position.lon)
+        if (lines) {
+            lastLineAt = SystemClock.uptimeMillis()
+            val k = point.pointIndex.coerceIn(0, points.lastIndex)
+            if (point.phase == TripPhase.SCHEDULED) {
+                doneLine.setPoints(emptyList())
+                restLine.setPoints(points.map { GeoPoint(it.lat, it.lon) })
+            } else {
+                doneLine.setPoints(points.subList(0, k + 1).map { GeoPoint(it.lat, it.lon) } + here)
+                restLine.setPoints(listOf(here) + points.subList((k + 1).coerceAtMost(points.size), points.size).map { GeoPoint(it.lat, it.lon) })
+            }
         }
         mover.position = here
-        mover.icon = if (trip.point.phase == TripPhase.MOVING) arrow(trip.point.bearing) else pin
-        mover.setAnchor(Marker.ANCHOR_CENTER, if (trip.point.phase == TripPhase.MOVING) Marker.ANCHOR_CENTER else Marker.ANCHOR_BOTTOM)
-        map.overlays.remove(mover)
-        map.overlays.add(mover)
-        if (follow && trip.point.phase != TripPhase.SCHEDULED) map.controller.animateTo(here)
+        val moving = point.phase == TripPhase.MOVING
+        if (moving) {
+            // One arrow turned smoothly, instead of a new picture every 10 degrees.
+            if (mover.icon !== upArrow) mover.icon = upArrow
+            mover.rotation = -heading.update(point.bearing, SystemClock.uptimeMillis())
+        } else {
+            heading.reset()
+            mover.icon = pin
+            mover.rotation = 0f
+        }
+        mover.setAnchor(Marker.ANCHOR_CENTER, if (moving) Marker.ANCHOR_CENTER else Marker.ANCHOR_BOTTOM)
+        if (map.overlays.lastOrNull() !== mover) {
+            map.overlays.remove(mover)
+            map.overlays.add(mover)
+        }
+        if (follow && point.phase != TripPhase.SCHEDULED) {
+            if (animate) map.controller.animateTo(here) else map.controller.setCenter(here)
+        }
         map.invalidate()
     }
+
+    private val upArrow by lazy { arrow(0f) }
 
     private fun bindTopCard(trip: TripUi) {
         val stops = trip.stops
@@ -151,6 +228,7 @@ class TripView(private val binding: FragmentMapBinding) {
         val stops = trip.stops
         val lastLetter = stopLetter(stops.lastIndex)
         val arriveLast = clockText(trip.wallOf(trip.timeline.arrive.last()))
+        binding.speedStat.setOnClickListener { chooseSpeed(trip.speed) }
         when (p.phase) {
             TripPhase.MOVING -> stats(
                 R.string.stat_speed to context.getString(R.string.kmh, (p.speedMps * 3.6f).roundToInt()),
@@ -168,6 +246,7 @@ class TripView(private val binding: FragmentMapBinding) {
                 lastLetter to arriveLast,
             )
         }
+        if (p.phase == TripPhase.MOVING && trip.speed != 1.0) binding.stat1Label.append(" · " + speedLabel(context, trip.speed))
 
         binding.tripHint.text = when {
             trip.paused -> context.getString(R.string.hint_paused)
@@ -187,7 +266,10 @@ class TripView(private val binding: FragmentMapBinding) {
         val b1 = binding.tripButton1
         val b2 = binding.tripButton2
         binding.tripStopButton.setText(if (p.phase == TripPhase.SCHEDULED) R.string.cancel_trip else R.string.stop)
-        binding.tripStopButton.setOnClickListener { MockLocationService.stop(context) }
+        binding.tripStopButton.setOnClickListener {
+            it.confirmHaptic()
+            MockLocationService.stop(context)
+        }
         when (p.phase) {
             TripPhase.WAITING -> {
                 b1.isVisible = true
@@ -219,6 +301,18 @@ class TripView(private val binding: FragmentMapBinding) {
         b2.setOnClickListener { MockLocationService.skip(context) }
     }
 
+    /** Trip speed (1× = each street's speed) for the rest of the trip. */
+    private fun chooseSpeed(current: Double) {
+        val labels = TRIP_SPEEDS.map { speedLabel(context, it) }.toTypedArray()
+        com.google.android.material.dialog.MaterialAlertDialogBuilder(context)
+            .setTitle(R.string.trip_speed)
+            .setSingleChoiceItems(labels, TRIP_SPEEDS.indexOf(current)) { dialog, which ->
+                MockLocationService.setSpeed(context, TRIP_SPEEDS[which])
+                dialog.dismiss()
+            }
+            .show()
+    }
+
     private fun stats(first: Pair<Int, String>, second: Pair<Int, String>, third: Pair<String, String>) {
         binding.stat1Label.setText(first.first)
         binding.stat1Value.text = first.second
@@ -228,7 +322,7 @@ class TripView(private val binding: FragmentMapBinding) {
         binding.stat3Value.text = third.second
     }
 
-    /** A B C D with bars between them, filled up to where the trip is. */
+    /** A B C D with bars between them, filled up to where the trip is (one bar for trips with many stops). */
     private fun bindProgress(trip: TripUi) {
         val row = binding.progressRow
         row.removeAllViews()
@@ -236,6 +330,17 @@ class TripView(private val binding: FragmentMapBinding) {
         val p = trip.point
         val size = (26 * density).toInt()
         val gap = (6 * density).toInt()
+        if (stops.size > MAX_PROGRESS_DOTS) {
+            val fill = if (p.phase == TripPhase.SCHEDULED) 0f else (p.distanceDone / trip.timeline.totalDistance.coerceAtLeast(1.0)).toFloat()
+            row.addView(bar(fill.coerceIn(0f, 1f)), LinearLayout.LayoutParams(0, (4 * density).toInt(), 1f).apply { marginEnd = gap })
+            val count = TextView(context).apply {
+                text = context.getString(R.string.progress_stop_of, (trip.nextStop ?: stops.lastIndex) + 1, stops.size)
+                textSize = 12f
+                setTextColor(ContextCompat.getColor(context, R.color.muted))
+            }
+            row.addView(count, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT))
+            return
+        }
         stops.forEachIndexed { i, _ ->
             if (i > 0) {
                 val leg = i - 1
@@ -282,6 +387,11 @@ class TripView(private val binding: FragmentMapBinding) {
 
     private fun clock(ms: Long) = formatClock(ms.coerceAtLeast(0) + 999).removePrefix("00:")
 
+    private companion object {
+        /** More stops than this (e.g. several laps) don't fit as letters across the screen. */
+        const val MAX_PROGRESS_DOTS = 9
+    }
+
     /** Orange circle with a white arrow pointing along [bearing] (degrees clockwise from north). */
     private fun arrow(bearing: Float): Drawable {
         val step = ((bearing / 10f).roundToInt() * 10) % 360
@@ -291,12 +401,12 @@ class TripView(private val binding: FragmentMapBinding) {
             val canvas = Canvas(bitmap)
             val paint = Paint(Paint.ANTI_ALIAS_FLAG)
             val c = size / 2f
-            paint.color = ContextCompat.getColor(context, R.color.surface)
+            paint.color = ContextCompat.getColor(context, R.color.white)
             canvas.drawCircle(c, c, c, paint)
             paint.color = ContextCompat.getColor(context, R.color.fake)
             canvas.drawCircle(c, c, c - 3 * density, paint)
             canvas.rotate(step.toFloat(), c, c)
-            paint.color = ContextCompat.getColor(context, R.color.surface)
+            paint.color = ContextCompat.getColor(context, R.color.white)
             val s = 7 * density
             val path = Path().apply {
                 moveTo(c, c - s * 1.3f)

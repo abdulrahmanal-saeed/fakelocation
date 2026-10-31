@@ -23,12 +23,24 @@ import com.abdulrahman.fakelocation.data.LatLon
 import com.abdulrahman.fakelocation.data.Place
 import com.abdulrahman.fakelocation.data.PlacesRepository
 import com.abdulrahman.fakelocation.data.Prefs
+import com.abdulrahman.fakelocation.data.Route
+import com.abdulrahman.fakelocation.data.RoutesRepository
+import com.abdulrahman.fakelocation.data.TravelMode
 import com.abdulrahman.fakelocation.data.distanceMeters
 import com.abdulrahman.fakelocation.data.format
 import com.abdulrahman.fakelocation.data.formatClock
+import com.abdulrahman.fakelocation.databinding.DialogWanderBinding
 import com.abdulrahman.fakelocation.databinding.FragmentMapBinding
+import com.abdulrahman.fakelocation.geo.NoInternetException
+import com.abdulrahman.fakelocation.geo.PlaceSearch
+import com.abdulrahman.fakelocation.geo.Router
+import com.abdulrahman.fakelocation.mock.Joystick
 import com.abdulrahman.fakelocation.mock.MockLocationService
 import com.abdulrahman.fakelocation.mock.MockState
+import com.abdulrahman.fakelocation.trip.Wander
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import kotlin.math.roundToInt
+import kotlin.random.Random
 import com.google.android.gms.location.LocationCallback
 import com.google.android.gms.location.LocationRequest
 import com.google.android.gms.location.LocationResult
@@ -51,7 +63,8 @@ class MapFragment : Fragment(R.layout.fragment_map) {
     private lateinit var prefs: Prefs
     private lateinit var places: PlacesRepository
     private lateinit var fakeMarker: Marker
-    private lateinit var realMarker: Marker
+    private lateinit var fakeGlide: MarkerGlide
+    private lateinit var realDot: RealDot
     private lateinit var selectionMarker: Marker
     private val fusedClient by lazy { LocationServices.getFusedLocationProviderClient(requireContext()) }
     private var trackingRealLocation = false
@@ -69,7 +82,7 @@ class MapFragment : Fragment(R.layout.fragment_map) {
             if (location.isMockCompat() || MockState.isFaking) return
             val real = LatLon(location.latitude, location.longitude)
             prefs.lastRealLocation = real
-            showRealMarker(real)
+            realDot.onFix(location)
             if (centerOnNextRealFix) {
                 centerOnNextRealFix = false
                 binding.map.controller.animateTo(GeoPoint(real.lat, real.lon), 16.0, 600L)
@@ -135,9 +148,15 @@ class MapFragment : Fragment(R.layout.fragment_map) {
         applyMapStyle()
         binding.map.onResume()
         updateRealLocationTracking()
+        tripView?.start()
+        fakeGlide.start()
     }
 
     override fun onPause() {
+        // Leaving the screen lets go of the joystick: the fake position stops where it is.
+        MockState.joystick.value?.let { MockState.joystick.value = it.copy(speedMps = 0.0) }
+        tripView?.stop()
+        fakeGlide.stop()
         binding.map.onPause()
         stopRealLocationTracking()
         super.onPause()
@@ -147,6 +166,7 @@ class MapFragment : Fragment(R.layout.fragment_map) {
         super.onHiddenChanged(hidden)
         if (!hidden) applyMapStyle()
         if (hidden) stopRealLocationTracking() else updateRealLocationTracking()
+        if (hidden) tripView?.stop() else if (isResumed) tripView?.start()
     }
 
     override fun onDestroyView() {
@@ -198,6 +218,12 @@ class MapFragment : Fragment(R.layout.fragment_map) {
         val wanted = if (prefs.hasGoogleKey) prefs.mapProvider else com.abdulrahman.fakelocation.data.MapProvider.OSM
         if (wanted == appliedProvider) return
         appliedProvider = MapStyle.apply(binding.map, viewLifecycleOwner.lifecycleScope, binding.mapCredit)
+        // Dark theme: a dark street map too, so it isn't a bright patch in a dark app (satellite stays as it is).
+        val dark = (resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK) ==
+            android.content.res.Configuration.UI_MODE_NIGHT_YES
+        val satellite = wanted == com.abdulrahman.fakelocation.data.MapProvider.GOOGLE_SATELLITE ||
+            wanted == com.abdulrahman.fakelocation.data.MapProvider.GOOGLE_HYBRID
+        binding.map.overlayManager.tilesOverlay.setColorFilter(if (dark && !satellite) com.abdulrahman.fakelocation.nav.NightMap.filter else null)
     }
 
     private fun setupMap() = with(binding.map) {
@@ -209,18 +235,14 @@ class MapFragment : Fragment(R.layout.fragment_map) {
         val start = prefs.activeSession?.position ?: prefs.lastRealLocation ?: LatLon.HOME_REGION
         controller.setCenter(GeoPoint(start.lat, start.lon))
 
-        realMarker = Marker(this).apply {
-            icon = ContextCompat.getDrawable(requireContext(), R.drawable.marker_real)
-            setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
-            setInfoWindow(null)
-            setOnMarkerClickListener { _, _ -> true }
-        }
+        realDot = RealDot(this).also { it.attach() }
         fakeMarker = Marker(this).apply {
             icon = ContextCompat.getDrawable(requireContext(), R.drawable.marker_fake)
             setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
             setInfoWindow(null)
             setOnMarkerClickListener { _, _ -> true }
         }
+        fakeGlide = MarkerGlide(this, fakeMarker)
         selectionMarker = Marker(this).apply {
             icon = ContextCompat.getDrawable(requireContext(), R.drawable.marker_fake)?.mutate()?.apply { alpha = 150 }
             setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
@@ -235,7 +257,7 @@ class MapFragment : Fragment(R.layout.fragment_map) {
                 return true
             }
         }))
-        prefs.lastRealLocation?.let { showRealMarker(it) }
+        prefs.lastRealLocation?.let { realDot.showStill(it) }
     }
 
     private fun setupControls() {
@@ -262,8 +284,12 @@ class MapFragment : Fragment(R.layout.fragment_map) {
         }
         binding.planRouteButton.setOnClickListener { main.newRouteFromHere() }
         binding.routeFromHereButton.setOnClickListener { main.newRouteFromHere() }
-        binding.moveButton.setOnClickListener { main.openSearch() }
-        binding.stopButton.setOnClickListener { MockLocationService.stop(requireContext()) }
+        binding.moveButton.setOnClickListener { showMoveOptions() }
+        setupJoystick()
+        binding.stopButton.setOnClickListener {
+            it.confirmHaptic()
+            MockLocationService.stop(requireContext())
+        }
         binding.saveButton.setOnClickListener {
             val session = MockState.session.value ?: return@setOnClickListener
             val existing = places.favoriteAt(session.position)
@@ -279,8 +305,110 @@ class MapFragment : Fragment(R.layout.fragment_map) {
         }
     }
 
+    // region Move: search, joystick, wander
+
+    private fun showMoveOptions() {
+        val items = arrayOf(getString(R.string.move_search), getString(R.string.move_joystick), getString(R.string.move_wander))
+        MaterialAlertDialogBuilder(requireContext())
+            .setTitle(R.string.move)
+            .setItems(items) { _, which ->
+                when (which) {
+                    0 -> main.openSearch()
+                    1 -> openJoystick()
+                    else -> askWander()
+                }
+            }
+            .show()
+    }
+
+    private val joystickOpen get() = MockState.joystick.value != null
+
+    /** Top speed for each joystick setting, in m/s (walk 5, run 11, drive 50 km/h). */
+    private fun joystickMaxSpeed(): Double = when (binding.joystickSpeedGroup.checkedButtonId) {
+        R.id.joyRun -> 3.0
+        R.id.joyDrive -> 13.9
+        else -> 1.4
+    }
+
+    private fun setupJoystick() {
+        binding.joystick.onMove = { bearing, amount ->
+            val speed = amount * joystickMaxSpeed()
+            MockState.joystick.value = Joystick(bearing, speed)
+            binding.joystickSpeed.text = getString(R.string.kmh, (speed * 3.6).roundToInt())
+        }
+        binding.joystickDone.setOnClickListener { closeJoystick() }
+        if (joystickOpen) showJoystickPanel(true)
+    }
+
+    private fun openJoystick() {
+        MockState.joystick.value = Joystick(0.0, 0.0)
+        showJoystickPanel(true)
+    }
+
+    private fun showJoystickPanel(show: Boolean) {
+        val b = _binding ?: return
+        b.joystickPanel.isVisible = show
+        b.activePanel.isVisible = !show && MockState.session.value != null
+        b.joystickSpeed.text = getString(R.string.kmh, 0)
+    }
+
+    /** Done: stand still where the joystick left the fake position, under that place's name. */
+    private fun closeJoystick() {
+        MockState.joystick.value = null
+        showJoystickPanel(false)
+        val session = MockState.session.value ?: return
+        val context = requireContext().applicationContext
+        viewLifecycleOwner.lifecycleScope.launch {
+            val place = runCatching { PlaceSearch.reverse(context, session.position) }.getOrNull()
+            MockLocationService.teleport(context, session.position, place?.name ?: session.position.format())
+        }
+    }
+
+    private fun askWander() {
+        val dialog = DialogWanderBinding.inflate(layoutInflater)
+        MaterialAlertDialogBuilder(requireContext())
+            .setTitle(R.string.move_wander)
+            .setView(dialog.root)
+            .setPositiveButton(R.string.wander_start) { _, _ ->
+                val radius = when (dialog.radiusGroup.checkedButtonId) {
+                    R.id.radius200 -> 200.0
+                    R.id.radius1000 -> 1000.0
+                    else -> 500.0
+                }
+                val minutes = when (dialog.timeGroup.checkedButtonId) {
+                    R.id.time30 -> 30
+                    R.id.time120 -> 120
+                    else -> 60
+                }
+                startWander(radius, minutes)
+            }
+            .setNegativeButton(R.string.cancel, null)
+            .show()
+    }
+
+    /** A walk to random spots nearby along real streets, run as a fake trip (not saved with the routes). */
+    private fun startWander(radius: Double, minutes: Int) {
+        val session = MockState.session.value ?: return
+        val context = requireContext().applicationContext
+        context.toast(R.string.wander_planning)
+        viewLifecycleOwner.lifecycleScope.launch {
+            val stops = Wander.stops(session.position, session.name, radius, minutes, Random.Default) { getString(R.string.wander_spot, it) }
+            runCatching { Router.route(context, stops.map { it.position }, TravelMode.WALK) }
+                .onSuccess { path ->
+                    val route = Route(RoutesRepository.newId(), getString(R.string.wander_name, session.name), TravelMode.WALK, stops, path)
+                    MockLocationService.startTrip(context, route, System.currentTimeMillis())
+                }
+                .onFailure { context.toast(if (it is NoInternetException) R.string.no_internet else R.string.route_failed) }
+        }
+    }
+
+    // endregion
+
     private fun renderTrip(trip: com.abdulrahman.fakelocation.mock.TripUi) {
-        val view = tripView ?: TripView(binding).also { tripView = it }
+        val view = tripView ?: TripView(binding).also {
+            tripView = it
+            if (isResumed && !isHidden) it.start()
+        }
         if (!tripShown) {
             tripShown = true
             timerHandler.removeCallbacks(timerTick)
@@ -309,15 +437,24 @@ class MapFragment : Fragment(R.layout.fragment_map) {
 
     private fun renderSession(session: FakeSession?, favorites: List<Favorite>) {
         val map = binding.map
+        // Stopped (e.g. from the notification) while the joystick was open.
+        if (session == null && joystickOpen) {
+            MockState.joystick.value = null
+            binding.joystickPanel.isVisible = false
+        }
         binding.idlePanel.isVisible = session == null
-        binding.activePanel.isVisible = session != null
+        binding.activePanel.isVisible = session != null && !joystickOpen
+        fakeGlide.follow = session != null && joystickOpen
         binding.activePill.isVisible = session != null
         binding.chipsScroll.isVisible = session == null
         timerHandler.removeCallbacks(timerTick)
         if (session == null) {
             map.overlays.remove(fakeMarker)
+            fakeGlide.reset()
         } else {
-            fakeMarker.position = GeoPoint(session.position.lat, session.position.lon)
+            // The joystick moves it a little at a time: glide, carrying on at the stick's speed between updates.
+            val stick = MockState.joystick.value
+            fakeGlide.moveTo(session.position, stick?.speedMps ?: 0.0, stick?.bearing?.toFloat() ?: 0f)
             if (!map.overlays.contains(fakeMarker)) map.overlays.add(fakeMarker)
             map.overlays.remove(selectionMarker)
             binding.activeName.text = session.name
@@ -385,11 +522,6 @@ class MapFragment : Fragment(R.layout.fragment_map) {
         }
     }
 
-    private fun showRealMarker(real: LatLon) {
-        realMarker.position = GeoPoint(real.lat, real.lon)
-        if (!binding.map.overlays.contains(realMarker)) binding.map.overlays.add(realMarker)
-        binding.map.invalidate()
-    }
 
     /** Track the real GPS only while the fake location is off and the map is on screen. */
     @SuppressLint("MissingPermission")
@@ -397,9 +529,11 @@ class MapFragment : Fragment(R.layout.fragment_map) {
         val shouldTrack = isAdded && !isHidden && requireContext().hasLocationPermission() &&
             !MockState.isFaking && lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)
         if (shouldTrack && !trackingRealLocation) {
-            val request = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 5_000L).build()
+            // Every second while the map is on screen, so the blue dot moves smoothly (it stops when the map is hidden).
+            val request = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 1_000L).setMinUpdateIntervalMillis(500L).build()
             fusedClient.requestLocationUpdates(request, realLocationCallback, Looper.getMainLooper())
             trackingRealLocation = true
+            realDot.start()
         } else if (!shouldTrack) {
             stopRealLocationTracking()
         }
@@ -409,6 +543,7 @@ class MapFragment : Fragment(R.layout.fragment_map) {
         if (!trackingRealLocation) return
         fusedClient.removeLocationUpdates(realLocationCallback)
         trackingRealLocation = false
+        if (::realDot.isInitialized) realDot.stop()
     }
 }
 

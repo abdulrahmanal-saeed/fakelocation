@@ -42,6 +42,14 @@ fun View.padForSystemBars(top: Boolean = true, bottom: Boolean = false) {
 
 fun Context.toast(text: Int) = Toast.makeText(this, text, Toast.LENGTH_SHORT).show()
 
+/** A short "done" tick under the finger: teleporting, starting or stopping. */
+fun View.confirmHaptic() {
+    performHapticFeedback(
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) android.view.HapticFeedbackConstants.CONFIRM
+        else android.view.HapticFeedbackConstants.VIRTUAL_KEY
+    )
+}
+
 fun Context.hasLocationPermission() =
     ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
 

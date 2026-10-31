@@ -14,19 +14,31 @@ class TripRun(
     val trafficPercent: Int,
     var lastWaitingStop: Int = -1,
     var historyId: Long = -1,
+    /** Share of traffic lights (on "auto") that are red, fixed when the trip starts. */
+    val redLightPercent: Int = 0,
 ) {
     var route: Route = route
         private set
     var timeline: TripTimeline = build()
         private set
 
-    private fun build() = TripTimeline(route.stops, route.travelPath(trafficPercent)!!, natural)
+    private fun build() = TripTimeline(route.stops, route.travelPath(trafficPercent, redLightPercent)!!, natural)
 
     /** Adds minutes to one stop's wait (the trip clock stays where it is, so leaving moves later). */
     fun addWait(stopIndex: Int, minutes: Int) {
         route = route.copy(stops = route.stops.mapIndexed { i, s -> if (i == stopIndex) s.copy(waitMinutes = s.waitMinutes + minutes) else s })
         timeline = build()
         fired.remove(Alert(AlertKind.LEAVING, stopIndex).key)
+    }
+
+    /** Moves faster or slower from now on ([speed] 1.0 = each street's speed), staying at the same spot. */
+    fun changeSpeed(speed: Double, now: Long) {
+        if (speed == route.speed) return
+        val old = timeline
+        val t = clock.at(now)
+        route = route.copy(speed = speed)
+        timeline = build()
+        clock = clock.jumpTo(old.sameMomentIn(timeline, t), now)
     }
 
     fun toJson(): String = JSONObject()
@@ -39,6 +51,7 @@ class TripRun(
         .put("traffic", trafficPercent)
         .put("lastWaiting", lastWaitingStop)
         .put("historyId", historyId)
+        .put("redLights", redLightPercent)
         .toString()
 
     companion object {
@@ -53,6 +66,7 @@ class TripRun(
                 trafficPercent = json.getInt("traffic"),
                 lastWaitingStop = json.getInt("lastWaiting"),
                 historyId = json.getLong("historyId"),
+                redLightPercent = json.optInt("redLights", 0),
             )
         }
     }

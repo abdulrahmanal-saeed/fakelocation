@@ -106,6 +106,48 @@
                 tools:text="Arrive by 15:00 · today"
                 tools:visibility="visible" />
 
+            <!-- Repeat every week on these days (start at / arrive by only). -->
+            <LinearLayout
+                android:id="@+id/repeatRow"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:orientation="vertical"
+                android:visibility="gone"
+                tools:visibility="visible">
+
+                <TextView
+                    style="@style/Text.Caption"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/repeat_on" />
+
+                <com.google.android.material.button.MaterialButtonToggleGroup
+                    android:id="@+id/dayGroup"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    app:singleSelection="false">
+
+                    <com.google.android.material.button.MaterialButton android:id="@+id/day1" style="@style/Tab.Compact" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" />
+                    <com.google.android.material.button.MaterialButton android:id="@+id/day2" style="@style/Tab.Compact" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" />
+                    <com.google.android.material.button.MaterialButton android:id="@+id/day3" style="@style/Tab.Compact" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" />
+                    <com.google.android.material.button.MaterialButton android:id="@+id/day4" style="@style/Tab.Compact" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" />
+                    <com.google.android.material.button.MaterialButton android:id="@+id/day5" style="@style/Tab.Compact" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" />
+                    <com.google.android.material.button.MaterialButton android:id="@+id/day6" style="@style/Tab.Compact" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" />
+                    <com.google.android.material.button.MaterialButton android:id="@+id/day7" style="@style/Tab.Compact" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" />
+                </com.google.android.material.button.MaterialButtonToggleGroup>
+
+                <TextView
+                    android:id="@+id/repeatHint"
+                    style="@style/Text.Caption"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="6dp"
+                    android:textSize="12sp"
+                    tools:text="Runs every Mon–Fri. Next: Monday 07:30" />
+            </LinearLayout>
+
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -186,6 +228,104 @@
                     android:layout_height="wrap_content"
                     android:contentDescription="@string/natural_movement" />
             </LinearLayout>
+
+            <!-- How the fake trip runs: speed, the way back, laps. -->
+            <TextView
+                style="@style/Text.Overline"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="18dp"
+                android:text="@string/trip_options" />
+
+            <TextView
+                style="@style/Text.Caption"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="@string/trip_speed" />
+
+            <!-- Labels (0.5× … 3×) are set in code from TRIP_SPEEDS, in this order. -->
+            <com.google.android.material.button.MaterialButtonToggleGroup
+                android:id="@+id/speedGroup"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                app:selectionRequired="true"
+                app:singleSelection="true">
+
+                <com.google.android.material.button.MaterialButton android:id="@+id/speed1" style="@style/Tab.Compact" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" />
+                <com.google.android.material.button.MaterialButton android:id="@+id/speed2" style="@style/Tab.Compact" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" />
+                <com.google.android.material.button.MaterialButton android:id="@+id/speed3" style="@style/Tab.Compact" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" />
+                <com.google.android.material.button.MaterialButton android:id="@+id/speed4" style="@style/Tab.Compact" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" />
+                <com.google.android.material.button.MaterialButton android:id="@+id/speed5" style="@style/Tab.Compact" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" />
+                <com.google.android.material.button.MaterialButton android:id="@+id/speed6" style="@style/Tab.Compact" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" />
+            </com.google.android.material.button.MaterialButtonToggleGroup>
+
+            <TextView
+                style="@style/Text.Caption"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:text="@string/trip_way" />
+
+            <com.google.android.material.button.MaterialButtonToggleGroup
+                android:id="@+id/wayGroup"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                app:checkedButton="@id/wayOne"
+                app:selectionRequired="true"
+                app:singleSelection="true">
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/wayOne"
+                    style="@style/Tab"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="@string/way_one" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/wayBack"
+                    style="@style/Tab"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="@string/way_back" />
+            </com.google.android.material.button.MaterialButtonToggleGroup>
+
+            <TextView
+                android:id="@+id/lapsLabel"
+                style="@style/Text.Caption"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:text="@string/trip_laps" />
+
+            <!-- Labels (1× … 10×) are set in code from LAP_CHOICES, in this order. -->
+            <com.google.android.material.button.MaterialButtonToggleGroup
+                android:id="@+id/lapsGroup"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                app:selectionRequired="true"
+                app:singleSelection="true">
+
+                <com.google.android.material.button.MaterialButton android:id="@+id/laps1" style="@style/Tab.Compact" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" />
+                <com.google.android.material.button.MaterialButton android:id="@+id/laps2" style="@style/Tab.Compact" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" />
+                <com.google.android.material.button.MaterialButton android:id="@+id/laps3" style="@style/Tab.Compact" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" />
+                <com.google.android.material.button.MaterialButton android:id="@+id/laps4" style="@style/Tab.Compact" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" />
+                <com.google.android.material.button.MaterialButton android:id="@+id/laps5" style="@style/Tab.Compact" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" />
+            </com.google.android.material.button.MaterialButtonToggleGroup>
+
+            <TextView
+                android:id="@+id/lapsHint"
+                style="@style/Text.Caption"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="6dp"
+                android:text="@string/laps_need_loop"
+                android:textSize="12sp" />
 
             <TextView
                 android:id="@+id/total"

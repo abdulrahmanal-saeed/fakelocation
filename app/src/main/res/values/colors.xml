@@ -23,4 +23,9 @@
     <color name="success">#15803D</color>
     <color name="success_bg">#DCFCE7</color>
     <color name="idle_dot">#94A3B8</color>
+    <!-- Splash screen behind the logo, the same in light and dark. -->
+    <color name="splash_bg">#0F1B2D</color>
+    <!-- Always white: text and icons on coloured fills (blue, orange) and on the map, in both themes. -->
+    <color name="white">#FFFFFF</color>
+    <color name="alarm_muted">#B6C2D2</color>
 </resources>

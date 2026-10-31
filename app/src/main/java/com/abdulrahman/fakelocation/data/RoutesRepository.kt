@@ -33,6 +33,21 @@ class RoutesRepository private constructor(private val file: File) {
         write()
     }
 
+    /** Puts a deleted route back as it was, edit time included (Undo). */
+    @Synchronized
+    fun restore(route: Route) {
+        if (_routes.value.any { it.id == route.id }) return
+        _routes.value = (_routes.value + route).sortedByDescending { it.updatedAt }
+        write()
+    }
+
+    /** Every route at once, from a restored backup. */
+    @Synchronized
+    fun replaceAll(routes: List<Route>) {
+        _routes.value = routes
+        write()
+    }
+
     private fun load() {
         if (!file.exists()) return
         try {
@@ -70,6 +85,10 @@ object RouteJson {
         .put("updatedAt", route.updatedAt)
         .put("timingMode", route.timing.mode.name)
         .apply { route.timing.timeMillis?.let { put("timingTime", it) } }
+        .apply { if (route.timing.days != 0) put("timingDays", route.timing.days) }
+        .apply { if (route.speed != 1.0) put("speed", route.speed) }
+        .apply { if (route.returnTrip) put("returnTrip", true) }
+        .apply { if (route.laps != 1) put("laps", route.laps) }
         .put("stops", JSONArray(route.stops.map {
             JSONObject().put("id", it.id).put("name", it.name).put("lat", it.position.lat).put("lon", it.position.lon)
                 .put("wait", it.waitMinutes)
@@ -89,9 +108,13 @@ object RouteJson {
         path = json.optJSONObject("path")?.let(::readPath),
         timing = Timing(
             TimingMode.valueOf(json.optString("timingMode", TimingMode.NOW.name)),
-            if (json.has("timingTime")) json.getLong("timingTime") else null
+            if (json.has("timingTime")) json.getLong("timingTime") else null,
+            json.optInt("timingDays", 0),
         ),
         updatedAt = json.optLong("updatedAt", System.currentTimeMillis()),
+        speed = json.optDouble("speed", 1.0).takeIf { it > 0 } ?: 1.0,
+        returnTrip = json.optBoolean("returnTrip", false),
+        laps = json.optInt("laps", 1).coerceIn(1, Route.MAX_LAPS),
     )
 
     private fun writePath(path: RoutePath): JSONObject {
@@ -101,6 +124,11 @@ object RouteJson {
             .put("points", coords)
             .put("seconds", JSONArray(path.segmentSeconds.map { round(it, 2) }))
             .put("traffic", path.trafficAware)
+            .apply {
+                if (path.lights.isNotEmpty()) put("lights", JSONArray(path.lights.map {
+                    JSONArray().put(it.point).put(it.rule.name).put(it.waitSeconds)
+                }))
+            }
             .put("legs", JSONArray(path.legs.map {
                 JSONObject().put("distance", it.distanceMeters).put("duration", it.durationSeconds)
                     .put("first", it.firstPoint).put("last", it.lastPoint)
@@ -119,6 +147,16 @@ object RouteJson {
                 Leg(l.getDouble("distance"), l.getDouble("duration"), l.getInt("first"), l.getInt("last"))
             },
             trafficAware = json.optBoolean("traffic", false),
+            lights = json.optJSONArray("lights")?.let { arr ->
+                (0 until arr.length()).mapNotNull { i ->
+                    val l = arr.optJSONArray(i) ?: return@mapNotNull null
+                    TrafficLight(
+                        l.getInt(0),
+                        runCatching { LightRule.valueOf(l.getString(1)) }.getOrDefault(LightRule.AUTO),
+                        l.optInt(2, TrafficLight.DEFAULT_WAIT_SECONDS),
+                    )
+                }.filter { it.point in 0 until coords.length() / 2 }
+            }.orEmpty(),
         )
     }
 

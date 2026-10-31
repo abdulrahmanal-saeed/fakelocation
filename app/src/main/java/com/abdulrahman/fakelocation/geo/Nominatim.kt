@@ -6,15 +6,12 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
-import java.net.HttpURLConnection
-import java.net.URL
 import java.net.URLEncoder
 import java.util.Locale
 
 /** Free place search and reverse lookup using OpenStreetMap's Nominatim service. */
 object Nominatim {
     private const val BASE = "https://nominatim.openstreetmap.org"
-    const val USER_AGENT = "FakeLocation-personal-app/0.2"
 
     suspend fun search(query: String, near: LatLon?): List<Place> = withContext(Dispatchers.IO) {
         val bias = (near ?: LatLon.HOME_REGION).let {
@@ -48,15 +45,5 @@ object Nominatim {
         return Place(LatLon(item.getString("lat").toDouble(), item.getString("lon").toDouble()), name, area.ifBlank { null })
     }
 
-    private fun get(url: String): String {
-        val connection = URL(url).openConnection() as HttpURLConnection
-        try {
-            connection.setRequestProperty("User-Agent", USER_AGENT)
-            connection.connectTimeout = 10_000
-            connection.readTimeout = 10_000
-            return connection.inputStream.bufferedReader().use { it.readText() }
-        } finally {
-            connection.disconnect()
-        }
-    }
+    private fun get(url: String): String = Http.get(url, connectTimeoutMs = 10_000, readTimeoutMs = 10_000)
 }

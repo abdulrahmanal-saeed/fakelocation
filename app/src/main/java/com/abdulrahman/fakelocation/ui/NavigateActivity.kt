@@ -4,17 +4,12 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.content.Intent
 import android.content.res.ColorStateList
-import android.graphics.Paint
-import android.animation.ValueAnimator
-import android.graphics.drawable.BitmapDrawable
-import android.view.animation.LinearInterpolator
 import kotlin.math.abs
 import android.os.Bundle
 import android.view.MotionEvent
+import android.view.View
 import android.view.ViewGroup
 import android.view.WindowManager
-import android.widget.ImageView
-import android.widget.LinearLayout
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
@@ -29,9 +24,11 @@ import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import com.abdulrahman.fakelocation.R
 import com.abdulrahman.fakelocation.data.LatLon
+import com.abdulrahman.fakelocation.data.MapProvider
 import com.abdulrahman.fakelocation.data.Place
 import com.abdulrahman.fakelocation.data.Prefs
 import com.abdulrahman.fakelocation.data.TravelMode
+import com.abdulrahman.fakelocation.data.distanceMeters
 import com.abdulrahman.fakelocation.data.formatDistance
 import com.abdulrahman.fakelocation.data.formatDuration
 import com.abdulrahman.fakelocation.databinding.ActivityNavigateBinding
@@ -42,14 +39,12 @@ import com.abdulrahman.fakelocation.nav.NavIcons
 import com.abdulrahman.fakelocation.nav.NavProgress
 import com.abdulrahman.fakelocation.nav.NavRoute
 import com.abdulrahman.fakelocation.nav.NavSession
-import com.abdulrahman.fakelocation.nav.RoadInfo
+import com.abdulrahman.fakelocation.nav.NightMap
+import com.abdulrahman.fakelocation.system.AppShortcuts
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import kotlinx.coroutines.launch
-import org.osmdroid.util.BoundingBox
 import org.osmdroid.util.GeoPoint
 import org.osmdroid.views.CustomZoomButtonsController
-import org.osmdroid.views.overlay.Marker
-import org.osmdroid.views.overlay.Polyline
 
 /**
  * Real turn-by-turn navigation (like Waze / Yango) on the phone. The work happens in [NavSession], which
@@ -58,35 +53,9 @@ import org.osmdroid.views.overlay.Polyline
 class NavigateActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityNavigateBinding
-    private var follow = true
-    private var drawnRoute: NavRoute? = null
-    private var drawnRoadInfo: RoadInfo? = null
     private var wasNavigating = false
-    private val cameraMarkers = mutableListOf<Marker>()
-
-    private val routeCasing by lazy { line(R.color.route_green_dark, 13f) }
-    private val routeLine by lazy { line(R.color.route_green, 9f) }
-    private val trafficLines = mutableListOf<Polyline>()
-    private val turnShaft by lazy { line(R.color.surface, 6f) }
-    private val turnHead by lazy { line(R.color.surface, 6f).apply { outlinePaint.strokeCap = Paint.Cap.ROUND } }
-    private val laneBubble by lazy { marker(Marker.ANCHOR_BOTTOM) }
-    private var laneBubbleKey: Any? = null
-    private val me by lazy { marker(Marker.ANCHOR_CENTER) }
-
-    // The car glides between GPS fixes instead of jumping once a second.
-    private var shownAt: LatLon? = null
-    private var shownBearing = 0f
-    private var lastFixAt = 0L
-    private var lastTarget: LatLon? = null
-    private var carAnimator: ValueAnimator? = null
-    /** Where the remaining (green) route starts: the car's position at the previous fix. */
-    private var lineFromAlong = 0.0
-    private val destination by lazy {
-        marker(Marker.ANCHOR_BOTTOM).apply {
-            icon = ContextCompat.getDrawable(this@NavigateActivity, R.drawable.marker_fake)?.mutate()
-                ?.apply { setTint(ContextCompat.getColor(this@NavigateActivity, R.color.ink)) }
-        }
-    }
+    /** The map and everything drawn on it (route, car, turn arrow…): classic or vector. */
+    private lateinit var navMap: NavMap
 
     private val pickFrom = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         SearchActivity.placeFrom(result.data)?.let { NavSession.setStart(it) }
@@ -97,6 +66,22 @@ class NavigateActivity : AppCompatActivity() {
     private val pickStop = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         SearchActivity.placeFrom(result.data)?.let { NavSession.addStop(it) }
     }
+    private val pickHome = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        SearchActivity.placeFrom(result.data)?.let { place ->
+            Prefs(this).home = place.copy(name = getString(R.string.nav_home))
+            AppShortcuts.update(this)
+            NavSession.setDestination(Prefs(this).home!!)
+        }
+    }
+    private val pickWork = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        SearchActivity.placeFrom(result.data)?.let { place ->
+            Prefs(this).work = place.copy(name = getString(R.string.nav_work))
+            AppShortcuts.update(this)
+            NavSession.setDestination(Prefs(this).work!!)
+        }
+    }
+    private val choices by lazy { RouteChoices(binding) }
+    private var nightShown: Boolean? = null
     private val askCamera = registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         if (!granted) Prefs(this).laneCamera = false
         render(NavSession.state.value)
@@ -104,7 +89,6 @@ class NavigateActivity : AppCompatActivity() {
     private var laneCamera: LaneCamera? = null
     private var askedCamera = false
     private var shownStops: Pair<List<Place>, Int>? = null
-    private val stopMarkers = mutableListOf<Marker>()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -112,7 +96,7 @@ class NavigateActivity : AppCompatActivity() {
         binding = ActivityNavigateBinding.inflate(layoutInflater)
         setContentView(binding.root)
         applyInsets()
-        setupMap()
+        setupMap(savedInstanceState)
         setupControls()
         if (savedInstanceState == null) {
             intent.getStringExtra(EXTRA_TO_NAME)?.let { name ->
@@ -128,6 +112,7 @@ class NavigateActivity : AppCompatActivity() {
 
     override fun onStart() {
         super.onStart()
+        navMap.onStart()
         NavSession.acquire()
     }
 
@@ -135,17 +120,41 @@ class NavigateActivity : AppCompatActivity() {
         laneCamera?.stop()
         laneCamera = null
         NavSession.release()
+        navMap.onStop()
         super.onStop()
     }
 
     override fun onResume() {
         super.onResume()
-        binding.map.onResume()
+        navMap.onResume()
+        applyTraffic()
     }
 
     override fun onPause() {
-        binding.map.onPause()
+        navMap.view.removeCallbacks(autoRecenter)
+        navMap.onPause()
         super.onPause()
+    }
+
+    override fun onDestroy() {
+        if (::navMap.isInitialized) navMap.onDestroy()
+        super.onDestroy()
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        navMap.onSaveInstanceState(outState)
+    }
+
+    override fun onLowMemory() {
+        super.onLowMemory()
+        navMap.onLowMemory()
+    }
+
+    /** After you've looked around the map while driving, it goes back to following the car by itself (like Waze). */
+    private val autoRecenter = Runnable {
+        val s = NavSession.state.value
+        if (s.navigating && !navMap.follow) navMap.recenter(s)
     }
 
     private fun applyInsets() {
@@ -162,19 +171,55 @@ class NavigateActivity : AppCompatActivity() {
     }
 
     @SuppressLint("ClickableViewAccessibility")
-    private fun setupMap() = with(binding.map) {
-        MapStyle.apply(this, lifecycleScope)
-        setMultiTouchControls(true)
-        zoomController.setVisibility(CustomZoomButtonsController.Visibility.NEVER)
-        isTilesScaledToDpi = true
-        controller.setZoom(16.0)
-        val start = Prefs(this@NavigateActivity).lastRealLocation ?: LatLon.HOME_REGION
-        controller.setCenter(GeoPoint(start.lat, start.lon))
-        overlays.addAll(listOf(routeCasing, routeLine, turnShaft, turnHead))
-        setOnTouchListener { _, event ->
-            if (event.actionMasked == MotionEvent.ACTION_MOVE) follow = false
+    private fun setupMap(savedInstanceState: Bundle?) {
+        navMap = createMap(savedInstanceState)
+        navMap.view.setOnTouchListener { view, event ->
+            when (event.actionMasked) {
+                MotionEvent.ACTION_DOWN -> view.removeCallbacks(autoRecenter)
+                MotionEvent.ACTION_MOVE -> navMap.follow = false
+                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL ->
+                    if (!navMap.follow && NavSession.state.value.navigating) view.postDelayed(autoRecenter, AUTO_RECENTER_MS)
+            }
             false
         }
+    }
+
+    /**
+     * The vector map (MapLibre) when chosen in Settings → Map & routing, in the classic map's place; the classic map
+     * otherwise, or if the vector one can't start on this phone.
+     */
+    private fun createMap(savedInstanceState: Bundle?): NavMap {
+        val prefs = Prefs(this)
+        val start = prefs.lastRealLocation ?: LatLon.HOME_REGION
+        if (prefs.vectorNavMap && !vectorFailed) {
+            try {
+                val vector = VectorNavMap(this, lifecycleScope, start, savedInstanceState) { message ->
+                    runOnUiThread { fallBackToClassic(message) }
+                }
+                val classic = binding.map
+                val parent = classic.parent as ViewGroup
+                parent.addView(vector.view, parent.indexOfChild(classic), androidx.constraintlayout.widget.ConstraintLayout.LayoutParams(
+                    classic.layoutParams as androidx.constraintlayout.widget.ConstraintLayout.LayoutParams
+                ))
+                classic.isVisible = false
+                classic.onDetach()
+                return vector
+            } catch (e: Throwable) {
+                android.util.Log.w(TAG, "vector map couldn't start", e)
+                vectorFailed = true
+                toast(R.string.vector_map_failed)
+            }
+        }
+        return ClassicNavMap(binding.map, lifecycleScope, start)
+    }
+
+    /** The vector map didn't load: carry on with the classic one (until the app is opened again). */
+    private fun fallBackToClassic(message: String) {
+        if (vectorFailed || isFinishing) return
+        vectorFailed = true
+        android.util.Log.w(TAG, "back to the classic map: $message")
+        toast(R.string.vector_map_failed)
+        recreate()
     }
 
     private fun setupControls() {
@@ -195,12 +240,7 @@ class NavigateActivity : AppCompatActivity() {
         binding.modeGroup.addOnButtonCheckedListener { _, id, checked ->
             if (checked) NavSession.setMode(if (id == R.id.modeWalk) TravelMode.WALK else TravelMode.CAR)
         }
-        binding.recenterButton.setOnClickListener {
-            follow = true
-            lastTarget = null
-            val s = NavSession.state.value
-            if (s.navigating) render(s) else s.route?.let { fit(it) } ?: s.real?.let { binding.map.controller.animateTo(GeoPoint(it.lat, it.lon)) }
-        }
+        binding.recenterButton.setOnClickListener { navMap.recenter(NavSession.state.value) }
         binding.muteFab.setOnClickListener { NavSession.toggleMute() }
         // Long press: how loud the voice is, right from the driving screen.
         binding.muteFab.setOnLongClickListener {
@@ -221,13 +261,58 @@ class NavigateActivity : AppCompatActivity() {
             finish()
         }
         binding.mainButton.setOnClickListener {
-            follow = true
+            navMap.follow = true
             NavSession.start()
         }
         binding.endButton.setOnClickListener {
             NavSession.stop()
             finish()
         }
+        // Home / Work: go there in one tap; the first tap (or a long press) picks the place.
+        binding.homeButton.setOnClickListener {
+            Prefs(this).home?.let { NavSession.setDestination(it) } ?: pickHome.launch(Intent(this, SearchActivity::class.java))
+        }
+        binding.homeButton.setOnLongClickListener { pickHome.launch(Intent(this, SearchActivity::class.java)); true }
+        binding.workButton.setOnClickListener {
+            Prefs(this).work?.let { NavSession.setDestination(it) } ?: pickWork.launch(Intent(this, SearchActivity::class.java))
+        }
+        binding.workButton.setOnLongClickListener { pickWork.launch(Intent(this, SearchActivity::class.java)); true }
+        binding.shareFab.setOnClickListener { shareEta(NavSession.state.value) }
+        binding.trafficFab.setOnClickListener {
+            val prefs = Prefs(this)
+            prefs.trafficOnMap = !prefs.trafficOnMap
+            applyTraffic()
+        }
+    }
+
+    /** "On my way to Dubai Mall, arriving around 18:42 (12 min). Where I am: <map link>" to WhatsApp, SMS… */
+    private fun shareEta(s: NavSession.State) {
+        val p = s.progress ?: return
+        val arrive = System.currentTimeMillis() + (p.remainingSeconds * 1000).toLong()
+        val here = s.real?.let { String.format(java.util.Locale.US, "https://maps.google.com/?q=%.6f,%.6f", it.lat, it.lon) }
+        val text = getString(R.string.nav_share_text, s.to?.name ?: "", clockText(arrive), ((p.remainingSeconds + 59) / 60).toInt()) +
+            (here?.let { "\n" + getString(R.string.nav_share_where, it) } ?: "")
+        startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, text), getString(R.string.nav_share_eta)))
+    }
+
+    /** Live traffic over the map: with a Google key, on unless turned off with the button (remembered). */
+    private fun applyTraffic() {
+        val prefs = Prefs(this)
+        binding.trafficFab.isVisible = prefs.hasGoogleKey
+        val on = prefs.hasGoogleKey && prefs.trafficOnMap
+        binding.trafficFab.setIconTintResource(if (on) R.color.real else R.color.muted)
+        androidx.core.view.ViewCompat.setStateDescription(binding.trafficFab, getString(if (on) R.string.tile_on else R.string.tile_off))
+        navMap.setTraffic(on)
+    }
+
+    /** Dark map at night (Settings → Map & routing); not on satellite pictures, which can't be darkened usefully. */
+    private fun applyNight(s: NavSession.State) {
+        val prefs = Prefs(this)
+        val satellite = prefs.hasGoogleKey && prefs.mapProvider in setOf(MapProvider.GOOGLE_SATELLITE, MapProvider.GOOGLE_HYBRID)
+        val night = !satellite && NightMap.isNight(prefs.nightMap, s.real ?: prefs.lastRealLocation, System.currentTimeMillis())
+        if (night == nightShown) return
+        nightShown = night
+        navMap.setNight(night)
     }
 
     // region Drawing
@@ -236,15 +321,9 @@ class NavigateActivity : AppCompatActivity() {
         val navigating = s.navigating
         if (navigating != wasNavigating) {
             wasNavigating = navigating
-            if (navigating) {
-                window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-                binding.map.controller.setZoom(if (s.mode == TravelMode.CAR) 17.5 else 18.5)
-                follow = true
-            } else {
-                window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-                binding.map.mapOrientation = 0f
-                binding.map.setMapCenterOffset(0, 0)
-            }
+            if (navigating) window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+            else window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+            navMap.navigationChanged(navigating, s.mode)
         }
         binding.modeGroup.check(if (s.mode == TravelMode.WALK) R.id.modeWalk else R.id.modeCar)
         binding.fromText.text = s.from?.name ?: getString(R.string.nav_my_location)
@@ -273,16 +352,20 @@ class NavigateActivity : AppCompatActivity() {
             else -> ""
         }
 
-        drawRoute(s)
-        drawMe(s)
+        binding.homeWorkRow.isVisible = !navigating && s.to == null
+        binding.shareFab.isVisible = navigating && s.progress?.arrived == false && s.to != null
+        applyNight(s)
+        choices.render(s)
+        navMap.draw(s)
         renderLanes(s)
         if (navigating) renderDriving(s) else renderPlanning(s)
-        binding.map.invalidate()
     }
 
     private fun renderPlanning(s: NavSession.State) {
         binding.speedRow.isVisible = false
         binding.cameraChip.isVisible = false
+        binding.lightChip.isVisible = false
+        binding.averageChip.isVisible = false
         binding.tollChip.isVisible = false
         binding.streetPill.isVisible = false
         binding.banner.isVisible = false
@@ -315,12 +398,21 @@ class NavigateActivity : AppCompatActivity() {
 
     private fun renderDriving(s: NavSession.State) {
         val p = s.progress
-        binding.banner.isVisible = s.rerouting || s.toStartMeters > 0
+        val parking = s.parkingNearby?.takeIf { p?.arrived == true }
+        binding.banner.isVisible = s.rerouting || s.gpsLost || s.toStartMeters > 0 || parking != null
         binding.banner.text = when {
             s.rerouting -> getString(R.string.nav_rerouting)
+            s.gpsLost -> getString(R.string.nav_gps_lost)
             s.toStartMeters > 0 -> getString(R.string.nav_go_to_start, formatDistance(s.toStartMeters))
+            parking != null -> getString(
+                R.string.nav_parking_nearby, parking.name ?: getString(R.string.cat_parking),
+                s.real?.let { formatDistance(distanceMeters(it, parking.position)) }.orEmpty(),
+            )
             else -> ""
         }
+        // Arrived by car: tap the banner to drive on to the nearest parking.
+        binding.banner.setOnClickListener(if (parking != null && !s.rerouting) View.OnClickListener { NavSession.setDestination(parking) } else null)
+        binding.banner.isClickable = parking != null && !s.rerouting
         binding.speedRow.isVisible = s.mode == TravelMode.CAR
         binding.mySpeed.text = s.speedKmh.toString()
         binding.mySpeed.setTextColor(ContextCompat.getColor(this, if (s.speeding) R.color.limit_red else R.color.ink))
@@ -328,6 +420,17 @@ class NavigateActivity : AppCompatActivity() {
         binding.speedLimit.text = s.limitKmh.toString()
         binding.cameraChip.isVisible = s.cameraMeters != null
         binding.cameraChip.text = s.cameraMeters?.let { formatDistance(it) }
+        binding.lightChip.isVisible = s.lightMeters != null
+        binding.lightChip.text = s.lightMeters?.let { getString(R.string.nav_light_chip, formatDistance(it)) }
+        val average = s.averageCheck
+        binding.averageChip.isVisible = average != null
+        if (average != null) {
+            val avg = average.averageKmh?.toString() ?: "–"
+            binding.averageChip.text = if (average.zone.limitKmh > 0) {
+                getString(R.string.nav_average_chip_limit, avg, average.zone.limitKmh, formatDistance(average.leftMeters))
+            } else getString(R.string.nav_average_chip, avg, formatDistance(average.leftMeters))
+            binding.averageChip.setTextColor(ContextCompat.getColor(this, if (average.over) R.color.limit_red else R.color.ink))
+        }
         val toll = s.nextToll
         val tollMeters = s.tollMeters
         binding.tollChip.isVisible = toll != null && tollMeters != null
@@ -452,206 +555,8 @@ class NavigateActivity : AppCompatActivity() {
                 }
                 binding.stopsContainer.addView(row)
             }
-            stopMarkers.forEach { binding.map.overlays.remove(it) }
-            stopMarkers.clear()
-            s.stops.forEachIndexed { i, place ->
-                stopMarkers += marker(Marker.ANCHOR_CENTER).apply {
-                    position = GeoPoint(place.position.lat, place.position.lon)
-                    icon = BitmapDrawable(resources, NavIcons.numberDot(this@NavigateActivity, i + 1))
-                }
-            }
-            binding.map.overlays.addAll(stopMarkers)
+            navMap.setStops(s.stops)
         }
-    }
-
-    private fun drawRoute(s: NavSession.State) {
-        val r = s.route
-        if (r !== drawnRoute) {
-            drawnRoute = r
-            lineFromAlong = 0.0
-            laneBubbleKey = null
-            binding.map.overlays.remove(destination)
-            if (r != null) {
-                destination.position = GeoPoint(r.points.last().lat, r.points.last().lon)
-                binding.map.overlays.add(destination)
-                if (!s.navigating) fit(r)
-            }
-        }
-        if (s.roadInfo !== drawnRoadInfo) {
-            drawnRoadInfo = s.roadInfo
-            cameraMarkers.forEach { binding.map.overlays.remove(it) }
-            cameraMarkers.clear()
-            if (r != null) s.roadInfo?.camerasAlong?.forEach { along ->
-                val p = r.pointAt(along)
-                cameraMarkers += marker(Marker.ANCHOR_CENTER).apply {
-                    position = GeoPoint(p.lat, p.lon)
-                    icon = ContextCompat.getDrawable(this@NavigateActivity, R.drawable.ic_camera)?.mutate()
-                        ?.apply { setTint(ContextCompat.getColor(this@NavigateActivity, R.color.limit_red)) }
-                }
-            }
-            binding.map.overlays.addAll(cameraMarkers)
-        }
-        // Only the road still ahead is drawn: it starts where the car is and shrinks as you drive.
-        val p = s.progress
-        val from = if (r != null && s.navigating && p != null && p.offRouteMeters < 40) lineFromAlong.coerceAtMost(p.alongMeters) else 0.0
-        if (r != null && s.navigating && p != null) lineFromAlong = p.alongMeters
-        val ahead = r?.let { if (from > 0) it.slice(from, it.length) else it.points }.orEmpty().map { GeoPoint(it.lat, it.lon) }
-        routeCasing.setPoints(ahead)
-        routeLine.setPoints(ahead)
-        drawTraffic(r, from)
-        drawTurn(s, r, p)
-    }
-
-    /** Yellow / red over the green where Google reports slow traffic or a jam. */
-    private fun drawTraffic(r: NavRoute?, from: Double) {
-        val spans = r?.traffic.orEmpty().filter { it.toAlong > from }
-        while (trafficLines.size < spans.size) {
-            trafficLines += line(R.color.traffic_slow, 9f).also { binding.map.overlays.add(binding.map.overlays.indexOf(routeLine) + 1, it) }
-        }
-        trafficLines.forEachIndexed { i, line ->
-            val span = spans.getOrNull(i)
-            if (span == null || r == null) {
-                line.setPoints(emptyList())
-            } else {
-                line.outlinePaint.color = ContextCompat.getColor(this, if (span.level == com.abdulrahman.fakelocation.nav.Traffic.JAM) R.color.traffic_jam else R.color.traffic_slow)
-                line.setPoints(r.slice(maxOf(span.fromAlong, from), span.toAlong).map { GeoPoint(it.lat, it.lon) })
-            }
-        }
-    }
-
-    /** A white arrow painted on the road at the next turn, and the lanes to take in a bubble above it. */
-    private fun drawTurn(s: NavSession.State, r: NavRoute?, p: NavProgress?) {
-        val step = p?.nextStep
-        val show = r != null && p != null && step != null && s.navigating && !p.arrived && p.metersToNextStep < 450 &&
-            step.maneuver != com.abdulrahman.fakelocation.nav.Maneuver.ARRIVE && step.maneuver != com.abdulrahman.fakelocation.nav.Maneuver.DEPART
-        if (!show) {
-            turnShaft.setPoints(emptyList())
-            turnHead.setPoints(emptyList())
-        } else {
-            val at = r!!.along[step!!.pointIndex]
-            val start = maxOf(at - 30, p!!.alongMeters)
-            val end = minOf(at + 22, r.length)
-            turnShaft.setPoints(r.slice(start, end).map { GeoPoint(it.lat, it.lon) })
-            val tip = r.pointAt(end)
-            val back = r.pointAt(end - 6)
-            turnHead.setPoints(arrowHead(back, tip).map { GeoPoint(it.lat, it.lon) })
-        }
-        val lanes = if (show) s.lanesFor(step) else emptyList()
-        val wantBubble = lanes.size >= 2 && p != null && p.metersToNextStep < 700
-        if (!wantBubble) {
-            if (laneBubbleKey != null) binding.map.overlays.remove(laneBubble)
-            laneBubbleKey = null
-            return
-        }
-        val key = step to lanes
-        if (key != laneBubbleKey) {
-            laneBubbleKey = key
-            val at = r!!.pointAt(r.along[step!!.pointIndex] - 12)
-            laneBubble.position = GeoPoint(at.lat, at.lon)
-            laneBubble.icon = BitmapDrawable(resources, NavIcons.laneBubble(this, lanes, step.maneuver))
-            binding.map.overlays.remove(laneBubble)
-            binding.map.overlays.add(laneBubble)
-        }
-    }
-
-    /** The two short strokes of an arrow head at [tip], pointing away from [back]. */
-    private fun arrowHead(back: LatLon, tip: LatLon): List<LatLon> {
-        val k = Math.cos(Math.toRadians(tip.lat))
-        val dx = (tip.lon - back.lon) * 111_320 * k
-        val dy = (tip.lat - back.lat) * 110_540
-        val len = Math.hypot(dx, dy).takeIf { it > 0 } ?: return emptyList()
-        val ux = dx / len
-        val uy = dy / len
-        fun at(along: Double, side: Double) = LatLon(
-            tip.lat + (uy * along + ux * side) / 110_540,
-            tip.lon + (ux * along - uy * side) / (111_320 * k),
-        )
-        return listOf(at(-9.0, 7.0), tip, at(-9.0, -7.0))
-    }
-
-    private fun drawMe(s: NavSession.State) {
-        val here = s.real ?: return
-        val r = s.route
-        val p = s.progress
-        val onRoute = s.navigating && r != null && p != null && p.offRouteMeters < 25
-        val target = if (onRoute) p!!.snapped else here
-        // On the route, point along the road ahead (steadier than the GPS heading).
-        val bearing = if (onRoute) {
-            com.abdulrahman.fakelocation.trip.TripTimeline.bearing(r!!.pointAt(p!!.alongMeters), r.pointAt(p.alongMeters + 20))
-        } else s.bearing
-        if (target == lastTarget) return
-        lastTarget = target
-        val now = System.currentTimeMillis()
-        val duration = (now - lastFixAt).coerceIn(250, 1200)
-        lastFixAt = now
-        val startAt = shownAt ?: target
-        val startBearing = shownBearing
-        val turn = ((bearing - startBearing + 540) % 360) - 180
-        carAnimator?.cancel()
-        if (s.navigating && s.mode == TravelMode.CAR) adjustZoom(s.speedKmh)
-        carAnimator = ValueAnimator.ofFloat(0f, 1f).apply {
-            this.duration = if (startAt == target) 0 else duration
-            interpolator = LinearInterpolator()
-            addUpdateListener { a ->
-                val f = a.animatedValue as Float
-                val pos = LatLon(startAt.lat + (target.lat - startAt.lat) * f, startAt.lon + (target.lon - startAt.lon) * f)
-                placeCar(s, pos, (startBearing + turn * f + 360) % 360)
-            }
-            start()
-        }
-    }
-
-    private fun placeCar(s: NavSession.State, pos: LatLon, bearing: Float) {
-        shownAt = pos
-        shownBearing = bearing
-        me.position = GeoPoint(pos.lat, pos.lon)
-        val map = binding.map
-        if (s.navigating && follow) {
-            // Heading up, with the car low on the screen so you see more of the road ahead.
-            map.setMapCenterOffset(0, (map.height * 0.24).toInt())
-            map.mapOrientation = -bearing
-            map.controller.setCenter(me.position)
-        }
-        val onScreen = bearing + map.mapOrientation
-        val bitmap = if (s.navigating && s.mode == TravelMode.CAR) NavIcons.car(this, onScreen) else NavIcons.arrow(this, onScreen)
-        me.icon = BitmapDrawable(resources, bitmap)
-        map.overlays.remove(me)
-        map.overlays.add(me)
-        map.invalidate()
-    }
-
-    /** Closer in town, further out on fast roads, changing gently. */
-    private fun adjustZoom(speedKmh: Int) {
-        val target = when {
-            speedKmh < 35 -> 17.8
-            speedKmh < 70 -> 17.2
-            speedKmh < 100 -> 16.6
-            else -> 16.1
-        }
-        val zoom = binding.map.zoomLevelDouble
-        if (abs(target - zoom) > 0.05) binding.map.controller.setZoom(zoom + (target - zoom).coerceIn(-0.2, 0.2))
-    }
-
-    private fun fit(r: NavRoute) {
-        binding.map.post {
-            val box = BoundingBox.fromGeoPoints(r.points.map { GeoPoint(it.lat, it.lon) })
-            binding.map.mapOrientation = 0f
-            binding.map.zoomToBoundingBox(box, true, (64 * resources.displayMetrics.density).toInt())
-        }
-    }
-
-    private fun line(color: Int, widthDp: Float) = Polyline(binding.map).apply {
-        outlinePaint.color = ContextCompat.getColor(this@NavigateActivity, color)
-        outlinePaint.strokeWidth = widthDp * resources.displayMetrics.density
-        outlinePaint.strokeCap = Paint.Cap.ROUND
-        outlinePaint.strokeJoin = Paint.Join.ROUND
-        setOnClickListener { _, _, _ -> false }
-    }
-
-    private fun marker(anchorY: Float) = Marker(binding.map).apply {
-        setAnchor(Marker.ANCHOR_CENTER, anchorY)
-        setInfoWindow(null)
-        setOnMarkerClickListener { _, _ -> true }
     }
 
     // endregion
@@ -660,6 +565,11 @@ class NavigateActivity : AppCompatActivity() {
         private const val EXTRA_TO_LAT = "to_lat"
         private const val EXTRA_TO_LON = "to_lon"
         private const val EXTRA_TO_NAME = "to_name"
+        private const val AUTO_RECENTER_MS = 10_000L
+        private const val TAG = "NavigateActivity"
+
+        /** The vector map failed once since the app started: use the classic one. */
+        private var vectorFailed = false
 
         fun intent(context: Context, destination: Place? = null) =
             Intent(context, NavigateActivity::class.java).apply {

@@ -47,6 +47,30 @@ class RouterTest {
     }
 
     @Test
+    fun valhallaFallbackGivesTheSameKindOfPath() {
+        // Dubai, two legs (one stop on the way).
+        val path = Router.parseValhalla(javaClass.classLoader!!.getResource("valhalla_stops.json")!!.readText())
+        assertEquals(2, path.legs.size)
+        assertEquals(path.points.size - 1, path.segmentSeconds.size)
+        assertEquals(0, path.legs[0].firstPoint)
+        assertEquals(path.legs[0].lastPoint, path.legs[1].firstPoint)
+        assertEquals(path.points.lastIndex, path.legs[1].lastPoint)
+        assertEquals(1039.937, path.legs[0].durationSeconds, 0.001)
+        assertEquals(6784.0, path.legs[0].distanceMeters, 0.5)
+        for (leg in path.legs) {
+            assertEquals(leg.durationSeconds, path.segmentSeconds.subList(leg.firstPoint, leg.lastPoint).sum(), 0.01)
+        }
+        // Every piece of road takes some time (no teleporting along a maneuver).
+        assertEquals(0, path.segmentSeconds.count { it < 0 })
+        assertEquals(2375.935, path.durationSeconds, 0.01)
+    }
+
+    @Test(expected = java.io.IOException::class)
+    fun valhallaErrorIsAnIOException() {
+        Router.parseValhalla("""{"error_code":442,"error":"No path could be found for input"}""")
+    }
+
+    @Test
     fun routeSurvivesJsonRoundTrip() {
         val path = Router.parse(body)
         val route = Route(7, "Test", TravelMode.WALK, listOf(Stop(1, "A", LatLon(30.0, 31.0), 5), Stop(2, "B", LatLon(30.1, 31.1), 0)), path)

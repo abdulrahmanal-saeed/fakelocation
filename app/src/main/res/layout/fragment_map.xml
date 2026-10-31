@@ -216,7 +216,7 @@
         android:contentDescription="@string/nav_open"
         app:backgroundTint="@color/real"
         app:icon="@drawable/ic_navigate"
-        app:iconTint="@color/surface"
+        app:iconTint="@color/white"
         app:layout_constraintBottom_toTopOf="@id/myLocationButton"
         app:layout_constraintEnd_toEndOf="parent" />
 
@@ -365,7 +365,14 @@
                 android:layout_marginTop="14dp"
                 android:orientation="horizontal">
 
-                <LinearLayout style="@style/TripStat">
+                <!-- Tap the speed to make the fake trip faster or slower. -->
+                <LinearLayout
+                    android:id="@+id/speedStat"
+                    style="@style/TripStat"
+                    android:background="?attr/selectableItemBackground"
+                    android:clickable="true"
+                    android:contentDescription="@string/trip_speed"
+                    android:focusable="true">
                     <TextView android:id="@+id/stat1Label" style="@style/TripStatLabel" tools:text="Speed" />
                     <TextView android:id="@+id/stat1Value" style="@style/TripStatValue" tools:text="42 km/h" />
                 </LinearLayout>
@@ -560,6 +567,82 @@
                 android:layout_marginTop="12dp"
                 android:text="@string/stop_long"
                 app:icon="@drawable/ic_stop" />
+        </LinearLayout>
+
+        <!-- Joystick: walk / run / drive the fake position by hand -->
+        <LinearLayout
+            android:id="@+id/joystickPanel"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:visibility="gone"
+            tools:visibility="visible">
+
+            <TextView
+                style="@style/Text.Overline"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="14dp"
+                android:text="@string/joystick"
+                android:textColor="@color/action" />
+
+            <com.google.android.material.button.MaterialButtonToggleGroup
+                android:id="@+id/joystickSpeedGroup"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                app:checkedButton="@id/joyWalk"
+                app:selectionRequired="true"
+                app:singleSelection="true">
+
+                <com.google.android.material.button.MaterialButton android:id="@+id/joyWalk" style="@style/Tab" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="@string/joystick_walk" />
+                <com.google.android.material.button.MaterialButton android:id="@+id/joyRun" style="@style/Tab" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="@string/joystick_run" />
+                <com.google.android.material.button.MaterialButton android:id="@+id/joyDrive" style="@style/Tab" android:layout_width="0dp" android:layout_height="wrap_content" android:layout_weight="1" android:text="@string/joystick_drive" />
+            </com.google.android.material.button.MaterialButtonToggleGroup>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <com.abdulrahman.fakelocation.ui.JoystickView
+                    android:id="@+id/joystick"
+                    android:layout_width="150dp"
+                    android:layout_height="150dp" />
+
+                <LinearLayout
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="16dp"
+                    android:layout_weight="1"
+                    android:orientation="vertical">
+
+                    <TextView
+                        android:id="@+id/joystickSpeed"
+                        style="@style/Text.Title"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        tools:text="5 km/h" />
+
+                    <TextView
+                        style="@style/Text.Caption"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="4dp"
+                        android:text="@string/joystick_hint"
+                        android:textSize="12sp" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/joystickDone"
+                style="@style/Button.Ink"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:text="@string/done" />
         </LinearLayout>
     </LinearLayout>
 </androidx.constraintlayout.widget.ConstraintLayout>
