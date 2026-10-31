@@ -122,8 +122,16 @@ class CarSavedScreen(carContext: CarContext) : Screen(carContext) {
         val recent = ItemList.Builder()
         repo.history.value.distinctBy { it.name }.take(limit).forEach { recent.addItem(placeRow(Place(it.position, it.name), it.name)) }
         val builder = ListTemplate.Builder().setHeaderAction(Action.BACK).setTitle(carContext.getString(R.string.car_saved))
-        if (repo.favorites.value.isEmpty() && repo.history.value.isEmpty()) {
+        val prefs = com.abdulrahman.fakelocation.data.Prefs(carContext)
+        val homeWork = listOfNotNull(prefs.home, prefs.work)
+        if (repo.favorites.value.isEmpty() && repo.history.value.isEmpty() && homeWork.isEmpty()) {
             return builder.setSingleList(ItemList.Builder().setNoItemsMessage(carContext.getString(R.string.car_no_saved)).build()).build()
+        }
+        // Home and Work first: the usual one-tap drives (set them on the phone's Navigate screen).
+        if (homeWork.isNotEmpty()) {
+            val list = ItemList.Builder()
+            homeWork.forEach { list.addItem(placeRow(it, it.name.orEmpty())) }
+            builder.addSectionedList(SectionedItemList.create(list.build(), carContext.getString(R.string.car_home_work)))
         }
         if (repo.favorites.value.isNotEmpty()) {
             builder.addSectionedList(SectionedItemList.create(favorites.build(), carContext.getString(R.string.nav_places)))

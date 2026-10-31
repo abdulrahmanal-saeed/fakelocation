@@ -76,6 +76,33 @@ class Prefs(context: Context) {
         get() = prefs.getString("osrm_server", "").orEmpty()
         set(value) = prefs.edit { putString("osrm_server", value.trim()) }
 
+    /** "Home" and "Work" for one-tap navigation (Navigate screen, car, launcher shortcuts). */
+    var home: Place?
+        get() = readPlace(KEY_HOME)
+        set(value) = writePlace(KEY_HOME, value)
+
+    var work: Place?
+        get() = readPlace(KEY_WORK)
+        set(value) = writePlace(KEY_WORK, value)
+
+    var nightMap: com.abdulrahman.fakelocation.nav.NightMapMode
+        get() = com.abdulrahman.fakelocation.nav.NightMapMode.entries.firstOrNull { it.name == prefs.getString("night_map", null) }
+            ?: com.abdulrahman.fakelocation.nav.NightMapMode.AUTO
+        set(value) = prefs.edit { putString("night_map", value.name) }
+
+    private fun readPlace(key: String): Place? = prefs.getString(key, null)?.let { text ->
+        runCatching {
+            val j = org.json.JSONObject(text)
+            Place(LatLon(j.getDouble("lat"), j.getDouble("lon")), j.optString("name").ifBlank { null }, j.optString("address").ifBlank { null })
+        }.getOrNull()
+    }
+
+    private fun writePlace(key: String, place: Place?) = prefs.edit {
+        if (place == null) remove(key)
+        else putString(key, org.json.JSONObject().put("lat", place.position.lat).put("lon", place.position.lon)
+            .put("name", place.name).put("address", place.address).toString())
+    }
+
     /** Routes that have an alarm set for their next weekly run (so alarms of routes that stop repeating are cleared). */
     var scheduledRouteIds: Set<Long>
         get() = prefs.getStringSet("scheduled_routes", emptySet()).orEmpty().mapNotNull { it.toLongOrNull() }.toSet()
@@ -255,6 +282,8 @@ class Prefs(context: Context) {
 
     companion object {
         const val KEY_GOOGLE = "google_key"
+        private const val KEY_HOME = "home_place"
+        private const val KEY_WORK = "work_place"
 
         private val FUEL_PRICES = FuelType.entries.map { "fuel_price_${it.name}" }
 
@@ -273,7 +302,7 @@ class Prefs(context: Context) {
             for (key in listOf("nav_speech_rate", "fuel_consumption") + FUEL_PRICES) put(key, SettingType.FLOAT)
             for (key in listOf(
                 KEY_GOOGLE, "map_provider", "nav_voice", "voice_level", "fuel_type", "plate", "recent_zones",
-                "osrm_server", "valhalla_server",
+                "osrm_server", "valhalla_server", KEY_HOME, KEY_WORK, "night_map",
             )) put(key, SettingType.STRING)
         }
 
@@ -283,7 +312,7 @@ class Prefs(context: Context) {
         val RESET_LANES = listOf("lane_guidance", "lane_camera", "nav_voice", "voice_level", "pause_music", "voice_call", "nav_speech_rate")
         val RESET_COSTS = listOf("fuel_type", "fuel_consumption", "parking_alert_min") + FUEL_PRICES
         val RESET_GOOGLE = listOf("map_provider", "google_routes", "google_search", "google_tile_session")
-        val RESET_MAP = listOf("map_cache_mb", "osrm_server", "valhalla_server")
+        val RESET_MAP = listOf("map_cache_mb", "osrm_server", "valhalla_server", "night_map")
     }
 
     private fun readLatLon(key: String): LatLon? {

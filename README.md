@@ -102,6 +102,19 @@ server fails, routes come from Valhalla instead, for fake trips and for navigati
   speed); long-press a route → Export as GPX.
 - **Shortcuts:** long-press the app icon to go to one of your first three favorites, or Stop.
 
+**v2.1.0:** Better real navigation.
+- **Other ways:** before starting, up to three routes as cards (time, distance, Salik + fuel, "+4 min") and grey lines
+  on the map; tap either to pick one.
+- **Home / Work** buttons on the Navigate screen (first tap or long-press sets them), in Android Auto's saved places,
+  and as launcher shortcuts ("Navigate home").
+- **Night map:** darker map colours after sunset (worked out from where you are), or always / never
+  (Settings → Map & routing). The car screen follows the car's own day/night.
+- **Drive log** (Settings → Drive log): every navigation that went somewhere, with distance, time, average speed,
+  Salik / Darb passed and fuel, added up per month.
+- **Share arrival time** button while driving: "On my way to …, arriving around 18:42" plus a map link, to WhatsApp,
+  SMS or anything else.
+- **Parking on arrival:** arriving by car shows the nearest parking; tap to drive on to it.
+
 See [PLAN.md](PLAN.md) for the full feature list.
 
 ## Install

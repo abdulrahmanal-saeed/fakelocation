@@ -48,6 +48,6 @@ Design (all screens, logo, splash): https://claude.ai/artifact/9FMXf1izujP79r3BA
 | 14 | Groundwork: tests in CI, publish from the default branch only, one HTTP helper with retry and "No internet", logging, more tests | Done (v1.8.1) |
 | 15 | Data & settings: backup/restore, own routing server with fallback, settings split into sections, reset, health check | Done (v1.9.0) |
 | 16 | Fake: joystick, trip speed, repeat / there and back, repeating schedule, wander, GPX/KML, app shortcuts | Done (v2.0.0) |
-| 17 | Real navigation: alternative routes, Home/Work, night map, drive log, share ETA, parking on arrival | Planned (v2.1.0) |
+| 17 | Real navigation: alternative routes, Home/Work, night map, drive log, share ETA, parking on arrival | Done (v2.1.0) |
 | 18 | UI/UX: dark theme, undo, reorder favorites, empty states, haptics, accessibility, favorites widget, what's new | Planned (v2.2.0) |
 | 19 | Refactor & release: split big screens/service, R8 release build, update checker | Planned (v2.3.0) |

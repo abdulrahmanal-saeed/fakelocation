@@ -136,6 +136,16 @@
 
                 <View style="@style/Divider" />
 
+                <LinearLayout android:id="@+id/openDriveLog" style="@style/SettingsRow.Clickable">
+                    <LinearLayout style="@style/SettingsRowText">
+                        <TextView style="@style/Text.Item" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/drive_log" />
+                        <TextView style="@style/Text.Caption" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/drive_log_hint" android:textSize="12sp" />
+                    </LinearLayout>
+                    <ImageView style="@style/SettingsChevron" />
+                </LinearLayout>
+
+                <View style="@style/Divider" />
+
                 <LinearLayout android:id="@+id/openBackup" style="@style/SettingsRow.Clickable">
                     <LinearLayout style="@style/SettingsRowText">
                         <TextView style="@style/Text.Item" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/page_backup" />
@@ -428,6 +438,16 @@
                 <LinearLayout android:id="@+id/clearMapRow" style="@style/SettingsRow.Clickable">
                     <TextView style="@style/SettingsRowLabel" android:text="@string/clear_saved_map" />
                     <ImageView style="@style/SettingsChevron" />
+                </LinearLayout>
+
+                <View style="@style/Divider" />
+
+                <LinearLayout android:id="@+id/nightMapRow" style="@style/SettingsRow.Clickable">
+                    <LinearLayout style="@style/SettingsRowText">
+                        <TextView style="@style/Text.Item" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/night_map" />
+                        <TextView style="@style/Text.Caption" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/night_map_hint" android:textSize="12sp" />
+                    </LinearLayout>
+                    <TextView android:id="@+id/nightMapValue" style="@style/SettingsRowValue.Accent" />
                 </LinearLayout>
             </LinearLayout>
 

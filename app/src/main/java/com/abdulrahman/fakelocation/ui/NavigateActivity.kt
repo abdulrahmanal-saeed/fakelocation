@@ -11,6 +11,7 @@ import android.view.animation.LinearInterpolator
 import kotlin.math.abs
 import android.os.Bundle
 import android.view.MotionEvent
+import android.view.View
 import android.view.ViewGroup
 import android.view.WindowManager
 import android.widget.ImageView
@@ -29,9 +30,11 @@ import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import com.abdulrahman.fakelocation.R
 import com.abdulrahman.fakelocation.data.LatLon
+import com.abdulrahman.fakelocation.data.MapProvider
 import com.abdulrahman.fakelocation.data.Place
 import com.abdulrahman.fakelocation.data.Prefs
 import com.abdulrahman.fakelocation.data.TravelMode
+import com.abdulrahman.fakelocation.data.distanceMeters
 import com.abdulrahman.fakelocation.data.formatDistance
 import com.abdulrahman.fakelocation.data.formatDuration
 import com.abdulrahman.fakelocation.databinding.ActivityNavigateBinding
@@ -42,7 +45,9 @@ import com.abdulrahman.fakelocation.nav.NavIcons
 import com.abdulrahman.fakelocation.nav.NavProgress
 import com.abdulrahman.fakelocation.nav.NavRoute
 import com.abdulrahman.fakelocation.nav.NavSession
+import com.abdulrahman.fakelocation.nav.NightMap
 import com.abdulrahman.fakelocation.nav.RoadInfo
+import com.abdulrahman.fakelocation.system.AppShortcuts
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import kotlinx.coroutines.launch
 import org.osmdroid.util.BoundingBox
@@ -97,6 +102,22 @@ class NavigateActivity : AppCompatActivity() {
     private val pickStop = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         SearchActivity.placeFrom(result.data)?.let { NavSession.addStop(it) }
     }
+    private val pickHome = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        SearchActivity.placeFrom(result.data)?.let { place ->
+            Prefs(this).home = place.copy(name = getString(R.string.nav_home))
+            AppShortcuts.update(this)
+            NavSession.setDestination(Prefs(this).home!!)
+        }
+    }
+    private val pickWork = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        SearchActivity.placeFrom(result.data)?.let { place ->
+            Prefs(this).work = place.copy(name = getString(R.string.nav_work))
+            AppShortcuts.update(this)
+            NavSession.setDestination(Prefs(this).work!!)
+        }
+    }
+    private val choices by lazy { RouteChoices(binding) }
+    private var nightShown: Boolean? = null
     private val askCamera = registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         if (!granted) Prefs(this).laneCamera = false
         render(NavSession.state.value)
@@ -228,6 +249,37 @@ class NavigateActivity : AppCompatActivity() {
             NavSession.stop()
             finish()
         }
+        // Home / Work: go there in one tap; the first tap (or a long press) picks the place.
+        binding.homeButton.setOnClickListener {
+            Prefs(this).home?.let { NavSession.setDestination(it) } ?: pickHome.launch(Intent(this, SearchActivity::class.java))
+        }
+        binding.homeButton.setOnLongClickListener { pickHome.launch(Intent(this, SearchActivity::class.java)); true }
+        binding.workButton.setOnClickListener {
+            Prefs(this).work?.let { NavSession.setDestination(it) } ?: pickWork.launch(Intent(this, SearchActivity::class.java))
+        }
+        binding.workButton.setOnLongClickListener { pickWork.launch(Intent(this, SearchActivity::class.java)); true }
+        binding.shareFab.setOnClickListener { shareEta(NavSession.state.value) }
+    }
+
+    /** "On my way to Dubai Mall, arriving around 18:42 (12 min). Where I am: <map link>" to WhatsApp, SMS… */
+    private fun shareEta(s: NavSession.State) {
+        val p = s.progress ?: return
+        val arrive = System.currentTimeMillis() + (p.remainingSeconds * 1000).toLong()
+        val here = s.real?.let { String.format(java.util.Locale.US, "https://maps.google.com/?q=%.6f,%.6f", it.lat, it.lon) }
+        val text = getString(R.string.nav_share_text, s.to?.name ?: "", clockText(arrive), ((p.remainingSeconds + 59) / 60).toInt()) +
+            (here?.let { "\n" + getString(R.string.nav_share_where, it) } ?: "")
+        startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, text), getString(R.string.nav_share_eta)))
+    }
+
+    /** Dark map at night (Settings → Map & routing); not on satellite pictures, which can't be darkened usefully. */
+    private fun applyNight(s: NavSession.State) {
+        val prefs = Prefs(this)
+        val satellite = prefs.hasGoogleKey && prefs.mapProvider in setOf(MapProvider.GOOGLE_SATELLITE, MapProvider.GOOGLE_HYBRID)
+        val night = !satellite && NightMap.isNight(prefs.nightMap, s.real ?: prefs.lastRealLocation, System.currentTimeMillis())
+        if (night == nightShown) return
+        nightShown = night
+        binding.map.overlayManager.tilesOverlay.setColorFilter(if (night) NightMap.filter else null)
+        binding.map.overlayManager.tilesOverlay.loadingBackgroundColor = ContextCompat.getColor(this, if (night) R.color.ink else R.color.ground)
     }
 
     // region Drawing
@@ -273,6 +325,10 @@ class NavigateActivity : AppCompatActivity() {
             else -> ""
         }
 
+        binding.homeWorkRow.isVisible = !navigating && s.to == null
+        binding.shareFab.isVisible = navigating && s.progress?.arrived == false && s.to != null
+        applyNight(s)
+        choices.render(s)
         drawRoute(s)
         drawMe(s)
         renderLanes(s)
@@ -315,12 +371,20 @@ class NavigateActivity : AppCompatActivity() {
 
     private fun renderDriving(s: NavSession.State) {
         val p = s.progress
-        binding.banner.isVisible = s.rerouting || s.toStartMeters > 0
+        val parking = s.parkingNearby?.takeIf { p?.arrived == true }
+        binding.banner.isVisible = s.rerouting || s.toStartMeters > 0 || parking != null
         binding.banner.text = when {
             s.rerouting -> getString(R.string.nav_rerouting)
             s.toStartMeters > 0 -> getString(R.string.nav_go_to_start, formatDistance(s.toStartMeters))
+            parking != null -> getString(
+                R.string.nav_parking_nearby, parking.name ?: getString(R.string.cat_parking),
+                s.real?.let { formatDistance(distanceMeters(it, parking.position)) }.orEmpty(),
+            )
             else -> ""
         }
+        // Arrived by car: tap the banner to drive on to the nearest parking.
+        binding.banner.setOnClickListener(if (parking != null && !s.rerouting) View.OnClickListener { NavSession.setDestination(parking) } else null)
+        binding.banner.isClickable = parking != null && !s.rerouting
         binding.speedRow.isVisible = s.mode == TravelMode.CAR
         binding.mySpeed.text = s.speedKmh.toString()
         binding.mySpeed.setTextColor(ContextCompat.getColor(this, if (s.speeding) R.color.limit_red else R.color.ink))
