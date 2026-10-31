@@ -200,6 +200,10 @@ server fails, routes come from Valhalla instead, for fake trips and for navigati
   close, and turns at a junction with lights are announced as "In 300 meters, at the traffic lights, turn right".
   Whether a light is red or green right now isn't known (there's no public live data for that).
 
+**v2.9.1:** Fix: the vector map for navigation (beta) stayed blank on the phone. It now draws with OpenGL (the
+library's default build uses Vulkan, which showed nothing), and if the map still hasn't drawn anything after 15
+seconds the Navigate screen goes back to the classic map by itself and says so.
+
 See [PLAN.md](PLAN.md) for the full feature list.
 
 ## Install

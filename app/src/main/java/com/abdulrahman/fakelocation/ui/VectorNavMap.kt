@@ -88,6 +88,13 @@ class VectorNavMap(
     private var lightsKey: Any? = null
     private var fittedRoute: NavRoute? = null
     private var navigatingShown = false
+    /** The map has drawn a complete picture at least once. */
+    private var rendered = false
+    private var failed = false
+    /** If nothing shows within a while (a graphics problem, no connection), give up on the vector map. */
+    private val watchdog = Runnable {
+        if (!rendered) fail("nothing was drawn")
+    }
 
     override var follow = true
 
@@ -95,10 +102,15 @@ class VectorNavMap(
         MapLibre.getInstance(context.applicationContext)
         mapView = MapView(context)
         mapView.onCreate(savedState)
-        mapView.addOnDidFailLoadingMapListener { message ->
-            Log.w(TAG, "vector map failed: $message")
-            onFailed(message)
-        }
+        mapView.addOnDidFailLoadingMapListener { message -> fail(message) }
+        mapView.addOnDidFinishRenderingFrameListener(object : MapView.OnDidFinishRenderingFrameListener {
+            override fun onDidFinishRenderingFrame(fully: Boolean, frameEncodingTime: Double, frameRenderingTime: Double) {
+                if (fully && style != null && !rendered) {
+                    rendered = true
+                    mapView.removeCallbacks(watchdog)
+                }
+            }
+        })
         // The same room on the phone as the classic map's saved areas.
         OfflineManager.getInstance(context.applicationContext).setMaximumAmbientCacheSize(
             Prefs(context).mapCacheMb * 1024L * 1024L,
@@ -129,6 +141,13 @@ class VectorNavMap(
     }
 
     override val view: View get() = mapView
+
+    private fun fail(reason: String) {
+        if (failed) return
+        failed = true
+        Log.w(TAG, "vector map failed: $reason")
+        onFailed(reason)
+    }
 
     // region Style and layers
 
@@ -429,12 +448,17 @@ class VectorNavMap(
 
     override fun onResume() {
         mapView.onResume()
+        if (!rendered) {
+            mapView.removeCallbacks(watchdog)
+            mapView.postDelayed(watchdog, FIRST_PICTURE_MS)
+        }
         running = true
         lastFrameAt = 0L
         queueFrame()
     }
 
     override fun onPause() {
+        mapView.removeCallbacks(watchdog)
         running = false
         frameQueued = false
         Choreographer.getInstance().removeFrameCallback(this)
@@ -480,6 +504,8 @@ class VectorNavMap(
         /** How far below the middle the car sits (share of the map's height), as on the classic map. */
         const val CAR_LOW = 0.24
         const val TILT = 45.0
+        /** The first complete picture should be on screen by then. */
+        const val FIRST_PICTURE_MS = 15_000L
         /** MapLibre zoom levels: one less than the classic map's for the same view. */
         const val CAR_ZOOM = 16.5
         const val WALK_ZOOM = 17.5
