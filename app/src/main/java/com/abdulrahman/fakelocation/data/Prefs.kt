@@ -142,6 +142,16 @@ class Prefs(context: Context) {
         get() = prefs.getString("google_tile_session", null)
         set(value) = prefs.edit { if (value == null) remove("google_tile_session") else putString("google_tile_session", value) }
 
+    /** Cached Google traffic-overlay session, same format. */
+    var googleTrafficSession: String?
+        get() = prefs.getString("google_traffic_session", null)
+        set(value) = prefs.edit { if (value == null) remove("google_traffic_session") else putString("google_traffic_session", value) }
+
+    /** Live traffic drawn on the navigation map (with a Google key). */
+    var trafficOnMap: Boolean
+        get() = prefs.getBoolean("traffic_on_map", true)
+        set(value) = prefs.edit { putBoolean("traffic_on_map", value) }
+
     /** True while in-app navigation needs the real GPS chip (see LocationMocker.fakeGpsChip). */
     var realGpsForNav: Boolean
         get() = prefs.getBoolean("real_gps_nav", false)

@@ -226,6 +226,7 @@
     <string name="copied">Copied</string>
     <string name="open_console">Open Google Cloud</string>
     <string name="api_tiles">Map Tiles API (map)</string>
+    <string name="api_traffic">Map Tiles API (traffic layer)</string>
     <string name="api_routes">Routes API (routes + traffic)</string>
     <string name="api_places">Places API New (search)</string>
     <string name="api_geocoding">Geocoding API (addresses)</string>
@@ -350,6 +351,7 @@
     <string name="nav_then">Then: %1$s</string>
     <string name="nav_rerouting">Off the route · finding a new way…</string>
     <string name="nav_gps_lost">No GPS signal · following the route</string>
+    <string name="nav_traffic_layer">Traffic on the map</string>
     <string name="nav_go_to_start">Head to the start of the route · %1$s away</string>
     <string name="nav_arrived">You have arrived</string>
     <string name="nav_fake_on">Fake location still on for other apps · %1$s</string>
@@ -361,6 +363,9 @@
     <string name="nav_speed_limit">Speed limit</string>
     <string name="nav_camera_ahead">Speed camera ahead</string>
     <string name="nav_speed_limit_voice">Speed limit %1$d</string>
+    <string name="nav_average_voice">Average speed check for %1$s.</string>
+    <string name="nav_average_chip">Avg %1$s · %2$s left</string>
+    <string name="nav_average_chip_limit">Avg %1$s / %2$d · %3$s left</string>
     <string name="nav_minutes">%1$d min</string>
 
     <!-- Notification -->
@@ -695,7 +700,7 @@
     <string name="theme_dark">Dark</string>
     <string name="whats_new">What’s new</string>
     <string name="whats_new_title">What’s new in %1$s</string>
-    <string name="whats_new_body">• Driving: the car now moves smoothly along the road between GPS fixes (no more lagging a second behind or cutting corners), the map turns and zooms gently, zooming out a little so the next turn shows before you reach it.\n\n• Tunnels: when the GPS drops out the car carries on along the route at your speed, with distances and voice, until the signal is back.\n\n• Moved the map while driving? It follows you again by itself after 10 seconds.\n\n• Your real location on the map: updated every second and gliding, with a circle showing how accurate the GPS is and a cone showing which way you face.</string>
+    <string name="whats_new_body">• Driving: the car now moves smoothly along the road between GPS fixes (no more lagging a second behind or cutting corners), the map turns and zooms gently, zooming out a little so the next turn shows before you reach it.\n\n• Tunnels: when the GPS drops out the car carries on along the route at your speed, with distances and voice, until the signal is back.\n\n• Moved the map while driving? It follows you again by itself after 10 seconds.\n\n• Your real location on the map: updated every second and gliding, with a circle showing how accurate the GPS is and a cone showing which way you face.\n\n• Navigation: notices sooner when you take a wrong turn, shows Google’s live traffic on the whole map (with a Google key, button on the left), and average speed checks with your average so far.</string>
 
     <!-- Updates -->
     <string name="update_check">Check for updates</string>

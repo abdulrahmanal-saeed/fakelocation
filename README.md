@@ -153,6 +153,18 @@ server fails, routes come from Valhalla instead, for fake trips and for navigati
   bouncing off a building) unless the next ones agree. Navigation uses it to ignore those glitches too, so they no
   longer cause a false "off the route".
 
+**v2.6.0:** Navigation extras.
+- **Wrong turn noticed sooner:** driving away from the route in another direction (your heading more than 60° off the
+  road's, 20 m+ from it) starts a new route after 2 fixes, and a clear fix 50 m+ away after 1. With a poor GPS signal
+  it still waits for 3, so a jumpy signal doesn't send you on a new route. New routes can follow each other after 8 s
+  instead of 15.
+- **Live traffic on the map** (with a Google key): Google's traffic colours on every road, not just on your route,
+  refreshed every 3 minutes and never stored on the phone. The traffic-light button on the left turns it on and off.
+  These tiles count toward the Map Tiles API on your key; "Test key" checks this layer too.
+- **Average speed checks** (two cameras that time you between them) from OpenStreetMap: the voice says when one
+  starts and how long it is, and a chip shows your average so far against the limit and the distance left, turning
+  red when you're over. Only where they're mapped.
+
 See [PLAN.md](PLAN.md) for the full feature list.
 
 ## Install
