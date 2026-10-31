@@ -240,7 +240,7 @@
                             android:layout_height="34dp"
                             android:importantForAccessibility="no"
                             android:src="@drawable/ic_m_right"
-                            app:tint="@color/surface" />
+                            app:tint="@color/white" />
 
                         <TextView
                             android:id="@+id/maneuverDistance"
@@ -248,7 +248,7 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:layout_marginStart="8dp"
-                            android:textColor="@color/surface"
+                            android:textColor="@color/white"
                             android:textSize="30sp"
                             tools:text="400 m" />
                     </LinearLayout>
@@ -261,7 +261,7 @@
                         android:ellipsize="end"
                         android:maxWidth="220dp"
                         android:maxLines="1"
-                        android:textColor="@color/surface"
+                        android:textColor="@color/white"
                         android:textSize="16sp"
                         tools:text="Al Hudaiba St" />
                 </LinearLayout>

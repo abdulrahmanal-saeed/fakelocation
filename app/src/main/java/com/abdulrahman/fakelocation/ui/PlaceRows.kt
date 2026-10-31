@@ -25,6 +25,8 @@ data class PlaceRow(
     val starred: Boolean? = null,
     val onStar: (() -> Unit)? = null,
     val onLongClick: (() -> Unit)? = null,
+    /** Shows the drag handle (the list sets up the dragging). */
+    val draggable: Boolean = false,
     val onClick: () -> Unit,
 )
 
@@ -51,6 +53,7 @@ fun ItemPlaceBinding.bind(row: PlaceRow) {
     starButton.setOnClickListener { row.onStar?.invoke() }
     root.setOnClickListener { row.onClick() }
     root.setOnLongClickListener(row.onLongClick?.let { action -> { _ -> action(); true } })
+    dragHandle.isVisible = row.draggable
 }
 
 /** Adds rows to a plain vertical container (short lists inside a scroll view). */
@@ -64,16 +67,23 @@ fun ViewGroup.showRows(rows: List<PlaceRow>) {
     }
 }
 
-class PlaceRowAdapter : ListAdapter<PlaceRow, PlaceRowAdapter.Holder>(Diff) {
+/** [onStartDrag]: a row's drag handle was touched (the list's ItemTouchHelper takes it from there). */
+class PlaceRowAdapter(private val onStartDrag: ((RecyclerView.ViewHolder) -> Unit)? = null) : ListAdapter<PlaceRow, PlaceRowAdapter.Holder>(Diff) {
 
     class Holder(val binding: ItemPlaceBinding) : RecyclerView.ViewHolder(binding.root)
 
+    @android.annotation.SuppressLint("ClickableViewAccessibility") // the handle only starts a drag; rows stay clickable
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): Holder {
         val binding = ItemPlaceBinding.inflate(LayoutInflater.from(parent.context), parent, false)
         binding.root.updateLayoutParams<ViewGroup.MarginLayoutParams> {
             bottomMargin = (8 * parent.resources.displayMetrics.density).toInt()
         }
-        return Holder(binding)
+        val holder = Holder(binding)
+        binding.dragHandle.setOnTouchListener { _, event ->
+            if (event.actionMasked == android.view.MotionEvent.ACTION_DOWN) onStartDrag?.invoke(holder)
+            false
+        }
+        return holder
     }
 
     override fun onBindViewHolder(holder: Holder, position: Int) = holder.binding.bind(getItem(position))
@@ -81,6 +91,6 @@ class PlaceRowAdapter : ListAdapter<PlaceRow, PlaceRowAdapter.Holder>(Diff) {
     private object Diff : DiffUtil.ItemCallback<PlaceRow>() {
         override fun areItemsTheSame(a: PlaceRow, b: PlaceRow) = a.key == b.key
         override fun areContentsTheSame(a: PlaceRow, b: PlaceRow) =
-            a.title == b.title && a.subtitle == b.subtitle && a.starred == b.starred && a.trailing == b.trailing
+            a.title == b.title && a.subtitle == b.subtitle && a.starred == b.starred && a.trailing == b.trailing && a.draggable == b.draggable
     }
 }

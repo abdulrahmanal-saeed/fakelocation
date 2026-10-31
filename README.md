@@ -115,6 +115,16 @@ server fails, routes come from Valhalla instead, for fake trips and for navigati
   SMS or anything else.
 - **Parking on arrival:** arriving by car shows the nearest parking; tap to drive on to it.
 
+**v2.2.0:** Look and feel.
+- **Dark theme** that follows the phone, or always light / dark (Settings → About → Theme). The street map darkens with
+  it; satellite pictures, alarms and widgets keep their own colours.
+- **Undo** for a deleted favorite, a deleted route (long-press → Delete) and a cleared history.
+- **Drag favorites** by the handle to put them in order: the first ones are the map's chips, the widget and the
+  shortcuts.
+- **Favorites widget:** your first four favorites as one-tap buttons on the home screen, plus Stop.
+- **What's new** after an update (and in Settings → About), a tick under your finger when you teleport, start or stop,
+  and labels for every icon-only button.
+
 See [PLAN.md](PLAN.md) for the full feature list.
 
 ## Install

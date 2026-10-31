@@ -85,6 +85,11 @@ class Prefs(context: Context) {
         get() = readPlace(KEY_WORK)
         set(value) = writePlace(KEY_WORK, value)
 
+    /** App colours: follow the phone ("system"), or always "light" / "dark". */
+    var theme: String
+        get() = prefs.getString("theme", THEME_SYSTEM) ?: THEME_SYSTEM
+        set(value) = prefs.edit { putString("theme", value) }
+
     var nightMap: com.abdulrahman.fakelocation.nav.NightMapMode
         get() = com.abdulrahman.fakelocation.nav.NightMapMode.entries.firstOrNull { it.name == prefs.getString("night_map", null) }
             ?: com.abdulrahman.fakelocation.nav.NightMapMode.AUTO
@@ -282,6 +287,9 @@ class Prefs(context: Context) {
 
     companion object {
         const val KEY_GOOGLE = "google_key"
+        const val THEME_SYSTEM = "system"
+        const val THEME_LIGHT = "light"
+        const val THEME_DARK = "dark"
         private const val KEY_HOME = "home_place"
         private const val KEY_WORK = "work_place"
 
@@ -302,7 +310,7 @@ class Prefs(context: Context) {
             for (key in listOf("nav_speech_rate", "fuel_consumption") + FUEL_PRICES) put(key, SettingType.FLOAT)
             for (key in listOf(
                 KEY_GOOGLE, "map_provider", "nav_voice", "voice_level", "fuel_type", "plate", "recent_zones",
-                "osrm_server", "valhalla_server", KEY_HOME, KEY_WORK, "night_map",
+                "osrm_server", "valhalla_server", KEY_HOME, KEY_WORK, "night_map", "theme",
             )) put(key, SettingType.STRING)
         }
 

@@ -216,7 +216,7 @@
         android:contentDescription="@string/nav_open"
         app:backgroundTint="@color/real"
         app:icon="@drawable/ic_navigate"
-        app:iconTint="@color/surface"
+        app:iconTint="@color/white"
         app:layout_constraintBottom_toTopOf="@id/myLocationButton"
         app:layout_constraintEnd_toEndOf="parent" />
 

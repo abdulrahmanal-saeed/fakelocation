@@ -152,6 +152,18 @@
                 android:resource="@xml/widget_status_info" />
         </receiver>
 
+        <receiver
+            android:name=".system.FavoritesWidget"
+            android:exported="false"
+            android:label="@string/widget_favorites_name">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/widget_favorites_info" />
+        </receiver>
+
         <service
             android:name=".mock.MockLocationService"
             android:exported="false"

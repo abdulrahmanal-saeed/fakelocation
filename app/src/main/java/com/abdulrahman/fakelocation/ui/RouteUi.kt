@@ -96,11 +96,11 @@ fun Context.letterMarker(letter: String, colorRes: Int, sizeDp: Int = 30): Drawa
     val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
     val canvas = Canvas(bitmap)
     val paint = Paint(Paint.ANTI_ALIAS_FLAG)
-    paint.color = ContextCompat.getColor(this, R.color.surface)
+    paint.color = ContextCompat.getColor(this, R.color.white)
     canvas.drawCircle(size / 2f, size / 2f, size / 2f, paint)
     paint.color = ContextCompat.getColor(this, colorRes)
     canvas.drawCircle(size / 2f, size / 2f, size / 2f - 3 * density, paint)
-    paint.color = ContextCompat.getColor(this, R.color.surface)
+    paint.color = ContextCompat.getColor(this, R.color.white)
     paint.textAlign = Paint.Align.CENTER
     paint.textSize = (if (letter.length > 1) 11 else 13) * density
     paint.typeface = ResourcesCompat.getFont(this, R.font.manrope_800) ?: Typeface.DEFAULT_BOLD
@@ -122,7 +122,7 @@ class RouteThumbView @JvmOverloads constructor(context: Context, attrs: Attribut
         strokeJoin = Paint.Join.ROUND
     }
     private val dot = Paint(Paint.ANTI_ALIAS_FLAG)
-    private val white = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = ContextCompat.getColor(context, R.color.surface) }
+    private val white = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = ContextCompat.getColor(context, R.color.white) }
     private var points: List<LatLon> = emptyList()
 
     fun setRoute(route: Route) {

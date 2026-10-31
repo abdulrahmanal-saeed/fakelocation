@@ -212,6 +212,12 @@ class MapFragment : Fragment(R.layout.fragment_map) {
         val wanted = if (prefs.hasGoogleKey) prefs.mapProvider else com.abdulrahman.fakelocation.data.MapProvider.OSM
         if (wanted == appliedProvider) return
         appliedProvider = MapStyle.apply(binding.map, viewLifecycleOwner.lifecycleScope, binding.mapCredit)
+        // Dark theme: a dark street map too, so it isn't a bright patch in a dark app (satellite stays as it is).
+        val dark = (resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK) ==
+            android.content.res.Configuration.UI_MODE_NIGHT_YES
+        val satellite = wanted == com.abdulrahman.fakelocation.data.MapProvider.GOOGLE_SATELLITE ||
+            wanted == com.abdulrahman.fakelocation.data.MapProvider.GOOGLE_HYBRID
+        binding.map.overlayManager.tilesOverlay.setColorFilter(if (dark && !satellite) com.abdulrahman.fakelocation.nav.NightMap.filter else null)
     }
 
     private fun setupMap() = with(binding.map) {
@@ -278,7 +284,10 @@ class MapFragment : Fragment(R.layout.fragment_map) {
         binding.routeFromHereButton.setOnClickListener { main.newRouteFromHere() }
         binding.moveButton.setOnClickListener { showMoveOptions() }
         setupJoystick()
-        binding.stopButton.setOnClickListener { MockLocationService.stop(requireContext()) }
+        binding.stopButton.setOnClickListener {
+            it.confirmHaptic()
+            MockLocationService.stop(requireContext())
+        }
         binding.saveButton.setOnClickListener {
             val session = MockState.session.value ?: return@setOnClickListener
             val existing = places.favoriteAt(session.position)

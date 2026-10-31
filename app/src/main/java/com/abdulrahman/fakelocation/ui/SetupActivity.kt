@@ -107,6 +107,7 @@ class SetupActivity : AppCompatActivity() {
             binding.allowLocation.performClick()
             return
         }
+        if (!Prefs(this).setupDone) WhatsNew.markSeen(this)
         Prefs(this).setupDone = true
         if (!intent.getBooleanExtra(EXTRA_FROM_SETTINGS, false)) {
             // Forward anything we were launched with (e.g. a shared Google Maps link).

@@ -62,12 +62,12 @@ object NavIcons {
             val canvas = Canvas(bitmap)
             val paint = Paint(Paint.ANTI_ALIAS_FLAG)
             val c = size / 2f
-            paint.color = ContextCompat.getColor(context, R.color.surface)
+            paint.color = ContextCompat.getColor(context, R.color.white)
             canvas.drawCircle(c, c, c, paint)
             paint.color = ContextCompat.getColor(context, R.color.real)
             canvas.drawCircle(c, c, c - 3 * scale, paint)
             canvas.rotate(step(degrees).toFloat(), c, c)
-            paint.color = ContextCompat.getColor(context, R.color.surface)
+            paint.color = ContextCompat.getColor(context, R.color.white)
             val s = 7.5f * scale
             canvas.drawPath(Path().apply {
                 moveTo(c, c - s * 1.3f)

@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Dark theme: the same names as values/colors.xml. "ink" stays the strong contrast colour (light text here, and
+     light buttons with dark text), "surface" the cards, "ground" the screen behind them. -->
+<resources>
+    <color name="ink">#E8EDF5</color>
+    <color name="ink_soft">#C3CCD8</color>
+    <color name="muted">#93A1B3</color>
+    <color name="muted_light">#5B6878</color>
+    <color name="line">#2C3542</color>
+    <color name="line_soft">#232B36</color>
+    <color name="ground">#0E131A</color>
+    <color name="surface">#18202A</color>
+    <color name="chip">#232C38</color>
+    <color name="nav_active">#2A3442</color>
+    <color name="action">#FB923C</color>
+    <color name="action_tint">#3A2416</color>
+    <color name="real">#3B82F6</color>
+    <color name="real_dark">#60A5FA</color>
+    <color name="nav_blue">#6070FF</color>
+    <color name="success">#4ADE80</color>
+    <color name="success_bg">#12301D</color>
+    <color name="idle_dot">#64748B</color>
+</resources>

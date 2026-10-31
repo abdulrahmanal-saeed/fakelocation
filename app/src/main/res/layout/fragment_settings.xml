@@ -159,6 +159,20 @@
 
             <LinearLayout style="@style/SettingsCard">
 
+                <LinearLayout android:id="@+id/themeRow" style="@style/SettingsRow.Clickable">
+                    <TextView style="@style/SettingsRowLabel" android:text="@string/theme" />
+                    <TextView android:id="@+id/themeValue" style="@style/SettingsRowValue.Accent" />
+                </LinearLayout>
+
+                <View style="@style/Divider" />
+
+                <LinearLayout android:id="@+id/whatsNewRow" style="@style/SettingsRow.Clickable">
+                    <TextView style="@style/SettingsRowLabel" android:text="@string/whats_new" />
+                    <ImageView style="@style/SettingsChevron" />
+                </LinearLayout>
+
+                <View style="@style/Divider" />
+
                 <LinearLayout style="@style/SettingsRow">
                     <TextView style="@style/SettingsRowLabel" android:text="@string/version" />
                     <TextView android:id="@+id/versionText" style="@style/SettingsRowValue" />

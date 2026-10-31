@@ -41,6 +41,32 @@ class PlacesRepository private constructor(private val file: File) {
         save()
     }
 
+    /** Puts a deleted favorite back where it was (Undo). */
+    @Synchronized
+    fun restoreFavorite(favorite: Favorite, index: Int) {
+        if (_favorites.value.any { it.id == favorite.id }) return
+        _favorites.value = _favorites.value.toMutableList().apply { add(index.coerceIn(0, size), favorite) }
+        save()
+    }
+
+    /** New order after dragging: the favorite at [from] now sits at [to] (the first ones show on the map). */
+    @Synchronized
+    fun moveFavorite(from: Int, to: Int) {
+        val list = _favorites.value.toMutableList()
+        if (from !in list.indices || to !in list.indices || from == to) return
+        list.add(to, list.removeAt(from))
+        _favorites.value = list
+        save()
+    }
+
+    /** Brings back history cleared a moment ago (Undo). */
+    @Synchronized
+    fun restoreHistory(entries: List<HistoryEntry>) {
+        _history.value = (entries + _history.value.filter { e -> entries.none { it.id == e.id } })
+            .sortedByDescending { it.startedAt }.take(MAX_HISTORY)
+        save()
+    }
+
     /** The favorite at (almost) the same spot, if any. */
     fun favoriteAt(position: LatLon): Favorite? =
         _favorites.value.firstOrNull { distanceMeters(it.position, position) < 15.0 }

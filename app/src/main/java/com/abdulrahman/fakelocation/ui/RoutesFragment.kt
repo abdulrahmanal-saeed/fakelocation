@@ -76,9 +76,20 @@ class RoutesFragment : Fragment(R.layout.fragment_routes) {
                     exporting = route
                     createFile.launch(route.name.replace(Regex("[\\\\/:*?\"<>|]"), "_") + ".gpx")
                 } else {
-                    confirmDelete(route)
+                    deleteRoute(route)
                 }
             }
+            .show()
+    }
+
+    /** Deleted straight away, with Undo for a few seconds. */
+    private fun deleteRoute(route: Route) {
+        val repo = RoutesRepository.get(requireContext())
+        repo.delete(route.id)
+        com.google.android.material.snackbar.Snackbar
+            .make(binding.root, getString(R.string.route_deleted, route.name), com.google.android.material.snackbar.Snackbar.LENGTH_LONG)
+            .setAnchorView(binding.newRouteButton)
+            .setAction(R.string.undo) { repo.restore(route) }
             .show()
     }
 
@@ -113,14 +124,6 @@ class RoutesFragment : Fragment(R.layout.fragment_routes) {
             }
             app.toast(if (saved) R.string.export_done else R.string.export_failed)
         }
-    }
-
-    private fun confirmDelete(route: Route) {
-        MaterialAlertDialogBuilder(requireContext())
-            .setTitle(getString(R.string.delete_route_title, route.name))
-            .setPositiveButton(R.string.delete) { _, _ -> RoutesRepository.get(requireContext()).delete(route.id) }
-            .setNegativeButton(R.string.cancel, null)
-            .show()
     }
 
     private inner class RoutesAdapter : ListAdapter<Route, RoutesAdapter.Holder>(Diff) {

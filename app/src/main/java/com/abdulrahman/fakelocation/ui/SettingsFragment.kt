@@ -69,6 +69,18 @@ class SettingsFragment : Fragment(R.layout.fragment_settings) {
         binding.openMap.setOnClickListener { open(Page.MAP) }
         binding.openBackup.setOnClickListener { open(Page.BACKUP) }
         binding.openDriveLog.setOnClickListener { startActivity(android.content.Intent(requireContext(), DriveLogActivity::class.java)) }
+        binding.whatsNewRow.setOnClickListener { WhatsNew.show(requireActivity()) }
+        binding.themeRow.setOnClickListener {
+            val themes = listOf(Prefs.THEME_SYSTEM, Prefs.THEME_LIGHT, Prefs.THEME_DARK)
+            MaterialAlertDialogBuilder(requireContext())
+                .setTitle(R.string.theme)
+                .setSingleChoiceItems(themes.map { getString(themeLabel(it)) }.toTypedArray(), themes.indexOf(prefs.theme)) { dialog, which ->
+                    dialog.dismiss()
+                    prefs.theme = themes[which]
+                    App.applyTheme(themes[which]) // recreates the screens in the new colours
+                }
+                .show()
+        }
         binding.nightMapRow.setOnClickListener {
             val modes = NightMapMode.entries
             MaterialAlertDialogBuilder(requireContext())
@@ -204,6 +216,7 @@ class SettingsFragment : Fragment(R.layout.fragment_settings) {
         backup.render()
         servers.render()
         b.nightMapValue.setText(nightLabel(prefs.nightMap))
+        b.themeValue.setText(themeLabel(prefs.theme))
         b.arriveValue.text = minutes(prefs.alertBeforeArriveMinutes)
         b.leaveValue.text = minutes(prefs.alertBeforeLeaveMinutes)
         b.trafficValue.text = trafficLabel(prefs.trafficPercent)
@@ -218,6 +231,12 @@ class SettingsFragment : Fragment(R.layout.fragment_settings) {
             val used = MapCache.sizeBytes()
             _binding?.offlineValue?.text = getString(R.string.offline_used, megabytes(used), megabytes(prefs.mapCacheMb * 1024L * 1024L))
         }
+    }
+
+    private fun themeLabel(theme: String) = when (theme) {
+        Prefs.THEME_LIGHT -> R.string.theme_light
+        Prefs.THEME_DARK -> R.string.theme_dark
+        else -> R.string.theme_system
     }
 
     private fun nightLabel(mode: NightMapMode) = when (mode) {
