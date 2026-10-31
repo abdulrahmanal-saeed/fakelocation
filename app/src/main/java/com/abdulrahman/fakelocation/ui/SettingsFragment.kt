@@ -131,6 +131,7 @@ class SettingsFragment : Fragment(R.layout.fragment_settings) {
         binding.silentSwitch.setOnCheckedChangeListener { _, checked -> prefs.ringInSilent = checked }
         binding.vibrateSwitch.setOnCheckedChangeListener { _, checked -> prefs.vibrate = checked }
         binding.naturalSwitch.setOnCheckedChangeListener { _, checked -> prefs.naturalMovement = checked }
+        binding.vectorMapSwitch.setOnCheckedChangeListener { _, checked -> prefs.vectorNavMap = checked }
         binding.fullScreenRow.setOnClickListener { openFullScreenSettings() }
         binding.testAlarmRow.setOnClickListener { testAlarm() }
         binding.setupRow.setOnClickListener { (requireActivity() as MainActivity).openSetup() }
@@ -237,6 +238,7 @@ class SettingsFragment : Fragment(R.layout.fragment_settings) {
         b.silentSwitch.isChecked = prefs.ringInSilent
         b.vibrateSwitch.isChecked = prefs.vibrate
         b.naturalSwitch.isChecked = prefs.naturalMovement
+        b.vectorMapSwitch.isChecked = prefs.vectorNavMap
         val needsFullScreen = Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE
         b.fullScreenRow.isVisible = needsFullScreen
         b.fullScreenDivider.isVisible = needsFullScreen

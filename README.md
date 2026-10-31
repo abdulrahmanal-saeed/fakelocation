@@ -173,6 +173,19 @@ server fails, routes come from Valhalla instead, for fake trips and for navigati
   (some navigation and fitness apps) see smoother movement; the notification, alarms and widget still update once a
   second. The small natural GPS wander is worked out per second, so it looks the same at any rate.
 
+**v2.8.0:** Vector map for navigation (beta).
+- Settings → Map & routing → **Vector map for navigation**: the Navigate screen draws the map itself with MapLibre
+  from OpenFreeMap's free map data (no key) instead of showing map pictures. It turns and zooms smoothly on the
+  graphics chip, street names stay upright as the map turns, the view tilts (3D) while driving, and the night map is
+  a real dark map rather than darkened pictures. Everything else (green route, traffic, turn arrow, lanes, cameras,
+  stops, other ways, the gliding car, Google traffic) works on it too.
+- Off by default until it's been tried on the phone. If it can't start or load (for example no internet the first
+  time an area is shown), the screen goes back to the classic map by itself. Areas you've seen are kept on the phone
+  up to the same size as the classic map's (Settings → Map & routing).
+- With the vector map the Navigate screen always uses OpenFreeMap; a Google map choice still applies to the classic
+  map and the other screens. Android Auto and the other screens keep the classic map.
+- The APK now carries only the phone's kind of native code (64-bit ARM): about 17 MB (8.6 MB for the small one).
+
 See [PLAN.md](PLAN.md) for the full feature list.
 
 ## Install

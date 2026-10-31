@@ -352,6 +352,9 @@
     <string name="nav_rerouting">Off the route · finding a new way…</string>
     <string name="nav_gps_lost">No GPS signal · following the route</string>
     <string name="nav_traffic_layer">Traffic on the map</string>
+    <string name="vector_map">Vector map for navigation (beta)</string>
+    <string name="vector_map_hint">The Navigate screen draws the map itself (OpenFreeMap, no key): smooth turning and zoom, street names stay upright, a tilted 3D view while driving and a proper night map. Needs internet the first time an area is shown.</string>
+    <string name="vector_map_failed">The vector map didn’t load, using the classic map</string>
     <string name="update_rate">Location updates while moving</string>
     <string name="update_rate_hint">How often other apps get the moving fake position. More is smoother in apps that ask for it, and uses a little more battery.</string>
     <string name="update_rate_value">%1$d a second</string>
@@ -703,7 +706,7 @@
     <string name="theme_dark">Dark</string>
     <string name="whats_new">What’s new</string>
     <string name="whats_new_title">What’s new in %1$s</string>
-    <string name="whats_new_body">• Driving: the car now moves smoothly along the road between GPS fixes (no more lagging a second behind or cutting corners), the map turns and zooms gently, zooming out a little so the next turn shows before you reach it.\n\n• Tunnels: when the GPS drops out the car carries on along the route at your speed, with distances and voice, until the signal is back.\n\n• Moved the map while driving? It follows you again by itself after 10 seconds.\n\n• Your real location on the map: updated every second and gliding, with a circle showing how accurate the GPS is and a cone showing which way you face.\n\n• Navigation: notices sooner when you take a wrong turn, shows Google’s live traffic on the whole map (with a Google key, button on the left), and average speed checks with your average so far.\n\n• Fake trips: the arrow on the map glides along the road instead of jumping once a second, and the joystick moves the pin smoothly. Settings → Fake movement → Location updates sends the moving fake position up to 5 times a second.</string>
+    <string name="whats_new_body">• Driving: the car now moves smoothly along the road between GPS fixes (no more lagging a second behind or cutting corners), the map turns and zooms gently, zooming out a little so the next turn shows before you reach it.\n\n• Tunnels: when the GPS drops out the car carries on along the route at your speed, with distances and voice, until the signal is back.\n\n• Moved the map while driving? It follows you again by itself after 10 seconds.\n\n• Your real location on the map: updated every second and gliding, with a circle showing how accurate the GPS is and a cone showing which way you face.\n\n• Navigation: notices sooner when you take a wrong turn, shows Google’s live traffic on the whole map (with a Google key, button on the left), and average speed checks with your average so far.\n\n• Fake trips: the arrow on the map glides along the road instead of jumping once a second, and the joystick moves the pin smoothly. Settings → Fake movement → Location updates sends the moving fake position up to 5 times a second.\n\n• Try the vector map for navigation (Settings → Map &amp; routing, beta): smooth turning, upright street names, a tilted view while driving and a real night map.</string>
 
     <!-- Updates -->
     <string name="update_check">Check for updates</string>

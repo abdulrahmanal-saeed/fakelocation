@@ -480,6 +480,16 @@
                     </LinearLayout>
                     <TextView android:id="@+id/nightMapValue" style="@style/SettingsRowValue.Accent" />
                 </LinearLayout>
+
+                <View style="@style/Divider" />
+
+                <LinearLayout style="@style/SettingsRow">
+                    <LinearLayout style="@style/SettingsRowText">
+                        <TextView style="@style/Text.Item" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/vector_map" />
+                        <TextView style="@style/Text.Caption" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/vector_map_hint" android:textSize="12sp" />
+                    </LinearLayout>
+                    <com.google.android.material.materialswitch.MaterialSwitch android:id="@+id/vectorMapSwitch" android:layout_width="wrap_content" android:layout_height="wrap_content" android:contentDescription="@string/vector_map" />
+                </LinearLayout>
             </LinearLayout>
 
             <TextView style="@style/SettingsSection" android:text="@string/servers_section" />

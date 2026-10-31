@@ -54,8 +54,8 @@ class NavigateActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityNavigateBinding
     private var wasNavigating = false
-    /** Everything drawn on the map (route, car, turn arrow…). */
-    private val layers by lazy { NavMapLayers(binding.map) }
+    /** The map and everything drawn on it (route, car, turn arrow…): classic or vector. */
+    private lateinit var navMap: NavMap
 
     private val pickFrom = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         SearchActivity.placeFrom(result.data)?.let { NavSession.setStart(it) }
@@ -81,7 +81,6 @@ class NavigateActivity : AppCompatActivity() {
         }
     }
     private val choices by lazy { RouteChoices(binding) }
-    private val traffic by lazy { TrafficLayer(binding.map, lifecycleScope) }
     private var nightShown: Boolean? = null
     private val askCamera = registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         if (!granted) Prefs(this).laneCamera = false
@@ -97,7 +96,7 @@ class NavigateActivity : AppCompatActivity() {
         binding = ActivityNavigateBinding.inflate(layoutInflater)
         setContentView(binding.root)
         applyInsets()
-        setupMap()
+        setupMap(savedInstanceState)
         setupControls()
         if (savedInstanceState == null) {
             intent.getStringExtra(EXTRA_TO_NAME)?.let { name ->
@@ -113,6 +112,7 @@ class NavigateActivity : AppCompatActivity() {
 
     override fun onStart() {
         super.onStart()
+        navMap.onStart()
         NavSession.acquire()
     }
 
@@ -120,27 +120,41 @@ class NavigateActivity : AppCompatActivity() {
         laneCamera?.stop()
         laneCamera = null
         NavSession.release()
+        navMap.onStop()
         super.onStop()
     }
 
     override fun onResume() {
         super.onResume()
-        binding.map.onResume()
-        layers.start()
+        navMap.onResume()
         applyTraffic()
     }
 
     override fun onPause() {
-        layers.stop()
-        traffic.stop()
-        binding.map.removeCallbacks(autoRecenter)
-        binding.map.onPause()
+        navMap.view.removeCallbacks(autoRecenter)
+        navMap.onPause()
         super.onPause()
+    }
+
+    override fun onDestroy() {
+        if (::navMap.isInitialized) navMap.onDestroy()
+        super.onDestroy()
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        navMap.onSaveInstanceState(outState)
+    }
+
+    override fun onLowMemory() {
+        super.onLowMemory()
+        navMap.onLowMemory()
     }
 
     /** After you've looked around the map while driving, it goes back to following the car by itself (like Waze). */
     private val autoRecenter = Runnable {
-        if (NavSession.state.value.navigating && !layers.follow) layers.recenter()
+        val s = NavSession.state.value
+        if (s.navigating && !navMap.follow) navMap.recenter(s)
     }
 
     private fun applyInsets() {
@@ -157,24 +171,55 @@ class NavigateActivity : AppCompatActivity() {
     }
 
     @SuppressLint("ClickableViewAccessibility")
-    private fun setupMap() = with(binding.map) {
-        MapStyle.apply(this, lifecycleScope)
-        setMultiTouchControls(true)
-        zoomController.setVisibility(CustomZoomButtonsController.Visibility.NEVER)
-        isTilesScaledToDpi = true
-        controller.setZoom(16.0)
-        val start = Prefs(this@NavigateActivity).lastRealLocation ?: LatLon.HOME_REGION
-        controller.setCenter(GeoPoint(start.lat, start.lon))
-        layers.attach()
-        setOnTouchListener { _, event ->
+    private fun setupMap(savedInstanceState: Bundle?) {
+        navMap = createMap(savedInstanceState)
+        navMap.view.setOnTouchListener { view, event ->
             when (event.actionMasked) {
-                MotionEvent.ACTION_DOWN -> removeCallbacks(autoRecenter)
-                MotionEvent.ACTION_MOVE -> layers.follow = false
+                MotionEvent.ACTION_DOWN -> view.removeCallbacks(autoRecenter)
+                MotionEvent.ACTION_MOVE -> navMap.follow = false
                 MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL ->
-                    if (!layers.follow && NavSession.state.value.navigating) postDelayed(autoRecenter, AUTO_RECENTER_MS)
+                    if (!navMap.follow && NavSession.state.value.navigating) view.postDelayed(autoRecenter, AUTO_RECENTER_MS)
             }
             false
         }
+    }
+
+    /**
+     * The vector map (MapLibre) when chosen in Settings → Map & routing, in the classic map's place; the classic map
+     * otherwise, or if the vector one can't start on this phone.
+     */
+    private fun createMap(savedInstanceState: Bundle?): NavMap {
+        val prefs = Prefs(this)
+        val start = prefs.lastRealLocation ?: LatLon.HOME_REGION
+        if (prefs.vectorNavMap && !vectorFailed) {
+            try {
+                val vector = VectorNavMap(this, lifecycleScope, start, savedInstanceState) { message ->
+                    runOnUiThread { fallBackToClassic(message) }
+                }
+                val classic = binding.map
+                val parent = classic.parent as ViewGroup
+                parent.addView(vector.view, parent.indexOfChild(classic), androidx.constraintlayout.widget.ConstraintLayout.LayoutParams(
+                    classic.layoutParams as androidx.constraintlayout.widget.ConstraintLayout.LayoutParams
+                ))
+                classic.isVisible = false
+                classic.onDetach()
+                return vector
+            } catch (e: Throwable) {
+                android.util.Log.w(TAG, "vector map couldn't start", e)
+                vectorFailed = true
+                toast(R.string.vector_map_failed)
+            }
+        }
+        return ClassicNavMap(binding.map, lifecycleScope, start)
+    }
+
+    /** The vector map didn't load: carry on with the classic one (until the app is opened again). */
+    private fun fallBackToClassic(message: String) {
+        if (vectorFailed || isFinishing) return
+        vectorFailed = true
+        android.util.Log.w(TAG, "back to the classic map: $message")
+        toast(R.string.vector_map_failed)
+        recreate()
     }
 
     private fun setupControls() {
@@ -195,11 +240,7 @@ class NavigateActivity : AppCompatActivity() {
         binding.modeGroup.addOnButtonCheckedListener { _, id, checked ->
             if (checked) NavSession.setMode(if (id == R.id.modeWalk) TravelMode.WALK else TravelMode.CAR)
         }
-        binding.recenterButton.setOnClickListener {
-            layers.recenter()
-            val s = NavSession.state.value
-            if (s.navigating) render(s) else s.route?.let { layers.fit(it) } ?: s.real?.let { binding.map.controller.animateTo(GeoPoint(it.lat, it.lon)) }
-        }
+        binding.recenterButton.setOnClickListener { navMap.recenter(NavSession.state.value) }
         binding.muteFab.setOnClickListener { NavSession.toggleMute() }
         // Long press: how loud the voice is, right from the driving screen.
         binding.muteFab.setOnLongClickListener {
@@ -220,7 +261,7 @@ class NavigateActivity : AppCompatActivity() {
             finish()
         }
         binding.mainButton.setOnClickListener {
-            layers.follow = true
+            navMap.follow = true
             NavSession.start()
         }
         binding.endButton.setOnClickListener {
@@ -261,7 +302,7 @@ class NavigateActivity : AppCompatActivity() {
         val on = prefs.hasGoogleKey && prefs.trafficOnMap
         binding.trafficFab.setIconTintResource(if (on) R.color.real else R.color.muted)
         androidx.core.view.ViewCompat.setStateDescription(binding.trafficFab, getString(if (on) R.string.tile_on else R.string.tile_off))
-        traffic.show(on)
+        navMap.setTraffic(on)
     }
 
     /** Dark map at night (Settings → Map & routing); not on satellite pictures, which can't be darkened usefully. */
@@ -271,8 +312,7 @@ class NavigateActivity : AppCompatActivity() {
         val night = !satellite && NightMap.isNight(prefs.nightMap, s.real ?: prefs.lastRealLocation, System.currentTimeMillis())
         if (night == nightShown) return
         nightShown = night
-        binding.map.overlayManager.tilesOverlay.setColorFilter(if (night) NightMap.filter else null)
-        binding.map.overlayManager.tilesOverlay.loadingBackgroundColor = ContextCompat.getColor(this, if (night) R.color.ink else R.color.ground)
+        navMap.setNight(night)
     }
 
     // region Drawing
@@ -281,15 +321,9 @@ class NavigateActivity : AppCompatActivity() {
         val navigating = s.navigating
         if (navigating != wasNavigating) {
             wasNavigating = navigating
-            if (navigating) {
-                window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-                binding.map.controller.setZoom(if (s.mode == TravelMode.CAR) 17.5 else 18.5)
-                layers.follow = true
-            } else {
-                window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-                binding.map.mapOrientation = 0f
-                binding.map.setMapCenterOffset(0, 0)
-            }
+            if (navigating) window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+            else window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+            navMap.navigationChanged(navigating, s.mode)
         }
         binding.modeGroup.check(if (s.mode == TravelMode.WALK) R.id.modeWalk else R.id.modeCar)
         binding.fromText.text = s.from?.name ?: getString(R.string.nav_my_location)
@@ -322,10 +356,9 @@ class NavigateActivity : AppCompatActivity() {
         binding.shareFab.isVisible = navigating && s.progress?.arrived == false && s.to != null
         applyNight(s)
         choices.render(s)
-        layers.draw(s)
+        navMap.draw(s)
         renderLanes(s)
         if (navigating) renderDriving(s) else renderPlanning(s)
-        binding.map.invalidate()
     }
 
     private fun renderPlanning(s: NavSession.State) {
@@ -519,7 +552,7 @@ class NavigateActivity : AppCompatActivity() {
                 }
                 binding.stopsContainer.addView(row)
             }
-            layers.setStops(s.stops)
+            navMap.setStops(s.stops)
         }
     }
 
@@ -530,6 +563,10 @@ class NavigateActivity : AppCompatActivity() {
         private const val EXTRA_TO_LON = "to_lon"
         private const val EXTRA_TO_NAME = "to_name"
         private const val AUTO_RECENTER_MS = 10_000L
+        private const val TAG = "NavigateActivity"
+
+        /** The vector map failed once since the app started: use the classic one. */
+        private var vectorFailed = false
 
         fun intent(context: Context, destination: Place? = null) =
             Intent(context, NavigateActivity::class.java).apply {

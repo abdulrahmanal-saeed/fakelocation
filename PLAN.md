@@ -55,4 +55,4 @@ Design (all screens, logo, splash): https://claude.ai/artifact/9FMXf1izujP79r3BA
 | 21 | Real location: blue dot every second with accuracy circle and compass cone, GPS smoothing (Kalman) | Done (v2.5.0) |
 | 22 | Navigation: faster off-route, Google traffic on the map, average-speed zones | Done (v2.6.0) |
 | 23 | Fake movement: smooth trip arrow, faster location updates option | Done (v2.7.0) |
-| 24 | Vector map (MapLibre) for the Navigate screen, beta | Planned (v2.8.0) |
+| 24 | Vector map (MapLibre) for the Navigate screen, beta | Done (v2.8.0) |

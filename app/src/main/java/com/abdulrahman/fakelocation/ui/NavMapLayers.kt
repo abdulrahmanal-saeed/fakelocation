@@ -10,15 +10,12 @@ import com.abdulrahman.fakelocation.R
 import com.abdulrahman.fakelocation.data.LatLon
 import com.abdulrahman.fakelocation.data.Place
 import com.abdulrahman.fakelocation.data.TravelMode
-import com.abdulrahman.fakelocation.nav.CarMotion
-import com.abdulrahman.fakelocation.nav.HeadingSmoother
 import com.abdulrahman.fakelocation.nav.NavIcons
 import com.abdulrahman.fakelocation.nav.NavProgress
 import com.abdulrahman.fakelocation.nav.NavRoute
 import com.abdulrahman.fakelocation.nav.NavSession
 import com.abdulrahman.fakelocation.nav.RoadInfo
 import com.abdulrahman.fakelocation.nav.ZoomPlanner
-import com.abdulrahman.fakelocation.trip.TripTimeline
 import org.osmdroid.util.BoundingBox
 import org.osmdroid.util.GeoPoint
 import org.osmdroid.util.TileSystem
@@ -62,15 +59,12 @@ class NavMapLayers(private val map: MapView) : Choreographer.FrameCallback {
         }
     }
 
-    private val motion = CarMotion()
-    private val heading = HeadingSmoother()
+    private val car = CarTracker()
     private var state: NavSession.State? = null
-    private var lastFixId = -1L
     private var running = false
     private var frameQueued = false
     private var lastFrameAt = 0L
     private var lastLineAt = 0L
-    private var shownHeading = 0f
     private val iconCache = HashMap<Int, BitmapDrawable>()
     /** Where the remaining (green) route starts: where the car is drawn. */
     private var lineFromAlong = 0.0
@@ -84,7 +78,7 @@ class NavMapLayers(private val map: MapView) : Choreographer.FrameCallback {
     fun draw(s: NavSession.State) {
         state = s
         drawRoute(s)
-        takeFix(s)
+        car.takeFix(s, SystemClock.uptimeMillis())
         queueFrame()
     }
 
@@ -152,7 +146,7 @@ class NavMapLayers(private val map: MapView) : Choreographer.FrameCallback {
         val p = s.progress
         if (!s.navigating || r == null || p == null || p.offRouteMeters >= 40) lineFromAlong = 0.0
         drawAhead(r, lineFromAlong)
-        drawTurn(s, r, p)
+        drawTurn(s)
     }
 
     /** The green line and traffic from [from] metres along the route to its end. */
@@ -181,66 +175,24 @@ class NavMapLayers(private val map: MapView) : Choreographer.FrameCallback {
     }
 
     /** A white arrow painted on the road at the next turn, and the lanes to take in a bubble above it. */
-    private fun drawTurn(s: NavSession.State, r: NavRoute?, p: NavProgress?) {
-        val step = p?.nextStep
-        val show = r != null && p != null && step != null && s.navigating && !p.arrived && p.metersToNextStep < 450 &&
-            step.maneuver != com.abdulrahman.fakelocation.nav.Maneuver.ARRIVE && step.maneuver != com.abdulrahman.fakelocation.nav.Maneuver.DEPART
-        if (!show) {
-            turnShaft.setPoints(emptyList())
-            turnHead.setPoints(emptyList())
-        } else {
-            val at = r!!.along[step!!.pointIndex]
-            val start = maxOf(at - 30, p!!.alongMeters)
-            val end = minOf(at + 22, r.length)
-            turnShaft.setPoints(r.slice(start, end).map { GeoPoint(it.lat, it.lon) })
-            val tip = r.pointAt(end)
-            val back = r.pointAt(end - 6)
-            turnHead.setPoints(arrowHead(back, tip).map { GeoPoint(it.lat, it.lon) })
-        }
-        val lanes = if (show) s.lanesFor(step) else emptyList()
-        val wantBubble = lanes.size >= 2 && p != null && p.metersToNextStep < 700
-        if (!wantBubble) {
+    private fun drawTurn(s: NavSession.State) {
+        val arrow = NavShapes.turnArrow(s)
+        turnShaft.setPoints(arrow?.first.orEmpty().map { GeoPoint(it.lat, it.lon) })
+        turnHead.setPoints(arrow?.second.orEmpty().map { GeoPoint(it.lat, it.lon) })
+        val bubble = NavShapes.laneBubble(s)
+        if (bubble == null) {
             if (laneBubbleKey != null) map.overlays.remove(laneBubble)
             laneBubbleKey = null
             return
         }
-        val key = step to lanes
+        val key = bubble.step to bubble.lanes
         if (key != laneBubbleKey) {
             laneBubbleKey = key
-            val at = r!!.pointAt(r.along[step!!.pointIndex] - 12)
-            laneBubble.position = GeoPoint(at.lat, at.lon)
-            laneBubble.icon = BitmapDrawable(context.resources, NavIcons.laneBubble(context, lanes, step.maneuver))
+            laneBubble.position = GeoPoint(bubble.at.lat, bubble.at.lon)
+            laneBubble.icon = BitmapDrawable(context.resources, NavIcons.laneBubble(context, bubble.lanes, bubble.step.maneuver))
             map.overlays.remove(laneBubble)
             map.overlays.add(laneBubble)
         }
-    }
-
-    /** The two short strokes of an arrow head at [tip], pointing away from [back]. */
-    private fun arrowHead(back: LatLon, tip: LatLon): List<LatLon> {
-        val k = Math.cos(Math.toRadians(tip.lat))
-        val dx = (tip.lon - back.lon) * 111_320 * k
-        val dy = (tip.lat - back.lat) * 110_540
-        val len = Math.hypot(dx, dy).takeIf { it > 0 } ?: return emptyList()
-        val ux = dx / len
-        val uy = dy / len
-        fun at(along: Double, side: Double) = LatLon(
-            tip.lat + (uy * along + ux * side) / 110_540,
-            tip.lon + (ux * along - uy * side) / (111_320 * k),
-        )
-        return listOf(at(-9.0, 7.0), tip, at(-9.0, -7.0))
-    }
-
-    /** A new position from the GPS (or estimated in a tunnel): hand it to the motion. */
-    private fun takeFix(s: NavSession.State) {
-        if (s.fixId == lastFixId) return
-        lastFixId = s.fixId
-        val here = s.real ?: return
-        val r = s.route
-        val p = s.progress
-        val onRoute = s.navigating && r != null && p != null && p.offRouteMeters < 25
-        val now = SystemClock.uptimeMillis()
-        if (onRoute) motion.onFix(p!!.snapped, r, p.alongMeters, s.speedKmh / 3.6, s.bearing, now)
-        else motion.onFix(here, null, null, s.speedKmh / 3.6, s.bearing, now)
     }
 
     private fun queueFrame() {
@@ -256,15 +208,11 @@ class NavMapLayers(private val map: MapView) : Choreographer.FrameCallback {
         val now = SystemClock.uptimeMillis()
         val dt = if (lastFrameAt == 0L) 16L else (now - lastFrameAt).coerceIn(0L, 200L)
         lastFrameAt = now
-        val pose = motion.poseAt(now) ?: return
+        val frame = car.frame(s, now) ?: return
         val r = s.route
-        val along = pose.along
-        // On the route, point along the road ahead (steadier than the GPS heading); elsewhere the GPS heading.
-        val target = if (along != null && r != null) TripTimeline.bearing(r.pointAt(along - 5), r.pointAt(along + 15)) else s.bearing
-        val before = shownHeading
-        shownHeading = heading.update(target, now)
-        val zoomed = if (s.navigating && follow && s.mode == TravelMode.CAR) glideZoom(s, pose.position, dt) else false
-        placeCar(s, pose.position, shownHeading)
+        val along = frame.along
+        val zoomed = if (s.navigating && follow && s.mode == TravelMode.CAR) glideZoom(s, frame.position, dt) else false
+        placeCar(s, frame.position, frame.heading)
         // The green line starts under the car; ten times a second is plenty for that.
         if (s.navigating && r != null && along != null && now - lastLineAt > 100) {
             lastLineAt = now
@@ -272,8 +220,7 @@ class NavMapLayers(private val map: MapView) : Choreographer.FrameCallback {
             drawAhead(r, along)
         }
         map.invalidate()
-        val turning = abs(HeadingSmoother.difference(before.toDouble(), target.toDouble())) > 0.3
-        if (motion.moving(now) || turning || zoomed) queueFrame()
+        if (frame.moving || zoomed) queueFrame()
     }
 
     private fun placeCar(s: NavSession.State, pos: LatLon, bearing: Float) {
@@ -302,14 +249,10 @@ class NavMapLayers(private val map: MapView) : Choreographer.FrameCallback {
     /** Glides the zoom toward what the speed and the next turn call for; true while it is still moving. */
     private fun glideZoom(s: NavSession.State, at: LatLon, dt: Long): Boolean {
         val zoom = map.zoomLevelDouble
-        val p = s.progress
-        val step = p?.nextStep
-        val turnAhead = step != null && step.maneuver != com.abdulrahman.fakelocation.nav.Maneuver.DEPART &&
-            step.maneuver != com.abdulrahman.fakelocation.nav.Maneuver.STRAIGHT && !p.arrived
         val pixelsPerMeter = 1.0 / TileSystem.GroundResolution(at.lat, zoom)
         // Room above the car: it sits low on the screen, and the turn card covers the top.
         val ahead = map.height * (0.5 + CAR_LOW - 0.22)
-        val target = ZoomPlanner.target(s.speedKmh.toDouble(), if (turnAhead) p!!.metersToNextStep else null, zoom, pixelsPerMeter, ahead)
+        val target = ZoomPlanner.target(s.speedKmh.toDouble(), ZoomPlanner.metersToTurn(s.progress), zoom, pixelsPerMeter, ahead)
         if (abs(target - zoom) < 0.01) return false
         map.controller.setZoom(ZoomPlanner.ease(zoom, target, dt))
         return true

@@ -1,7 +1,6 @@
 package com.abdulrahman.fakelocation.ui
 
 import android.content.res.ColorStateList
-import android.graphics.Paint
 import android.view.Gravity
 import android.widget.LinearLayout
 import android.widget.TextView
@@ -15,18 +14,15 @@ import com.abdulrahman.fakelocation.databinding.ActivityNavigateBinding
 import com.abdulrahman.fakelocation.drive.Fuel
 import com.abdulrahman.fakelocation.nav.NavRoute
 import com.abdulrahman.fakelocation.nav.NavSession
-import org.osmdroid.util.GeoPoint
-import org.osmdroid.views.overlay.Polyline
 
 /**
- * Before starting: the other ways to go, as cards (time · distance · cost) under the ETA and as grey lines on the
- * map. Tapping either picks that way.
+ * Before starting: the other ways to go, as cards (time · distance · cost) under the ETA (the map draws them as grey
+ * lines). Tapping either picks that way.
  */
 class RouteChoices(private val binding: ActivityNavigateBinding) {
 
     private val context = binding.root.context
     private val density = context.resources.displayMetrics.density
-    private val lines = mutableListOf<Polyline>()
     private var shown: Pair<List<NavRoute>, NavRoute?>? = null
 
     fun render(s: NavSession.State) {
@@ -36,8 +32,6 @@ class RouteChoices(private val binding: ActivityNavigateBinding) {
         shown = key
         binding.routeOptionsScroll.isVisible = options.size > 1
         binding.routeOptions.removeAllViews()
-        lines.forEach { binding.map.overlays.remove(it) }
-        lines.clear()
         if (options.size < 2) return
         val fastest = options.minOf { it.durationSeconds }
         options.forEachIndexed { i, route ->
@@ -45,20 +39,7 @@ class RouteChoices(private val binding: ActivityNavigateBinding) {
             binding.routeOptions.addView(card(route, i, chosen, fastest, s.mode), LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT,
             ).apply { marginEnd = (8 * density).toInt() })
-            if (!chosen) {
-                lines += Polyline(binding.map).apply {
-                    outlinePaint.color = ContextCompat.getColor(context, R.color.muted_light)
-                    outlinePaint.strokeWidth = 8 * density
-                    outlinePaint.strokeCap = Paint.Cap.ROUND
-                    outlinePaint.strokeJoin = Paint.Join.ROUND
-                    setPoints(route.points.map { GeoPoint(it.lat, it.lon) })
-                    setOnClickListener { _, _, _ -> NavSession.chooseRoute(i); true }
-                }
-            }
         }
-        // Under the chosen (green) route, so it stays on top.
-        binding.map.overlays.addAll(0, lines)
-        binding.map.invalidate()
     }
 
     private fun card(route: NavRoute, index: Int, chosen: Boolean, fastest: Double, mode: TravelMode) = TextView(context).apply {
