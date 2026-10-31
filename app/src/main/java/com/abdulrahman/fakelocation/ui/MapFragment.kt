@@ -63,6 +63,7 @@ class MapFragment : Fragment(R.layout.fragment_map) {
     private lateinit var prefs: Prefs
     private lateinit var places: PlacesRepository
     private lateinit var fakeMarker: Marker
+    private lateinit var fakeGlide: MarkerGlide
     private lateinit var realDot: RealDot
     private lateinit var selectionMarker: Marker
     private val fusedClient by lazy { LocationServices.getFusedLocationProviderClient(requireContext()) }
@@ -147,11 +148,15 @@ class MapFragment : Fragment(R.layout.fragment_map) {
         applyMapStyle()
         binding.map.onResume()
         updateRealLocationTracking()
+        tripView?.start()
+        fakeGlide.start()
     }
 
     override fun onPause() {
         // Leaving the screen lets go of the joystick: the fake position stops where it is.
         MockState.joystick.value?.let { MockState.joystick.value = it.copy(speedMps = 0.0) }
+        tripView?.stop()
+        fakeGlide.stop()
         binding.map.onPause()
         stopRealLocationTracking()
         super.onPause()
@@ -161,6 +166,7 @@ class MapFragment : Fragment(R.layout.fragment_map) {
         super.onHiddenChanged(hidden)
         if (!hidden) applyMapStyle()
         if (hidden) stopRealLocationTracking() else updateRealLocationTracking()
+        if (hidden) tripView?.stop() else if (isResumed) tripView?.start()
     }
 
     override fun onDestroyView() {
@@ -236,6 +242,7 @@ class MapFragment : Fragment(R.layout.fragment_map) {
             setInfoWindow(null)
             setOnMarkerClickListener { _, _ -> true }
         }
+        fakeGlide = MarkerGlide(this, fakeMarker)
         selectionMarker = Marker(this).apply {
             icon = ContextCompat.getDrawable(requireContext(), R.drawable.marker_fake)?.mutate()?.apply { alpha = 150 }
             setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
@@ -398,7 +405,10 @@ class MapFragment : Fragment(R.layout.fragment_map) {
     // endregion
 
     private fun renderTrip(trip: com.abdulrahman.fakelocation.mock.TripUi) {
-        val view = tripView ?: TripView(binding).also { tripView = it }
+        val view = tripView ?: TripView(binding).also {
+            tripView = it
+            if (isResumed && !isHidden) it.start()
+        }
         if (!tripShown) {
             tripShown = true
             timerHandler.removeCallbacks(timerTick)
@@ -434,14 +444,17 @@ class MapFragment : Fragment(R.layout.fragment_map) {
         }
         binding.idlePanel.isVisible = session == null
         binding.activePanel.isVisible = session != null && !joystickOpen
-        if (session != null && joystickOpen) map.controller.setCenter(GeoPoint(session.position.lat, session.position.lon))
+        fakeGlide.follow = session != null && joystickOpen
         binding.activePill.isVisible = session != null
         binding.chipsScroll.isVisible = session == null
         timerHandler.removeCallbacks(timerTick)
         if (session == null) {
             map.overlays.remove(fakeMarker)
+            fakeGlide.reset()
         } else {
-            fakeMarker.position = GeoPoint(session.position.lat, session.position.lon)
+            // The joystick moves it a little at a time: glide, carrying on at the stick's speed between updates.
+            val stick = MockState.joystick.value
+            fakeGlide.moveTo(session.position, stick?.speedMps ?: 0.0, stick?.bearing?.toFloat() ?: 0f)
             if (!map.overlays.contains(fakeMarker)) map.overlays.add(fakeMarker)
             map.overlays.remove(selectionMarker)
             binding.activeName.text = session.name

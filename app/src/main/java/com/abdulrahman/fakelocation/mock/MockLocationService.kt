@@ -54,8 +54,13 @@ class MockLocationService : LifecycleService() {
             } catch (e: Exception) {
                 Log.w(TAG, "tick failed", e)
             }
-            val fast = trip == null && MockState.joystick.value != null
-            if (trip != null || session != null) handler.postDelayed(this, if (fast) JOYSTICK_INTERVAL_MS else PUSH_INTERVAL_MS)
+            // Moving (a trip or the joystick): as often as chosen in Settings → Fake movement; a still spot once a second.
+            val moving = trip != null || MockState.joystick.value != null
+            val every = if (!moving) PUSH_INTERVAL_MS else {
+                val chosen = 1000L / prefs.fakeUpdatesPerSecond.coerceIn(1, 10)
+                if (trip == null) minOf(chosen, JOYSTICK_INTERVAL_MS) else chosen
+            }
+            if (trip != null || session != null) handler.postDelayed(this, every)
         }
     }
 
@@ -188,6 +193,9 @@ class MockLocationService : LifecycleService() {
         restartTicks()
     }
 
+    /** When the notification, alarms and map were last brought up to date (they only need it once a second). */
+    private var lastFullTick = 0L
+
     private fun tickTrip() {
         val run = trip ?: return
         val now = System.currentTimeMillis()
@@ -203,6 +211,9 @@ class MockLocationService : LifecycleService() {
             if (!ensureMocking()) return
             push(point.position, point.bearing, point.speedMps, run.natural)
         }
+        // Between once-a-second updates only the position is sent.
+        if (now - lastFullTick < FULL_TICK_MS && point.phase != TripPhase.FINISHED) return
+        lastFullTick = now
 
         trackStopHistory(run, point, now)
 
@@ -283,6 +294,7 @@ class MockLocationService : LifecycleService() {
             }
         }
         saveTrip()
+        lastFullTick = 0L
         handler.removeCallbacks(tick)
         handler.post(tick)
         lastSurfaceKey = null
@@ -320,16 +332,22 @@ class MockLocationService : LifecycleService() {
         }
     }
 
+    private var lastPushAt = 0L
+
     private fun push(position: LatLon, bearing: Float, speed: Float, natural: Boolean) {
+        val now = SystemClock.elapsedRealtime()
+        val seconds = if (lastPushAt == 0L) 1.0 else (now - lastPushAt) / 1000.0
+        lastPushAt = now
         if (!natural) {
             mocker.push(position.lat, position.lon, bearing, speed)
             return
         }
-        val (lat, lon, accuracy) = drift.apply(position)
+        val (lat, lon, accuracy) = drift.apply(position, seconds)
         mocker.push(lat, lon, bearing, speed, accuracy)
     }
 
     private fun restartTicks() {
+        lastFullTick = 0L
         handler.removeCallbacks(tick)
         handler.post(tick)
     }
@@ -408,6 +426,7 @@ class MockLocationService : LifecycleService() {
         private const val TAG = "MockLocationService"
         private const val PUSH_INTERVAL_MS = 1000L
         private const val JOYSTICK_INTERVAL_MS = 500L
+        private const val FULL_TICK_MS = 950L
         private const val SESSION_SAVE_MS = 5_000L
         private const val SURFACE_REFRESH_MS = 30_000L
         private const val ACTION_TELEPORT = "teleport"

@@ -147,6 +147,11 @@ class Prefs(context: Context) {
         get() = prefs.getString("google_traffic_session", null)
         set(value) = prefs.edit { if (value == null) remove("google_traffic_session") else putString("google_traffic_session", value) }
 
+    /** How many times a second a moving fake location is sent (1, 2 or 5). */
+    var fakeUpdatesPerSecond: Int
+        get() = prefs.getInt("fake_updates_per_second", 1)
+        set(value) = prefs.edit { putInt("fake_updates_per_second", value) }
+
     /** Live traffic drawn on the navigation map (with a Google key). */
     var trafficOnMap: Boolean
         get() = prefs.getBoolean("traffic_on_map", true)
@@ -310,12 +315,12 @@ class Prefs(context: Context) {
          * stays out, and so does the lane camera, which needs the camera permission on the new phone first.
          */
         val BACKUP_SETTINGS: Map<String, SettingType> = buildMap {
-            for (key in listOf("alert_arrive", "alert_leave", "traffic", "map_cache_mb", "parking_alert_min", "parking_hours")) {
+            for (key in listOf("alert_arrive", "alert_leave", "traffic", "map_cache_mb", "parking_alert_min", "parking_hours", "fake_updates_per_second")) {
                 put(key, SettingType.INT)
             }
             for (key in listOf(
                 "ring_silent", "vibrate", "natural", "google_routes", "google_search", "nav_muted", "lane_guidance",
-                "pause_music", "voice_call", "avoid_tolls", "avoid_highways",
+                "pause_music", "voice_call", "avoid_tolls", "avoid_highways", "traffic_on_map",
             )) put(key, SettingType.BOOLEAN)
             for (key in listOf("nav_speech_rate", "fuel_consumption") + FUEL_PRICES) put(key, SettingType.FLOAT)
             for (key in listOf(
@@ -326,7 +331,7 @@ class Prefs(context: Context) {
 
         // What "Reset to defaults" clears on each Settings page. The plate and the Google key are kept.
         val RESET_ALERTS = listOf("alert_arrive", "alert_leave", "ring_silent", "vibrate")
-        val RESET_MOVEMENT = listOf("natural", "traffic")
+        val RESET_MOVEMENT = listOf("natural", "traffic", "fake_updates_per_second")
         val RESET_LANES = listOf("lane_guidance", "lane_camera", "nav_voice", "voice_level", "pause_music", "voice_call", "nav_speech_rate")
         val RESET_COSTS = listOf("fuel_type", "fuel_consumption", "parking_alert_min") + FUEL_PRICES
         val RESET_GOOGLE = listOf("map_provider", "google_routes", "google_search", "google_tile_session")
