@@ -63,7 +63,7 @@ class MapFragment : Fragment(R.layout.fragment_map) {
     private lateinit var prefs: Prefs
     private lateinit var places: PlacesRepository
     private lateinit var fakeMarker: Marker
-    private lateinit var realMarker: Marker
+    private lateinit var realDot: RealDot
     private lateinit var selectionMarker: Marker
     private val fusedClient by lazy { LocationServices.getFusedLocationProviderClient(requireContext()) }
     private var trackingRealLocation = false
@@ -81,7 +81,7 @@ class MapFragment : Fragment(R.layout.fragment_map) {
             if (location.isMockCompat() || MockState.isFaking) return
             val real = LatLon(location.latitude, location.longitude)
             prefs.lastRealLocation = real
-            showRealMarker(real)
+            realDot.onFix(location)
             if (centerOnNextRealFix) {
                 centerOnNextRealFix = false
                 binding.map.controller.animateTo(GeoPoint(real.lat, real.lon), 16.0, 600L)
@@ -229,12 +229,7 @@ class MapFragment : Fragment(R.layout.fragment_map) {
         val start = prefs.activeSession?.position ?: prefs.lastRealLocation ?: LatLon.HOME_REGION
         controller.setCenter(GeoPoint(start.lat, start.lon))
 
-        realMarker = Marker(this).apply {
-            icon = ContextCompat.getDrawable(requireContext(), R.drawable.marker_real)
-            setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
-            setInfoWindow(null)
-            setOnMarkerClickListener { _, _ -> true }
-        }
+        realDot = RealDot(this).also { it.attach() }
         fakeMarker = Marker(this).apply {
             icon = ContextCompat.getDrawable(requireContext(), R.drawable.marker_fake)
             setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
@@ -255,7 +250,7 @@ class MapFragment : Fragment(R.layout.fragment_map) {
                 return true
             }
         }))
-        prefs.lastRealLocation?.let { showRealMarker(it) }
+        prefs.lastRealLocation?.let { realDot.showStill(it) }
     }
 
     private fun setupControls() {
@@ -514,11 +509,6 @@ class MapFragment : Fragment(R.layout.fragment_map) {
         }
     }
 
-    private fun showRealMarker(real: LatLon) {
-        realMarker.position = GeoPoint(real.lat, real.lon)
-        if (!binding.map.overlays.contains(realMarker)) binding.map.overlays.add(realMarker)
-        binding.map.invalidate()
-    }
 
     /** Track the real GPS only while the fake location is off and the map is on screen. */
     @SuppressLint("MissingPermission")
@@ -526,9 +516,11 @@ class MapFragment : Fragment(R.layout.fragment_map) {
         val shouldTrack = isAdded && !isHidden && requireContext().hasLocationPermission() &&
             !MockState.isFaking && lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)
         if (shouldTrack && !trackingRealLocation) {
-            val request = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 5_000L).build()
+            // Every second while the map is on screen, so the blue dot moves smoothly (it stops when the map is hidden).
+            val request = LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 1_000L).setMinUpdateIntervalMillis(500L).build()
             fusedClient.requestLocationUpdates(request, realLocationCallback, Looper.getMainLooper())
             trackingRealLocation = true
+            realDot.start()
         } else if (!shouldTrack) {
             stopRealLocationTracking()
         }
@@ -538,6 +530,7 @@ class MapFragment : Fragment(R.layout.fragment_map) {
         if (!trackingRealLocation) return
         fusedClient.removeLocationUpdates(realLocationCallback)
         trackingRealLocation = false
+        if (::realDot.isInitialized) realDot.stop()
     }
 }
 
