@@ -65,6 +65,15 @@ class PlacesRepository private constructor(private val file: File) {
         save()
     }
 
+    /** Everything at once, from a restored backup. A visit running right now stays in the history. */
+    @Synchronized
+    fun replaceAll(favorites: List<Favorite>, history: List<HistoryEntry>) {
+        val running = _history.value.filter { it.endedAt == null && history.none { h -> h.id == it.id } }
+        _favorites.value = favorites
+        _history.value = (running + history).take(MAX_HISTORY)
+        save()
+    }
+
     private fun newId(): Long = System.nanoTime()
 
     private fun load() {

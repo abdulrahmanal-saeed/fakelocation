@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:id="@+id/root"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
@@ -12,292 +13,498 @@
         android:paddingHorizontal="20dp"
         android:paddingBottom="24dp">
 
-        <TextView
-            style="@style/Text.Heading"
-            android:layout_width="wrap_content"
+        <!-- Header: "Settings" on the main page; back arrow + the page's name on a page. -->
+        <LinearLayout
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="20dp"
-            android:text="@string/nav_settings" />
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
 
-        <TextView style="@style/SettingsSection" android:text="@string/alerts_section" />
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/backButton"
+                style="@style/MapFab"
+                android:layout_width="44dp"
+                android:layout_height="44dp"
+                android:layout_marginEnd="12dp"
+                android:contentDescription="@string/back"
+                android:visibility="gone"
+                app:cornerRadius="14dp"
+                app:icon="@drawable/ic_back" />
 
-        <LinearLayout style="@style/SettingsCard">
+            <TextView
+                android:id="@+id/pageTitle"
+                style="@style/Text.Heading"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="@string/nav_settings" />
+        </LinearLayout>
 
-            <LinearLayout android:id="@+id/arriveRow" style="@style/SettingsRow.Clickable">
-                <TextView style="@style/SettingsRowLabel" android:text="@string/alert_before_arriving" />
-                <TextView android:id="@+id/arriveValue" style="@style/SettingsRowValue.Accent" />
-            </LinearLayout>
+        <!-- ============ Main page ============ -->
+        <LinearLayout
+            android:id="@+id/mainPage"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical">
 
-            <View style="@style/Divider" />
+            <TextView style="@style/SettingsSection" android:text="@string/health_section" />
 
-            <LinearLayout android:id="@+id/leaveRow" style="@style/SettingsRow.Clickable">
-                <TextView style="@style/SettingsRowLabel" android:text="@string/alert_before_leaving" />
-                <TextView android:id="@+id/leaveValue" style="@style/SettingsRowValue.Accent" />
-            </LinearLayout>
+            <LinearLayout style="@style/SettingsCard">
 
-            <View style="@style/Divider" />
-
-            <LinearLayout style="@style/SettingsRow">
-                <LinearLayout style="@style/SettingsRowText">
-                    <TextView style="@style/Text.Item" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/ring_in_silent" />
-                    <TextView style="@style/Text.Caption" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/ring_in_silent_hint" android:textSize="12sp" />
+                <LinearLayout style="@style/SettingsRow">
+                    <TextView android:id="@+id/healthBadge" style="@style/HealthBadge" />
+                    <LinearLayout style="@style/SettingsRowText">
+                        <TextView android:id="@+id/healthTitle" style="@style/Text.Item" android:layout_width="wrap_content" android:layout_height="wrap_content" />
+                        <TextView android:id="@+id/healthSubtitle" style="@style/Text.Caption" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textSize="12sp" />
+                    </LinearLayout>
                 </LinearLayout>
-                <com.google.android.material.materialswitch.MaterialSwitch android:id="@+id/silentSwitch" android:layout_width="wrap_content" android:layout_height="wrap_content" android:contentDescription="@string/ring_in_silent" />
-            </LinearLayout>
 
-            <View style="@style/Divider" />
+                <LinearLayout
+                    android:id="@+id/healthList"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical" />
 
-            <LinearLayout style="@style/SettingsRow">
-                <LinearLayout style="@style/SettingsRowText">
-                    <TextView style="@style/Text.Item" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/vibrate" />
-                    <TextView style="@style/Text.Caption" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/vibrate_hint" android:textSize="12sp" />
+                <View style="@style/Divider" />
+
+                <LinearLayout android:id="@+id/setupRow" style="@style/SettingsRow.Clickable">
+                    <TextView style="@style/SettingsRowLabel" android:text="@string/setup_guide" />
+                    <ImageView style="@style/SettingsChevron" />
                 </LinearLayout>
-                <com.google.android.material.materialswitch.MaterialSwitch android:id="@+id/vibrateSwitch" android:layout_width="wrap_content" android:layout_height="wrap_content" android:contentDescription="@string/vibrate" />
             </LinearLayout>
 
-            <View android:id="@+id/fullScreenDivider" style="@style/Divider" />
+            <LinearLayout style="@style/SettingsCard" android:layout_marginTop="20dp">
 
-            <LinearLayout android:id="@+id/fullScreenRow" style="@style/SettingsRow.Clickable">
-                <LinearLayout style="@style/SettingsRowText">
-                    <TextView style="@style/Text.Item" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/full_screen_alarms" />
-                    <TextView android:id="@+id/fullScreenStatus" style="@style/Text.Caption" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textSize="12sp" />
+                <LinearLayout android:id="@+id/openAlerts" style="@style/SettingsRow.Clickable">
+                    <LinearLayout style="@style/SettingsRowText">
+                        <TextView style="@style/Text.Item" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/page_alerts" />
+                        <TextView style="@style/Text.Caption" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/page_alerts_hint" android:textSize="12sp" />
+                    </LinearLayout>
+                    <ImageView style="@style/SettingsChevron" />
                 </LinearLayout>
-                <ImageView style="@style/SettingsChevron" />
+
+                <View style="@style/Divider" />
+
+                <LinearLayout android:id="@+id/openMovement" style="@style/SettingsRow.Clickable">
+                    <LinearLayout style="@style/SettingsRowText">
+                        <TextView style="@style/Text.Item" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/page_movement" />
+                        <TextView style="@style/Text.Caption" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/page_movement_hint" android:textSize="12sp" />
+                    </LinearLayout>
+                    <ImageView style="@style/SettingsChevron" />
+                </LinearLayout>
+
+                <View style="@style/Divider" />
+
+                <LinearLayout android:id="@+id/openLanes" style="@style/SettingsRow.Clickable">
+                    <LinearLayout style="@style/SettingsRowText">
+                        <TextView style="@style/Text.Item" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/page_lanes" />
+                        <TextView style="@style/Text.Caption" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/page_lanes_hint" android:textSize="12sp" />
+                    </LinearLayout>
+                    <ImageView style="@style/SettingsChevron" />
+                </LinearLayout>
+
+                <View style="@style/Divider" />
+
+                <LinearLayout android:id="@+id/openCosts" style="@style/SettingsRow.Clickable">
+                    <LinearLayout style="@style/SettingsRowText">
+                        <TextView style="@style/Text.Item" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/page_costs" />
+                        <TextView style="@style/Text.Caption" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/page_costs_hint" android:textSize="12sp" />
+                    </LinearLayout>
+                    <ImageView style="@style/SettingsChevron" />
+                </LinearLayout>
+
+                <View style="@style/Divider" />
+
+                <LinearLayout android:id="@+id/openGoogle" style="@style/SettingsRow.Clickable">
+                    <LinearLayout style="@style/SettingsRowText">
+                        <TextView style="@style/Text.Item" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/page_google" />
+                        <TextView android:id="@+id/googleSummary" style="@style/Text.Caption" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textSize="12sp" />
+                    </LinearLayout>
+                    <ImageView style="@style/SettingsChevron" />
+                </LinearLayout>
+
+                <View style="@style/Divider" />
+
+                <LinearLayout android:id="@+id/openMap" style="@style/SettingsRow.Clickable">
+                    <LinearLayout style="@style/SettingsRowText">
+                        <TextView style="@style/Text.Item" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/page_map" />
+                        <TextView style="@style/Text.Caption" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/page_map_hint" android:textSize="12sp" />
+                    </LinearLayout>
+                    <ImageView style="@style/SettingsChevron" />
+                </LinearLayout>
+
+                <View style="@style/Divider" />
+
+                <LinearLayout android:id="@+id/openBackup" style="@style/SettingsRow.Clickable">
+                    <LinearLayout style="@style/SettingsRowText">
+                        <TextView style="@style/Text.Item" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/page_backup" />
+                        <TextView style="@style/Text.Caption" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/page_backup_hint" android:textSize="12sp" />
+                    </LinearLayout>
+                    <ImageView style="@style/SettingsChevron" />
+                </LinearLayout>
             </LinearLayout>
 
-            <View style="@style/Divider" />
+            <TextView style="@style/SettingsSection" android:text="@string/about_section" />
 
-            <LinearLayout android:id="@+id/testAlarmRow" style="@style/SettingsRow.Clickable">
-                <TextView style="@style/SettingsRowLabel" android:text="@string/test_alarm" />
-                <ImageView style="@style/SettingsChevron" />
+            <LinearLayout style="@style/SettingsCard">
+
+                <LinearLayout style="@style/SettingsRow">
+                    <TextView style="@style/SettingsRowLabel" android:text="@string/version" />
+                    <TextView android:id="@+id/versionText" style="@style/SettingsRowValue" />
+                </LinearLayout>
+
+                <View style="@style/Divider" />
+
+                <LinearLayout style="@style/SettingsRow">
+                    <TextView style="@style/SettingsRowLabel" android:text="@string/map_credit" android:textSize="13sp" android:textStyle="normal" />
+                </LinearLayout>
             </LinearLayout>
         </LinearLayout>
 
-        <TextView style="@style/SettingsSection" android:text="@string/movement_section" />
+        <!-- ============ Alerts ============ -->
+        <LinearLayout android:id="@+id/alertsPage" style="@style/SettingsPage">
 
-        <LinearLayout style="@style/SettingsCard">
+            <LinearLayout style="@style/SettingsCard">
 
-            <LinearLayout style="@style/SettingsRow">
-                <LinearLayout style="@style/SettingsRowText">
-                    <TextView style="@style/Text.Item" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/natural_movement" />
-                    <TextView style="@style/Text.Caption" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/natural_movement_hint" android:textSize="12sp" />
+                <LinearLayout android:id="@+id/arriveRow" style="@style/SettingsRow.Clickable">
+                    <TextView style="@style/SettingsRowLabel" android:text="@string/alert_before_arriving" />
+                    <TextView android:id="@+id/arriveValue" style="@style/SettingsRowValue.Accent" />
                 </LinearLayout>
-                <com.google.android.material.materialswitch.MaterialSwitch android:id="@+id/naturalSwitch" android:layout_width="wrap_content" android:layout_height="wrap_content" android:contentDescription="@string/natural_movement" />
-            </LinearLayout>
 
-            <View style="@style/Divider" />
+                <View style="@style/Divider" />
 
-            <LinearLayout android:id="@+id/trafficRow" style="@style/SettingsRow.Clickable">
-                <TextView style="@style/SettingsRowLabel" android:text="@string/traffic" />
-                <TextView android:id="@+id/trafficValue" style="@style/SettingsRowValue.Accent" />
+                <LinearLayout android:id="@+id/leaveRow" style="@style/SettingsRow.Clickable">
+                    <TextView style="@style/SettingsRowLabel" android:text="@string/alert_before_leaving" />
+                    <TextView android:id="@+id/leaveValue" style="@style/SettingsRowValue.Accent" />
+                </LinearLayout>
+
+                <View style="@style/Divider" />
+
+                <LinearLayout style="@style/SettingsRow">
+                    <LinearLayout style="@style/SettingsRowText">
+                        <TextView style="@style/Text.Item" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/ring_in_silent" />
+                        <TextView style="@style/Text.Caption" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/ring_in_silent_hint" android:textSize="12sp" />
+                    </LinearLayout>
+                    <com.google.android.material.materialswitch.MaterialSwitch android:id="@+id/silentSwitch" android:layout_width="wrap_content" android:layout_height="wrap_content" android:contentDescription="@string/ring_in_silent" />
+                </LinearLayout>
+
+                <View style="@style/Divider" />
+
+                <LinearLayout style="@style/SettingsRow">
+                    <LinearLayout style="@style/SettingsRowText">
+                        <TextView style="@style/Text.Item" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/vibrate" />
+                        <TextView style="@style/Text.Caption" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/vibrate_hint" android:textSize="12sp" />
+                    </LinearLayout>
+                    <com.google.android.material.materialswitch.MaterialSwitch android:id="@+id/vibrateSwitch" android:layout_width="wrap_content" android:layout_height="wrap_content" android:contentDescription="@string/vibrate" />
+                </LinearLayout>
+
+                <View android:id="@+id/fullScreenDivider" style="@style/Divider" />
+
+                <LinearLayout android:id="@+id/fullScreenRow" style="@style/SettingsRow.Clickable">
+                    <LinearLayout style="@style/SettingsRowText">
+                        <TextView style="@style/Text.Item" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/full_screen_alarms" />
+                        <TextView android:id="@+id/fullScreenStatus" style="@style/Text.Caption" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textSize="12sp" />
+                    </LinearLayout>
+                    <ImageView style="@style/SettingsChevron" />
+                </LinearLayout>
+
+                <View style="@style/Divider" />
+
+                <LinearLayout android:id="@+id/testAlarmRow" style="@style/SettingsRow.Clickable">
+                    <TextView style="@style/SettingsRowLabel" android:text="@string/test_alarm" />
+                    <ImageView style="@style/SettingsChevron" />
+                </LinearLayout>
             </LinearLayout>
         </LinearLayout>
 
-        <TextView style="@style/SettingsSection" android:text="@string/settings_lanes" />
+        <!-- ============ Fake movement ============ -->
+        <LinearLayout android:id="@+id/movementPage" style="@style/SettingsPage">
 
-        <LinearLayout style="@style/SettingsCard">
+            <LinearLayout style="@style/SettingsCard">
 
-            <LinearLayout style="@style/SettingsRow">
-                <LinearLayout style="@style/SettingsRowText">
-                    <TextView style="@style/Text.Item" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/settings_lane_guidance" />
-                    <TextView style="@style/Text.Caption" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/settings_lane_guidance_hint" android:textSize="12sp" />
+                <LinearLayout style="@style/SettingsRow">
+                    <LinearLayout style="@style/SettingsRowText">
+                        <TextView style="@style/Text.Item" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/natural_movement" />
+                        <TextView style="@style/Text.Caption" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/natural_movement_hint" android:textSize="12sp" />
+                    </LinearLayout>
+                    <com.google.android.material.materialswitch.MaterialSwitch android:id="@+id/naturalSwitch" android:layout_width="wrap_content" android:layout_height="wrap_content" android:contentDescription="@string/natural_movement" />
                 </LinearLayout>
-                <com.google.android.material.materialswitch.MaterialSwitch android:id="@+id/laneGuidanceSwitch" android:layout_width="wrap_content" android:layout_height="wrap_content" android:contentDescription="@string/settings_lane_guidance" />
-            </LinearLayout>
 
-            <View style="@style/Divider" />
+                <View style="@style/Divider" />
 
-            <LinearLayout style="@style/SettingsRow">
-                <LinearLayout style="@style/SettingsRowText">
-                    <TextView style="@style/Text.Item" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/settings_lane_camera" />
-                    <TextView style="@style/Text.Caption" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/settings_lane_camera_hint" android:textSize="12sp" />
+                <LinearLayout android:id="@+id/trafficRow" style="@style/SettingsRow.Clickable">
+                    <TextView style="@style/SettingsRowLabel" android:text="@string/traffic" />
+                    <TextView android:id="@+id/trafficValue" style="@style/SettingsRowValue.Accent" />
                 </LinearLayout>
-                <com.google.android.material.materialswitch.MaterialSwitch android:id="@+id/laneCameraSwitch" android:layout_width="wrap_content" android:layout_height="wrap_content" android:contentDescription="@string/settings_lane_camera" />
-            </LinearLayout>
-
-            <View style="@style/Divider" />
-
-            <LinearLayout style="@style/SettingsRow">
-                <TextView style="@style/SettingsRowLabel" android:text="@string/settings_gnss" />
-                <TextView android:id="@+id/gnssValue" style="@style/SettingsRowValue" />
-            </LinearLayout>
-
-            <View style="@style/Divider" />
-
-            <LinearLayout android:id="@+id/voiceRow" style="@style/SettingsRow.Clickable">
-                <TextView style="@style/SettingsRowLabel" android:text="@string/settings_voice" />
-                <TextView android:id="@+id/voiceValue" style="@style/SettingsRowValue.Accent" />
-            </LinearLayout>
-
-            <View style="@style/Divider" />
-
-            <LinearLayout android:id="@+id/voiceLevelRow" style="@style/SettingsRow.Clickable">
-                <TextView style="@style/SettingsRowLabel" android:text="@string/settings_voice_level" />
-                <TextView android:id="@+id/voiceLevelValue" style="@style/SettingsRowValue.Accent" />
-            </LinearLayout>
-
-            <View style="@style/Divider" />
-
-            <LinearLayout android:id="@+id/musicRow" style="@style/SettingsRow.Clickable">
-                <TextView style="@style/SettingsRowLabel" android:text="@string/settings_music" />
-                <TextView android:id="@+id/musicValue" style="@style/SettingsRowValue.Accent" />
-            </LinearLayout>
-
-            <View style="@style/Divider" />
-
-            <LinearLayout style="@style/SettingsRow">
-                <LinearLayout style="@style/SettingsRowText">
-                    <TextView style="@style/Text.Item" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/settings_voice_call" />
-                    <TextView style="@style/Text.Caption" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/settings_voice_call_hint" android:textSize="12sp" />
-                </LinearLayout>
-                <com.google.android.material.materialswitch.MaterialSwitch android:id="@+id/voiceCallSwitch" android:layout_width="wrap_content" android:layout_height="wrap_content" android:contentDescription="@string/settings_voice_call" />
-            </LinearLayout>
-
-            <View style="@style/Divider" />
-
-            <LinearLayout android:id="@+id/voiceRateRow" style="@style/SettingsRow.Clickable">
-                <TextView style="@style/SettingsRowLabel" android:text="@string/settings_voice_rate" />
-                <TextView android:id="@+id/voiceRateValue" style="@style/SettingsRowValue.Accent" />
-            </LinearLayout>
-
-            <View style="@style/Divider" />
-
-            <LinearLayout android:id="@+id/testVoiceRow" style="@style/SettingsRow.Clickable">
-                <TextView style="@style/SettingsRowLabel" android:text="@string/settings_voice_test" />
-                <ImageView style="@style/SettingsChevron" />
             </LinearLayout>
         </LinearLayout>
 
-        <TextView style="@style/SettingsSection" android:text="@string/settings_costs" />
+        <!-- ============ Lanes & voice ============ -->
+        <LinearLayout android:id="@+id/lanesPage" style="@style/SettingsPage">
 
-        <LinearLayout style="@style/SettingsCard">
+            <LinearLayout style="@style/SettingsCard">
 
-            <LinearLayout android:id="@+id/fuelTypeRow" style="@style/SettingsRow.Clickable">
-                <TextView style="@style/SettingsRowLabel" android:text="@string/settings_fuel_type" />
-                <TextView android:id="@+id/fuelTypeValue" style="@style/SettingsRowValue.Accent" />
-            </LinearLayout>
-
-            <View style="@style/Divider" />
-
-            <LinearLayout android:id="@+id/fuelPriceRow" style="@style/SettingsRow.Clickable">
-                <LinearLayout style="@style/SettingsRowText">
-                    <TextView style="@style/Text.Item" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/settings_fuel_price" />
-                    <TextView android:id="@+id/fuelPriceHint" style="@style/Text.Caption" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textSize="12sp" />
+                <LinearLayout style="@style/SettingsRow">
+                    <LinearLayout style="@style/SettingsRowText">
+                        <TextView style="@style/Text.Item" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/settings_lane_guidance" />
+                        <TextView style="@style/Text.Caption" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/settings_lane_guidance_hint" android:textSize="12sp" />
+                    </LinearLayout>
+                    <com.google.android.material.materialswitch.MaterialSwitch android:id="@+id/laneGuidanceSwitch" android:layout_width="wrap_content" android:layout_height="wrap_content" android:contentDescription="@string/settings_lane_guidance" />
                 </LinearLayout>
-                <TextView android:id="@+id/fuelPriceValue" style="@style/SettingsRowValue.Accent" />
-            </LinearLayout>
 
-            <View style="@style/Divider" />
+                <View style="@style/Divider" />
 
-            <LinearLayout android:id="@+id/consumptionRow" style="@style/SettingsRow.Clickable">
-                <TextView style="@style/SettingsRowLabel" android:text="@string/settings_consumption" />
-                <TextView android:id="@+id/consumptionValue" style="@style/SettingsRowValue.Accent" />
-            </LinearLayout>
-
-            <View style="@style/Divider" />
-
-            <LinearLayout android:id="@+id/plateRow" style="@style/SettingsRow.Clickable">
-                <TextView style="@style/SettingsRowLabel" android:text="@string/settings_plate" />
-                <TextView android:id="@+id/plateValue" style="@style/SettingsRowValue.Accent" />
-            </LinearLayout>
-
-            <View style="@style/Divider" />
-
-            <LinearLayout android:id="@+id/parkingAlertRow" style="@style/SettingsRow.Clickable">
-                <TextView style="@style/SettingsRowLabel" android:text="@string/settings_parking_alert" />
-                <TextView android:id="@+id/parkingAlertValue" style="@style/SettingsRowValue.Accent" />
-            </LinearLayout>
-        </LinearLayout>
-
-        <TextView style="@style/SettingsSection" android:text="@string/google_section" />
-
-        <LinearLayout style="@style/SettingsCard">
-
-            <LinearLayout android:id="@+id/googleKeyRow" style="@style/SettingsRow.Clickable">
-                <LinearLayout style="@style/SettingsRowText">
-                    <TextView style="@style/Text.Item" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/google_key" />
-                    <TextView android:id="@+id/googleKeyValue" style="@style/Text.Caption" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textSize="12sp" />
+                <LinearLayout style="@style/SettingsRow">
+                    <LinearLayout style="@style/SettingsRowText">
+                        <TextView style="@style/Text.Item" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/settings_lane_camera" />
+                        <TextView style="@style/Text.Caption" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/settings_lane_camera_hint" android:textSize="12sp" />
+                    </LinearLayout>
+                    <com.google.android.material.materialswitch.MaterialSwitch android:id="@+id/laneCameraSwitch" android:layout_width="wrap_content" android:layout_height="wrap_content" android:contentDescription="@string/settings_lane_camera" />
                 </LinearLayout>
-                <ImageView style="@style/SettingsChevron" />
-            </LinearLayout>
 
-            <View style="@style/Divider" />
+                <View style="@style/Divider" />
 
-            <LinearLayout android:id="@+id/googleMapRow" style="@style/SettingsRow.Clickable">
-                <TextView style="@style/SettingsRowLabel" android:text="@string/google_map_style" />
-                <TextView android:id="@+id/googleMapValue" style="@style/SettingsRowValue.Accent" />
-            </LinearLayout>
-
-            <View style="@style/Divider" />
-
-            <LinearLayout android:id="@+id/googleRoutesRow" style="@style/SettingsRow.Clickable">
-                <TextView style="@style/SettingsRowLabel" android:text="@string/google_routes" />
-                <TextView android:id="@+id/googleRoutesValue" style="@style/SettingsRowValue.Accent" />
-            </LinearLayout>
-
-            <View style="@style/Divider" />
-
-            <LinearLayout android:id="@+id/googleSearchRow" style="@style/SettingsRow.Clickable">
-                <TextView style="@style/SettingsRowLabel" android:text="@string/google_search" />
-                <TextView android:id="@+id/googleSearchValue" style="@style/SettingsRowValue.Accent" />
-            </LinearLayout>
-
-            <View style="@style/Divider" />
-
-            <LinearLayout android:id="@+id/googleTestRow" style="@style/SettingsRow.Clickable">
-                <TextView style="@style/SettingsRowLabel" android:text="@string/google_test" />
-                <ImageView style="@style/SettingsChevron" />
-            </LinearLayout>
-
-            <View style="@style/Divider" />
-
-            <LinearLayout android:id="@+id/googleHowRow" style="@style/SettingsRow.Clickable">
-                <TextView style="@style/SettingsRowLabel" android:text="@string/google_how" />
-                <ImageView style="@style/SettingsChevron" />
-            </LinearLayout>
-        </LinearLayout>
-
-        <TextView style="@style/SettingsSection" android:text="@string/map_section" />
-
-        <LinearLayout style="@style/SettingsCard">
-
-            <LinearLayout android:id="@+id/offlineRow" style="@style/SettingsRow.Clickable">
-                <LinearLayout style="@style/SettingsRowText">
-                    <TextView style="@style/Text.Item" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/offline_maps" />
-                    <TextView android:id="@+id/offlineValue" style="@style/Text.Caption" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/offline_maps_hint" android:textSize="12sp" />
+                <LinearLayout style="@style/SettingsRow">
+                    <TextView style="@style/SettingsRowLabel" android:text="@string/settings_gnss" />
+                    <TextView android:id="@+id/gnssValue" style="@style/SettingsRowValue" />
                 </LinearLayout>
-                <ImageView style="@style/SettingsChevron" />
-            </LinearLayout>
 
-            <View style="@style/Divider" />
+                <View style="@style/Divider" />
 
-            <LinearLayout android:id="@+id/clearMapRow" style="@style/SettingsRow.Clickable">
-                <TextView style="@style/SettingsRowLabel" android:text="@string/clear_saved_map" />
-                <ImageView style="@style/SettingsChevron" />
-            </LinearLayout>
+                <LinearLayout android:id="@+id/voiceRow" style="@style/SettingsRow.Clickable">
+                    <TextView style="@style/SettingsRowLabel" android:text="@string/settings_voice" />
+                    <TextView android:id="@+id/voiceValue" style="@style/SettingsRowValue.Accent" />
+                </LinearLayout>
 
-            <View style="@style/Divider" />
+                <View style="@style/Divider" />
 
-            <LinearLayout android:id="@+id/setupRow" style="@style/SettingsRow.Clickable">
-                <TextView style="@style/SettingsRowLabel" android:text="@string/setup_guide" />
-                <ImageView style="@style/SettingsChevron" />
+                <LinearLayout android:id="@+id/voiceLevelRow" style="@style/SettingsRow.Clickable">
+                    <TextView style="@style/SettingsRowLabel" android:text="@string/settings_voice_level" />
+                    <TextView android:id="@+id/voiceLevelValue" style="@style/SettingsRowValue.Accent" />
+                </LinearLayout>
+
+                <View style="@style/Divider" />
+
+                <LinearLayout android:id="@+id/musicRow" style="@style/SettingsRow.Clickable">
+                    <TextView style="@style/SettingsRowLabel" android:text="@string/settings_music" />
+                    <TextView android:id="@+id/musicValue" style="@style/SettingsRowValue.Accent" />
+                </LinearLayout>
+
+                <View style="@style/Divider" />
+
+                <LinearLayout style="@style/SettingsRow">
+                    <LinearLayout style="@style/SettingsRowText">
+                        <TextView style="@style/Text.Item" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/settings_voice_call" />
+                        <TextView style="@style/Text.Caption" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/settings_voice_call_hint" android:textSize="12sp" />
+                    </LinearLayout>
+                    <com.google.android.material.materialswitch.MaterialSwitch android:id="@+id/voiceCallSwitch" android:layout_width="wrap_content" android:layout_height="wrap_content" android:contentDescription="@string/settings_voice_call" />
+                </LinearLayout>
+
+                <View style="@style/Divider" />
+
+                <LinearLayout android:id="@+id/voiceRateRow" style="@style/SettingsRow.Clickable">
+                    <TextView style="@style/SettingsRowLabel" android:text="@string/settings_voice_rate" />
+                    <TextView android:id="@+id/voiceRateValue" style="@style/SettingsRowValue.Accent" />
+                </LinearLayout>
+
+                <View style="@style/Divider" />
+
+                <LinearLayout android:id="@+id/testVoiceRow" style="@style/SettingsRow.Clickable">
+                    <TextView style="@style/SettingsRowLabel" android:text="@string/settings_voice_test" />
+                    <ImageView style="@style/SettingsChevron" />
+                </LinearLayout>
             </LinearLayout>
         </LinearLayout>
 
-        <TextView style="@style/SettingsSection" android:text="@string/about_section" />
+        <!-- ============ Car & costs ============ -->
+        <LinearLayout android:id="@+id/costsPage" style="@style/SettingsPage">
 
-        <LinearLayout style="@style/SettingsCard">
+            <LinearLayout style="@style/SettingsCard">
 
-            <LinearLayout style="@style/SettingsRow">
-                <TextView style="@style/SettingsRowLabel" android:text="@string/version" />
-                <TextView android:id="@+id/versionText" style="@style/SettingsRowValue" />
-            </LinearLayout>
+                <LinearLayout android:id="@+id/fuelTypeRow" style="@style/SettingsRow.Clickable">
+                    <TextView style="@style/SettingsRowLabel" android:text="@string/settings_fuel_type" />
+                    <TextView android:id="@+id/fuelTypeValue" style="@style/SettingsRowValue.Accent" />
+                </LinearLayout>
 
-            <View style="@style/Divider" />
+                <View style="@style/Divider" />
 
-            <LinearLayout style="@style/SettingsRow">
-                <TextView style="@style/SettingsRowLabel" android:text="@string/map_credit" android:textSize="13sp" android:textStyle="normal" />
+                <LinearLayout android:id="@+id/fuelPriceRow" style="@style/SettingsRow.Clickable">
+                    <LinearLayout style="@style/SettingsRowText">
+                        <TextView style="@style/Text.Item" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/settings_fuel_price" />
+                        <TextView android:id="@+id/fuelPriceHint" style="@style/Text.Caption" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textSize="12sp" />
+                    </LinearLayout>
+                    <TextView android:id="@+id/fuelPriceValue" style="@style/SettingsRowValue.Accent" />
+                </LinearLayout>
+
+                <View style="@style/Divider" />
+
+                <LinearLayout android:id="@+id/consumptionRow" style="@style/SettingsRow.Clickable">
+                    <TextView style="@style/SettingsRowLabel" android:text="@string/settings_consumption" />
+                    <TextView android:id="@+id/consumptionValue" style="@style/SettingsRowValue.Accent" />
+                </LinearLayout>
+
+                <View style="@style/Divider" />
+
+                <LinearLayout android:id="@+id/plateRow" style="@style/SettingsRow.Clickable">
+                    <TextView style="@style/SettingsRowLabel" android:text="@string/settings_plate" />
+                    <TextView android:id="@+id/plateValue" style="@style/SettingsRowValue.Accent" />
+                </LinearLayout>
+
+                <View style="@style/Divider" />
+
+                <LinearLayout android:id="@+id/parkingAlertRow" style="@style/SettingsRow.Clickable">
+                    <TextView style="@style/SettingsRowLabel" android:text="@string/settings_parking_alert" />
+                    <TextView android:id="@+id/parkingAlertValue" style="@style/SettingsRowValue.Accent" />
+                </LinearLayout>
             </LinearLayout>
         </LinearLayout>
+
+        <!-- ============ Google Maps ============ -->
+        <LinearLayout android:id="@+id/googlePage" style="@style/SettingsPage">
+
+            <LinearLayout style="@style/SettingsCard">
+
+                <LinearLayout android:id="@+id/googleKeyRow" style="@style/SettingsRow.Clickable">
+                    <LinearLayout style="@style/SettingsRowText">
+                        <TextView style="@style/Text.Item" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/google_key" />
+                        <TextView android:id="@+id/googleKeyValue" style="@style/Text.Caption" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textSize="12sp" />
+                    </LinearLayout>
+                    <ImageView style="@style/SettingsChevron" />
+                </LinearLayout>
+
+                <View style="@style/Divider" />
+
+                <LinearLayout android:id="@+id/googleMapRow" style="@style/SettingsRow.Clickable">
+                    <TextView style="@style/SettingsRowLabel" android:text="@string/google_map_style" />
+                    <TextView android:id="@+id/googleMapValue" style="@style/SettingsRowValue.Accent" />
+                </LinearLayout>
+
+                <View style="@style/Divider" />
+
+                <LinearLayout android:id="@+id/googleRoutesRow" style="@style/SettingsRow.Clickable">
+                    <TextView style="@style/SettingsRowLabel" android:text="@string/google_routes" />
+                    <TextView android:id="@+id/googleRoutesValue" style="@style/SettingsRowValue.Accent" />
+                </LinearLayout>
+
+                <View style="@style/Divider" />
+
+                <LinearLayout android:id="@+id/googleSearchRow" style="@style/SettingsRow.Clickable">
+                    <TextView style="@style/SettingsRowLabel" android:text="@string/google_search" />
+                    <TextView android:id="@+id/googleSearchValue" style="@style/SettingsRowValue.Accent" />
+                </LinearLayout>
+
+                <View style="@style/Divider" />
+
+                <LinearLayout android:id="@+id/googleTestRow" style="@style/SettingsRow.Clickable">
+                    <TextView style="@style/SettingsRowLabel" android:text="@string/google_test" />
+                    <ImageView style="@style/SettingsChevron" />
+                </LinearLayout>
+
+                <View style="@style/Divider" />
+
+                <LinearLayout android:id="@+id/googleHowRow" style="@style/SettingsRow.Clickable">
+                    <TextView style="@style/SettingsRowLabel" android:text="@string/google_how" />
+                    <ImageView style="@style/SettingsChevron" />
+                </LinearLayout>
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- ============ Map & routing ============ -->
+        <LinearLayout android:id="@+id/mapPage" style="@style/SettingsPage">
+
+            <LinearLayout style="@style/SettingsCard">
+
+                <LinearLayout android:id="@+id/offlineRow" style="@style/SettingsRow.Clickable">
+                    <LinearLayout style="@style/SettingsRowText">
+                        <TextView style="@style/Text.Item" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/offline_maps" />
+                        <TextView android:id="@+id/offlineValue" style="@style/Text.Caption" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/offline_maps_hint" android:textSize="12sp" />
+                    </LinearLayout>
+                    <ImageView style="@style/SettingsChevron" />
+                </LinearLayout>
+
+                <View style="@style/Divider" />
+
+                <LinearLayout android:id="@+id/clearMapRow" style="@style/SettingsRow.Clickable">
+                    <TextView style="@style/SettingsRowLabel" android:text="@string/clear_saved_map" />
+                    <ImageView style="@style/SettingsChevron" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <TextView style="@style/SettingsSection" android:text="@string/servers_section" />
+
+            <LinearLayout style="@style/SettingsCard">
+
+                <LinearLayout android:id="@+id/osrmRow" style="@style/SettingsRow.Clickable">
+                    <LinearLayout style="@style/SettingsRowText">
+                        <TextView style="@style/Text.Item" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/server_osrm" />
+                        <TextView android:id="@+id/osrmValue" style="@style/Text.Caption" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textSize="12sp" />
+                    </LinearLayout>
+                    <ImageView style="@style/SettingsChevron" />
+                </LinearLayout>
+
+                <View style="@style/Divider" />
+
+                <LinearLayout android:id="@+id/valhallaRow" style="@style/SettingsRow.Clickable">
+                    <LinearLayout style="@style/SettingsRowText">
+                        <TextView style="@style/Text.Item" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/server_valhalla" />
+                        <TextView android:id="@+id/valhallaValue" style="@style/Text.Caption" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textSize="12sp" />
+                    </LinearLayout>
+                    <ImageView style="@style/SettingsChevron" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <TextView
+                style="@style/Text.Caption"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:paddingHorizontal="4dp"
+                android:text="@string/servers_hint"
+                android:textSize="12sp" />
+        </LinearLayout>
+
+        <!-- ============ Backup & restore ============ -->
+        <LinearLayout android:id="@+id/backupPage" style="@style/SettingsPage">
+
+            <LinearLayout style="@style/SettingsCard">
+
+                <LinearLayout android:id="@+id/exportRow" style="@style/SettingsRow.Clickable">
+                    <LinearLayout style="@style/SettingsRowText">
+                        <TextView style="@style/Text.Item" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/backup_export" />
+                        <TextView android:id="@+id/exportHint" style="@style/Text.Caption" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textSize="12sp" />
+                    </LinearLayout>
+                    <ImageView style="@style/SettingsChevron" />
+                </LinearLayout>
+
+                <View style="@style/Divider" />
+
+                <LinearLayout android:id="@+id/importRow" style="@style/SettingsRow.Clickable">
+                    <LinearLayout style="@style/SettingsRowText">
+                        <TextView style="@style/Text.Item" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/backup_import" />
+                        <TextView style="@style/Text.Caption" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/backup_import_hint" android:textSize="12sp" />
+                    </LinearLayout>
+                    <ImageView style="@style/SettingsChevron" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <TextView
+                style="@style/Text.Caption"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:paddingHorizontal="4dp"
+                android:text="@string/backup_hint"
+                android:textSize="12sp" />
+        </LinearLayout>
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/resetButton"
+            style="@style/Button.Soft"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="24dp"
+            android:text="@string/reset_page"
+            android:visibility="gone" />
     </LinearLayout>
 </ScrollView>

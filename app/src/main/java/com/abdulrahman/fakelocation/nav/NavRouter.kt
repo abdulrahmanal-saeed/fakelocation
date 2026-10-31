@@ -8,6 +8,8 @@ import com.abdulrahman.fakelocation.data.TravelMode
 import com.abdulrahman.fakelocation.drive.Tolls
 import com.abdulrahman.fakelocation.geo.Http
 import com.abdulrahman.fakelocation.geo.HttpException
+import com.abdulrahman.fakelocation.geo.NoInternetException
+import com.abdulrahman.fakelocation.geo.RoutingServers
 import com.abdulrahman.fakelocation.geo.google.GoogleApi
 import com.abdulrahman.fakelocation.geo.google.Polyline
 import kotlinx.coroutines.Dispatchers
@@ -46,22 +48,49 @@ object NavRouter {
                 Log.w("NavRouter", "Google navigation route failed, using OpenStreetMap", e)
             }
         }
+        val valhallaUrls = RoutingServers.valhalla(prefs.valhallaServer)
         if (carAvoid.any) {
             try {
-                return@withContext valhalla(stops, carAvoid)
+                return@withContext valhalla(valhallaUrls, stops, carAvoid, mode)
+            } catch (e: NoInternetException) {
+                throw e
             } catch (e: Exception) {
                 Log.w("NavRouter", "Valhalla route failed, using OSRM", e)
             }
         }
-        osrm(stops, mode)
+        try {
+            osrm(RoutingServers.osrm(prefs.osrmServer, mode), stops)
+        } catch (e: NoInternetException) {
+            throw e
+        } catch (e: Exception) {
+            // Every OSRM server failed: Valhalla knows the same roads.
+            Log.w("NavRouter", "OSRM route failed, using Valhalla", e)
+            if (carAvoid.any) throw e // Valhalla was just tried
+            valhalla(valhallaUrls, stops, Avoid(), mode)
+        }
+    }
+
+    /** Tries each server in turn; the last error if none of them gives a route. */
+    private fun <T> firstAnswer(servers: List<String>, attempt: (String) -> T): T {
+        var lastError: Exception? = null
+        for (server in servers) {
+            try {
+                return attempt(server)
+            } catch (e: NoInternetException) {
+                throw e
+            } catch (e: Exception) {
+                Log.w("NavRouter", "routing server failed: ${server.substringBefore("/route")}", e)
+                lastError = e
+            }
+        }
+        throw lastError ?: IOException("No routing server")
     }
 
     // region OSRM
 
-    private fun osrm(stops: List<LatLon>, mode: TravelMode): NavRoute {
+    private fun osrm(bases: List<String>, stops: List<LatLon>): NavRoute = firstAnswer(bases) { base ->
         val coords = stops.joinToString(";") { String.format(Locale.US, "%.6f,%.6f", it.lon, it.lat) }
-        val path = if (mode == TravelMode.CAR) "routed-car/route/v1/driving" else "routed-foot/route/v1/foot"
-        return parseOsrm(JSONObject(get("https://routing.openstreetmap.de/$path/$coords?overview=full&geometries=geojson&steps=true")))
+        parseOsrm(JSONObject(get("$base/$coords?overview=full&geometries=geojson&steps=true")))
     }
 
     fun parseOsrm(json: JSONObject): NavRoute {
@@ -110,27 +139,30 @@ object NavRouter {
 
     // region Valhalla (OpenStreetMap, can avoid tolls and highways)
 
-    private fun valhalla(stops: List<LatLon>, avoid: Avoid): NavRoute {
+    private fun valhalla(urls: List<String>, stops: List<LatLon>, avoid: Avoid, mode: TravelMode): NavRoute {
+        val costing = if (mode == TravelMode.CAR) "auto" else "pedestrian"
         fun body(excludeGates: Boolean): JSONObject {
             val options = JSONObject()
             if (avoid.highways) options.put("use_highways", 0.0)
             if (avoid.tolls) options.put("use_tolls", 0.0)
             val json = JSONObject()
                 .put("locations", JSONArray(stops.map { JSONObject().put("lat", it.lat).put("lon", it.lon).put("type", "break") }))
-                .put("costing", "auto")
-                .put("costing_options", JSONObject().put("auto", options))
+                .put("costing", costing)
                 .put("directions_options", JSONObject().put("units", "kilometers").put("language", "en-US"))
+            if (options.length() > 0) json.put("costing_options", JSONObject().put(costing, options))
             // Salik/Darb gates aren't always tagged as toll roads, so block the gates themselves.
             if (excludeGates) json.put("exclude_locations", JSONArray(Tolls.GATES.flatMap { it.points }.map { JSONObject().put("lat", it.lat).put("lon", it.lon) }))
             return json
         }
-        val response = try {
-            post(VALHALLA, body(excludeGates = avoid.tolls))
-        } catch (e: IOException) {
-            // No way around the gates (e.g. onto Abu Dhabi island): avoid tolls as much as possible instead.
-            if (avoid.tolls) post(VALHALLA, body(excludeGates = false)) else throw e
+        return firstAnswer(urls) { url ->
+            val response = try {
+                post(url, body(excludeGates = avoid.tolls))
+            } catch (e: HttpException) {
+                // No way around the gates (e.g. onto Abu Dhabi island): avoid tolls as much as possible instead.
+                if (avoid.tolls) post(url, body(excludeGates = false)) else throw e
+            }
+            parseValhalla(JSONObject(response))
         }
-        return parseValhalla(JSONObject(response))
     }
 
     fun parseValhalla(json: JSONObject): NavRoute {
@@ -290,8 +322,6 @@ object NavRouter {
         val text = "You have reached stop ${legIndex + 1}"
         return Instructions.Instruction(Maneuver.ARRIVE, text, text)
     }
-
-    private const val VALHALLA = "https://valhalla1.openstreetmap.de/route"
 
     /** OSRM explains failures in a JSON body, so a non-2xx answer with a body is still returned. */
     private fun get(url: String): String =

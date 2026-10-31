@@ -166,7 +166,6 @@
     <string name="time_in_past">That time has already passed: it’s set for tomorrow.</string>
 
     <!-- Settings -->
-    <string name="alerts_section">Alerts</string>
     <string name="alert_before_arriving">Before arriving at a stop</string>
     <string name="alert_before_leaving">Before a wait ends</string>
     <string name="minutes_value">%1$d min</string>
@@ -178,12 +177,10 @@
     <string name="full_screen_alarms">Full-screen alarms</string>
     <string name="full_screen_allowed">Allowed</string>
     <string name="full_screen_needed">Tap to allow (shows the alarm over the lock screen)</string>
-    <string name="movement_section">Movement</string>
     <string name="traffic">Traffic (car trips)</string>
     <string name="traffic_none">None</string>
     <string name="traffic_value">+%1$d%% time</string>
     <string name="test_alarm">Test alarm</string>
-    <string name="map_section">Map</string>
     <string name="map_provider">Map provider</string>
     <string name="map_provider_osm">OpenStreetMap</string>
     <string name="setup_guide">Setup guide</string>
@@ -200,7 +197,6 @@
     <string name="map_credit">Map data © OpenStreetMap contributors</string>
     <string name="map_credit_google">Map data ©2026 Google</string>
     <string name="google_map_failed">Google map didn’t load (%1$s). Showing OpenStreetMap.</string>
-    <string name="google_section">Google Maps (optional)</string>
     <string name="google_key">API key</string>
     <string name="google_key_none">Not set: tap to add</string>
     <string name="google_key_set">Saved · …%1$s</string>
@@ -436,7 +432,6 @@
     <string name="parking_alert_note">The alarm rings %1$d min before the time ends.</string>
     <string name="parking_my_car">My car</string>
     <string name="parking_no_sms_app">No SMS app found</string>
-    <string name="settings_costs">CAR &amp; COSTS</string>
     <string name="settings_fuel_type">Fuel</string>
     <string name="settings_fuel_price">Price per litre</string>
     <string name="settings_fuel_price_value">AED %1$.2f</string>
@@ -464,7 +459,6 @@
         <item quantity="one">← Move %d lane left</item>
         <item quantity="other">← Move %d lanes left</item>
     </plurals>
-    <string name="settings_lanes">LANES &amp; VOICE</string>
     <string name="settings_lane_guidance">Lane guidance</string>
     <string name="settings_lane_guidance_hint">Shows which lane you\'re in and which to take. Uses the motion sensors; turns and lane changes are counted.</string>
     <string name="settings_lane_camera">Lane camera (experimental)</string>
@@ -491,4 +485,81 @@
     <string name="settings_voice_call">Voice over Bluetooth call</string>
     <string name="settings_voice_call_hint">Plays directions like a phone call, so most car stereos cut the radio and play them on the car speakers. Needs the phone paired with the car.</string>
     <string name="nav_volume_title">Navigation voice</string>
+
+    <!-- Settings pages -->
+    <string name="page_alerts">Alerts</string>
+    <string name="page_alerts_hint">Before arriving and leaving, silent mode, test alarm</string>
+    <string name="page_movement">Fake movement</string>
+    <string name="page_movement_hint">Natural movement, traffic on fake trips</string>
+    <string name="page_lanes">Lanes &amp; voice</string>
+    <string name="page_lanes_hint">Lane guidance, lane camera, voice and volume</string>
+    <string name="page_costs">Car &amp; costs</string>
+    <string name="page_costs_hint">Fuel, consumption, parking plate and alarm</string>
+    <string name="page_google">Google Maps</string>
+    <string name="page_google_hint">Optional: your own API key for Google map, routes and search</string>
+    <string name="page_google_on">API key set</string>
+    <string name="page_map">Map &amp; routing</string>
+    <string name="page_map_hint">Offline map storage, routing servers</string>
+    <string name="page_backup">Backup &amp; restore</string>
+    <string name="page_backup_hint">Keep your places, routes and settings in a file</string>
+    <string name="reset_page">Reset this page to defaults</string>
+    <string name="reset_title">Reset %1$s?</string>
+    <string name="reset_body">The settings on this page go back to how they were when the app was installed. Places, routes, your plate number and Google key are kept.</string>
+    <string name="reset">Reset</string>
+    <string name="reset_done">Back to defaults</string>
+
+    <!-- Setup check -->
+    <string name="health_section">Setup check</string>
+    <string name="health_all_good">Everything is set up</string>
+    <string name="health_all_good_detail">Faking, trips, alarms and navigation can all run.</string>
+    <plurals name="health_problems">
+        <item quantity="one">1 thing needs your attention</item>
+        <item quantity="other">%d things need your attention</item>
+    </plurals>
+    <string name="health_problems_detail">Tap Fix to open the right Android setting.</string>
+    <string name="health_fix">Fix</string>
+    <string name="health_fix_named">Fix %1$s</string>
+    <string name="health_mock">Mock location app</string>
+    <string name="health_mock_detail">Developer options → Select mock location app → Fake Location</string>
+    <string name="health_location">Location permission</string>
+    <string name="health_location_detail">Needed to fake your location and to navigate</string>
+    <string name="health_notifications">Notifications</string>
+    <string name="health_notifications_detail">Trip status, alarms and the Stop button live here</string>
+    <string name="health_full_screen_detail">Lets stop and parking alarms ring over the lock screen</string>
+    <string name="health_battery">Battery optimization</string>
+    <string name="health_battery_detail">Android may stop trips and navigation in the background. Allow the app to run without limits.</string>
+
+    <!-- Routing servers -->
+    <string name="servers_section">Routing servers</string>
+    <string name="server_osrm">OSRM server (car routes)</string>
+    <string name="server_valhalla">Valhalla server</string>
+    <string name="server_public">Public servers</string>
+    <string name="server_hint">e.g. https://osrm.example.com</string>
+    <string name="server_invalid">That isn’t a web address. Try something like https://osrm.example.com</string>
+    <string name="server_use_public">Public only</string>
+    <string name="server_ok">✓ The server answered with a route</string>
+    <string name="server_failed">✗ The server didn’t give a route: %1$s</string>
+    <string name="servers_hint">Routes on OpenStreetMap come from free public servers that can be busy. Your own server is tried first; if it doesn’t answer, the public ones are used. When every OSRM server fails, Valhalla is used instead, and the other way round.</string>
+
+    <!-- Backup -->
+    <string name="backup_export">Back up to a file</string>
+    <string name="backup_export_hint">%1$d favorites, %2$d routes, %3$d history entries and your settings</string>
+    <string name="backup_import">Restore from a file</string>
+    <string name="backup_import_hint">Add a backup to what’s here, or replace everything</string>
+    <string name="backup_hint">Uninstalling the app or changing phones deletes its data. Keep the backup file somewhere safe, like Google Drive or a message to yourself.</string>
+    <string name="backup_key_title">Include your Google API key?</string>
+    <string name="backup_key_body">Anyone who has the backup file could use the key. Leave it out if you’ll share the file.</string>
+    <string name="backup_key_include">Include key</string>
+    <string name="backup_key_leave_out">Leave it out</string>
+    <string name="backup_saved">Backup saved</string>
+    <string name="backup_save_failed">Couldn’t save the backup there. Try another folder.</string>
+    <string name="backup_not_a_backup">That file isn’t a Fake Location backup</string>
+    <string name="backup_read_failed">Couldn’t read that file</string>
+    <string name="backup_restore_title">Restore backup</string>
+    <string name="backup_restore_body">Made %1$s\n\n%2$d favorites, %3$d routes, %4$d history entries and settings.\n\nAdd to what’s here keeps your current places, routes and settings and adds the backup’s places and routes.</string>
+    <string name="backup_restore_merge">Add to what’s here</string>
+    <string name="backup_restore_replace">Replace everything</string>
+    <string name="backup_replace_title">Replace everything?</string>
+    <string name="backup_replace_body">Your favorites, routes, history and settings become exactly the backup’s. What’s on the phone now and not in the backup is deleted.</string>
+    <string name="backup_restored">Backup restored</string>
 </resources>

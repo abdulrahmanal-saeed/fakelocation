@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- One setup check that needs attention, in the Settings health card. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical">
+
+    <View style="@style/Divider" />
+
+    <LinearLayout style="@style/SettingsRow">
+
+        <TextView
+            android:id="@+id/badge"
+            style="@style/HealthBadge"
+            android:backgroundTint="@color/action_tint"
+            android:text="!"
+            android:textColor="@color/action" />
+
+        <LinearLayout style="@style/SettingsRowText">
+            <TextView android:id="@+id/title" style="@style/Text.Item" android:layout_width="wrap_content" android:layout_height="wrap_content" />
+            <TextView android:id="@+id/detail" style="@style/Text.Caption" android:layout_width="wrap_content" android:layout_height="wrap_content" android:textSize="12sp" />
+        </LinearLayout>
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/fixButton"
+            style="@style/Button.Small"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/health_fix" />
+    </LinearLayout>
+</LinearLayout>

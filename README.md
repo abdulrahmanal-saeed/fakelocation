@@ -80,6 +80,14 @@ connection" instead of a general error. Fixed a brief false "Search needs intern
 "Couldn't get a route" when the route was recalculated. Failures that used to be silent (Google falling back,
 speed limits not loading, GPS not starting) are now written to the log.
 
+**v1.9.0:** Settings reworked. The main screen is a setup check (mock location app, location, notifications,
+full-screen alarms, battery: each with a Fix button that opens the right Android setting) and a short list of pages
+(Alerts, Fake movement, Lanes & voice, Car & costs, Google Maps, Map & routing, Backup & restore); each page has
+"Reset this page to defaults". Backup & restore keeps favorites, history, routes and settings in one file (the
+Google key only if you say so); restoring can add to what's on the phone or replace everything. Map & routing takes
+your own OSRM and Valhalla servers, tried before the public ones and checked when you save them; when every OSRM
+server fails, routes come from Valhalla instead, for fake trips and for navigation.
+
 See [PLAN.md](PLAN.md) for the full feature list.
 
 ## Install
