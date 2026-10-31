@@ -16,6 +16,18 @@ fun distanceMeters(a: LatLon, b: LatLon): Double {
     return 2 * r * atan2(sqrt(h), sqrt(1 - h))
 }
 
+/** The point [meters] away from here towards [bearing] (degrees clockwise from north). */
+fun LatLon.moved(bearing: Double, meters: Double): LatLon {
+    val r = 6_371_000.0
+    val d = meters / r
+    val b = Math.toRadians(bearing)
+    val lat1 = Math.toRadians(lat)
+    val lon1 = Math.toRadians(lon)
+    val lat2 = kotlin.math.asin(sin(lat1) * cos(d) + cos(lat1) * sin(d) * cos(b))
+    val lon2 = lon1 + atan2(sin(b) * sin(d) * cos(lat1), cos(d) - sin(lat1) * sin(lat2))
+    return LatLon(Math.toDegrees(lat2), (Math.toDegrees(lon2) + 540) % 360 - 180)
+}
+
 fun formatDistance(meters: Double): String =
     if (meters < 1000) "${meters.roundToInt()} m" else String.format(Locale.US, "%.1f km", meters / 1000)
 

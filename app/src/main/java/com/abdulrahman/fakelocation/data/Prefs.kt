@@ -76,6 +76,11 @@ class Prefs(context: Context) {
         get() = prefs.getString("osrm_server", "").orEmpty()
         set(value) = prefs.edit { putString("osrm_server", value.trim()) }
 
+    /** Routes that have an alarm set for their next weekly run (so alarms of routes that stop repeating are cleared). */
+    var scheduledRouteIds: Set<Long>
+        get() = prefs.getStringSet("scheduled_routes", emptySet()).orEmpty().mapNotNull { it.toLongOrNull() }.toSet()
+        set(value) = prefs.edit { putStringSet("scheduled_routes", value.map { it.toString() }.toSet()) }
+
     /** Own Valhalla server, tried before the public one ("" = public server only). */
     var valhallaServer: String
         get() = prefs.getString("valhalla_server", "").orEmpty()

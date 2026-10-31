@@ -88,6 +88,20 @@ Google key only if you say so); restoring can add to what's on the phone or repl
 your own OSRM and Valhalla servers, tried before the public ones and checked when you save them; when every OSRM
 server fails, routes come from Valhalla instead, for fake trips and for navigation.
 
+**v2.0.0:** More ways to move the fake location.
+- **Trip speed** 0.5× to 3× in Timing, and changeable during a trip (tap the speed on the map); the trip carries on
+  from the same spot.
+- **There and back** and **times in a row** (up to 10×) for trips that end where they start.
+- **Weekly routes:** pick days under "Start at" / "Arrive by" and save the schedule. When it's due, the phone shows a
+  full-screen "is due" notice that starts the trip (on its own when the screen is off; tap Start while you're using
+  the phone, since Android only lets location services start from the foreground). Survives reboots.
+- **Joystick** (Move → Move with joystick): walk, run or drive the fake position by hand; Done names the new spot.
+- **Wander around here** (Move): a walk along real streets to random spots within 200 m – 1 km, pausing at each,
+  for 30 min – 2 h, and back.
+- **GPX / KML:** Import on the Routes screen (Strava, Google My Maps, Garmin… recorded tracks keep their shape and
+  speed); long-press a route → Export as GPX.
+- **Shortcuts:** long-press the app icon to go to one of your first three favorites, or Stop.
+
 See [PLAN.md](PLAN.md) for the full feature list.
 
 ## Install

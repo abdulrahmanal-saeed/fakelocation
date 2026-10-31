@@ -19,6 +19,8 @@ data class TripUi(
     val wallNow: Long,
     val beforeArriveMs: Long,
     val beforeLeaveMs: Long,
+    /** Trip speed (1.0 = each street's speed). */
+    val speed: Double = 1.0,
 ) {
     val stops get() = timeline.stops
 
@@ -34,8 +36,14 @@ data class TripUi(
         }
 }
 
+/** The on-screen joystick: which way and how fast the fake position should move (0 m/s = held still). */
+data class Joystick(val bearing: Double, val speedMps: Double)
+
 /** Shared state between the screens and the background service. */
 object MockState {
+    /** Set while the joystick is open on the map; the service moves the fixed fake position with it. */
+    val joystick = MutableStateFlow<Joystick?>(null)
+
     private val _session = MutableStateFlow<FakeSession?>(null)
     val session: StateFlow<FakeSession?> = _session
 

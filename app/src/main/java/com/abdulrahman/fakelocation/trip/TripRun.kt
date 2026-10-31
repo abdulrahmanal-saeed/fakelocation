@@ -29,6 +29,16 @@ class TripRun(
         fired.remove(Alert(AlertKind.LEAVING, stopIndex).key)
     }
 
+    /** Moves faster or slower from now on ([speed] 1.0 = each street's speed), staying at the same spot. */
+    fun changeSpeed(speed: Double, now: Long) {
+        if (speed == route.speed) return
+        val old = timeline
+        val t = clock.at(now)
+        route = route.copy(speed = speed)
+        timeline = build()
+        clock = clock.jumpTo(old.sameMomentIn(timeline, t), now)
+    }
+
     fun toJson(): String = JSONObject()
         .put("route", RouteJson.write(route))
         .put("base", clock.base)

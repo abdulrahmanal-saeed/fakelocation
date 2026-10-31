@@ -136,6 +136,13 @@
         <item name="android:textAppearance">@style/Text.Button</item>
         <item name="android:textSize">14sp</item>
     </style>
+    <!-- Tabs in a row of six or seven (trip speed, days of the week). -->
+    <style name="Tab.Compact">
+        <item name="android:minWidth">0dp</item>
+        <item name="android:paddingStart">0dp</item>
+        <item name="android:paddingEnd">0dp</item>
+        <item name="android:textSize">13sp</item>
+    </style>
 
     <!-- Rows -->
     <style name="SettingsRow">
