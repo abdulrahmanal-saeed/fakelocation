@@ -28,16 +28,22 @@ jobs:
       - name: Unit tests
         run: ./gradlew testDebugUnitTest --console=plain
 
+      # FakeLocation.apk: the debug build everyone installs. FakeLocation-release.apk: the same app shrunk with R8
+      # (same signing key, so either installs over the other).
       - name: Build
-        run: ./gradlew assembleDebug --console=plain
+        run: ./gradlew assembleDebug assembleRelease --console=plain
 
-      - name: Rename APK
-        run: cp app/build/outputs/apk/debug/app-debug.apk FakeLocation.apk
+      - name: Rename APKs
+        run: |
+          cp app/build/outputs/apk/debug/app-debug.apk FakeLocation.apk
+          cp app/build/outputs/apk/release/app-release.apk FakeLocation-release.apk
 
       - uses: actions/upload-artifact@v4
         with:
           name: FakeLocation-apk
-          path: FakeLocation.apk
+          path: |
+            FakeLocation.apk
+            FakeLocation-release.apk
 
       # Always-current download link: Releases → "Latest build". Only the default branch publishes it; other
       # branches keep their APK in the run's artifacts so a test build never replaces the one on the phone.
@@ -45,10 +51,13 @@ jobs:
         if: github.ref_name == github.event.repository.default_branch
         env:
           GH_TOKEN: ${{ github.token }}
+        # The app's update check reads "versionName … · versionCode …" from these notes: keep that wording.
         run: |
+          VERSION_NAME=$(sed -n 's/.*versionName = "\(.*\)".*/\1/p' app/build.gradle.kts)
+          VERSION_CODE=$(sed -n 's/.*versionCode = \([0-9]*\).*/\1/p' app/build.gradle.kts)
           gh release delete latest-build --yes --cleanup-tag || true
-          gh release create latest-build FakeLocation.apk \
+          gh release create latest-build FakeLocation.apk FakeLocation-release.apk \
             --prerelease \
             --target "$GITHUB_SHA" \
-            --title "Latest build" \
-            --notes "Built from ${GITHUB_REF_NAME} @ ${GITHUB_SHA::7}. Download FakeLocation.apk on your phone and install it."
+            --title "Latest build (${VERSION_NAME})" \
+            --notes "Built from ${GITHUB_REF_NAME} @ ${GITHUB_SHA::7} · versionName ${VERSION_NAME} · versionCode ${VERSION_CODE}. Download FakeLocation.apk on your phone and install it. FakeLocation-release.apk is the same app, smaller (R8)."

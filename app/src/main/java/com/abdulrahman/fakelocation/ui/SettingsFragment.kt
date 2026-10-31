@@ -15,6 +15,7 @@ import com.abdulrahman.fakelocation.data.Prefs
 import com.abdulrahman.fakelocation.databinding.FragmentSettingsBinding
 import com.abdulrahman.fakelocation.mock.AlarmPlayer
 import com.abdulrahman.fakelocation.nav.NightMapMode
+import com.abdulrahman.fakelocation.system.UpdateChecker
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import androidx.lifecycle.lifecycleScope
 import com.abdulrahman.fakelocation.App
@@ -70,6 +71,7 @@ class SettingsFragment : Fragment(R.layout.fragment_settings) {
         binding.openBackup.setOnClickListener { open(Page.BACKUP) }
         binding.openDriveLog.setOnClickListener { startActivity(android.content.Intent(requireContext(), DriveLogActivity::class.java)) }
         binding.whatsNewRow.setOnClickListener { WhatsNew.show(requireActivity()) }
+        binding.updateRow.setOnClickListener { checkForUpdate() }
         binding.themeRow.setOnClickListener {
             val themes = listOf(Prefs.THEME_SYSTEM, Prefs.THEME_LIGHT, Prefs.THEME_DARK)
             MaterialAlertDialogBuilder(requireContext())
@@ -230,6 +232,23 @@ class SettingsFragment : Fragment(R.layout.fragment_settings) {
         viewLifecycleOwner.lifecycleScope.launch {
             val used = MapCache.sizeBytes()
             _binding?.offlineValue?.text = getString(R.string.offline_used, megabytes(used), megabytes(prefs.mapCacheMb * 1024L * 1024L))
+        }
+    }
+
+    /** Settings → About → Check for updates: asks GitHub now and says what it found. */
+    private fun checkForUpdate() {
+        val b = _binding ?: return
+        b.updateValue.setText(R.string.update_checking)
+        viewLifecycleOwner.lifecycleScope.launch {
+            val result = runCatching { UpdateChecker.check(requireContext()) }
+            val view = _binding ?: return@launch
+            result.onSuccess { update ->
+                if (update == null) view.updateValue.setText(R.string.update_none)
+                else {
+                    view.updateValue.text = getString(R.string.update_available, update.versionName)
+                    UpdateChecker.offer(requireActivity(), update)
+                }
+            }.onFailure { view.updateValue.setText(R.string.update_failed) }
         }
     }
 

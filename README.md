@@ -125,12 +125,23 @@ server fails, routes come from Valhalla instead, for fake trips and for navigati
 - **What's new** after an update (and in Settings → About), a tick under your finger when you teleport, start or stop,
   and labels for every icon-only button.
 
+**v2.3.0:** Under the hood.
+- **Update check:** once a day (and Settings → About → Check for updates) the app looks at "Latest build" and offers
+  the new APK when there is one.
+- **Smaller APK:** each build also publishes `FakeLocation-release.apk`, the same app shrunk with R8 (about 4 MB
+  instead of 12 MB, same signing key, so it installs over the other one either way). `FakeLocation.apk` stays the
+  main download until the small one has been tried on the phone.
+- Code split up: the fake-location service's notifications and alarms, and the Navigate screen's map drawing, are now
+  in their own files.
+
 See [PLAN.md](PLAN.md) for the full feature list.
 
 ## Install
 
 1. Open the repo's **Releases** → **Latest build** and download `FakeLocation.apk` on the phone.
 2. Allow "Install unknown apps" for your browser/files app when asked.
+
+Later builds: the app offers them itself (once a day, or Settings → About → Check for updates).
 
 ## One-time phone setup
 
