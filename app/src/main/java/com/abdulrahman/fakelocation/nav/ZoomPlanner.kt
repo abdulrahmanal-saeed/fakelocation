@@ -45,6 +45,13 @@ object ZoomPlanner {
         return minOf(base, maxOf(fit, base - MAX_OUT))
     }
 
+    /** Metres to the next real turn (not "depart" or "go straight"), or null: what [target] makes room for. */
+    fun metersToTurn(p: NavProgress?): Double? {
+        val step = p?.nextStep ?: return null
+        if (p.arrived || step.maneuver == Maneuver.DEPART || step.maneuver == Maneuver.STRAIGHT) return null
+        return p.metersToNextStep
+    }
+
     /** One frame ([dtMs]) of gliding from [zoom] toward [target]. */
     fun ease(zoom: Double, target: Double, dtMs: Long): Double {
         if (dtMs <= 0) return zoom
