@@ -29,6 +29,8 @@ data class RoadInfo(
     val laneCounts: IntArray = IntArray(0),
     /** Stretches where the average speed between two cameras is checked. */
     val averageZones: List<AverageZone> = emptyList(),
+    /** Traffic lights on the route, metres along it. */
+    val lightsAlong: List<Double> = emptyList(),
 ) {
     fun limitAt(segment: Int): Int = limits.getOrElse(segment) { 0 }
 
@@ -36,6 +38,12 @@ data class RoadInfo(
 
     /** The next camera ahead of [along] metres, as distance from here. */
     fun nextCamera(along: Double): Double? = camerasAlong.firstOrNull { it > along - 10 }?.minus(along)
+
+    /** The next traffic light ahead of [along] metres, as distance from here. */
+    fun nextLight(along: Double): Double? = lightsAlong.firstOrNull { it > along - 5 }?.minus(along)
+
+    /** True when a traffic light is at the junction [at] metres along (just before it or in it). */
+    fun lightAt(at: Double): Boolean = lightsAlong.any { it in at - 45..at + 15 }
 
     /** This plus a newer chunk. */
     fun merge(other: RoadInfo): RoadInfo = RoadInfo(
@@ -48,10 +56,18 @@ data class RoadInfo(
             other.laneCounts.getOrElse(i) { 0 }.takeIf { it > 0 } ?: laneCounts.getOrElse(i) { 0 }
         },
         (averageZones + other.averageZones).distinctBy { (it.fromAlong / 20).roundToInt() }.sortedBy { it.fromAlong },
+        onePerJunction(lightsAlong + other.lightsAlong),
     )
 
     companion object {
         fun empty(route: NavRoute) = RoadInfo(IntArray((route.points.size - 1).coerceAtLeast(0)), emptyList())
+
+        /** Lights a few metres apart (one on each corner of a junction) are one junction's light. */
+        fun onePerJunction(along: List<Double>): List<Double> {
+            val out = ArrayList<Double>()
+            for (a in along.sorted()) if (out.isEmpty() || a - out.last() >= 45) out += a
+            return out
+        }
     }
 }
 
@@ -95,6 +111,7 @@ object RoadInfoFetcher {
             "way(around:20,$coords)[highway][~\"^(maxspeed|lanes(:forward|:backward)?|turn:lanes(:forward|:backward)?)$\"~\".\"];" +
             "node(around:30,$coords)[highway=speed_camera];" +
             "node(around:25,$coords)[highway=toll_gantry];" +
+            "node(around:25,$coords)[highway=traffic_signals];" +
             ");out tags geom;"
         val info = parse(route, Overpass.query(query), fromAlong, toAlong)
         // Average speed checks on their own (rare, and a problem there mustn't cost the speed limits and lanes).
@@ -109,6 +126,7 @@ object RoadInfoFetcher {
         val ways = ArrayList<MappedWay>()
         val cameras = ArrayList<LatLon>()
         val gantries = ArrayList<Pair<LatLon, String>>()
+        val lights = ArrayList<LatLon>()
         val zones = ArrayList<AverageZone>()
         val elements = json.optJSONArray("elements")
         if (elements != null) for (i in 0 until elements.length()) {
@@ -137,10 +155,10 @@ object RoadInfoFetcher {
                 "relation" -> averageZone(route, e)?.let { zones += it }
                 "node" -> {
                     val p = LatLon(e.getDouble("lat"), e.getDouble("lon"))
-                    if (tags?.optString("highway") == "toll_gantry") {
-                        gantries += p to (tags.optString("name:en").ifBlank { tags.optString("name") })
-                    } else {
-                        cameras += p
+                    when (tags?.optString("highway")) {
+                        "toll_gantry" -> gantries += p to (tags.optString("name:en").ifBlank { tags.optString("name") })
+                        "traffic_signals" -> lights += p
+                        else -> cameras += p
                     }
                 }
             }
@@ -155,6 +173,7 @@ object RoadInfoFetcher {
             toAlong,
             assignLaneCounts(route, ways.filter { it.countForward > 0 || it.countBackward > 0 }, first, last),
             zones.sortedBy { it.fromAlong },
+            RoadInfo.onePerJunction(lights.mapNotNull { alongOf(route, it, 15.0) }),
         )
     }
 

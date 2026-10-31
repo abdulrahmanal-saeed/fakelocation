@@ -108,6 +108,8 @@ object NavSession {
         val gpsLost: Boolean = false,
         /** Inside an average speed check: the zone, your average so far and how far it still goes. */
         val averageCheck: AverageSpeedCheck.Status? = null,
+        /** The next traffic light, when it's close (cars). */
+        val lightMeters: Double? = null,
     ) {
         val navigating get() = status == Status.NAVIGATING
 
@@ -589,6 +591,7 @@ object NavSession {
         val over = limit > 0 && speed > limit + 5
         if (over && !s.speeding && s.navigating && !s.muted) beeper?.startTone(ToneGenerator.TONE_PROP_BEEP2, 400)
         val camera = progress?.let { p -> s.roadInfo?.nextCamera(p.alongMeters)?.takeIf { it in 0.0..600.0 && s.mode == TravelMode.CAR } }
+        val light = progress?.let { p -> s.roadInfo?.nextLight(p.alongMeters)?.takeIf { it in 0.0..LIGHT_CHIP_METERS && s.mode == TravelMode.CAR } }
         val toStart = if (route != null && s.from != null && (progress?.alongMeters ?: 0.0) < 1) distanceMeters(here, route.points.first()) else 0.0
         val toll = progress?.let { p -> s.tolls.firstOrNull { it.alongMeters > p.alongMeters - 10 } }
         val tollMeters = toll?.let { it.alongMeters - progress.alongMeters }?.takeIf { it < 1500 }
@@ -610,7 +613,7 @@ object NavSession {
         }
         _state.update {
             it.copy(real = here, bearing = bearing, speedKmh = speed, limitKmh = limit, progress = progress,
-                fixId = it.fixId + 1, gpsLost = estimated, averageCheck = average,
+                fixId = it.fixId + 1, gpsLost = estimated, averageCheck = average, lightMeters = light,
                 speeding = if (over) true else if (speed <= limit || limit == 0) false else it.speeding,
                 cameraMeters = camera, toStartMeters = if (toStart > NavTracker.OFF_ROUTE_METERS) toStart else 0.0,
                 nextToll = toll?.takeIf { tollMeters != null }, tollMeters = tollMeters, stopsReached = reached)
@@ -676,7 +679,11 @@ object NavSession {
         val sinceTurn = p.alongMeters - previousAt
         val then = p.thenStep?.takeIf { route.along[it.pointIndex] - route.along[step.pointIndex] < 120 && it.maneuver != Maneuver.DEPART }
         val thenText = then?.let { app.getString(R.string.nav_voice_then, it.spoken.lowercase(Locale.US)) }.orEmpty()
-        val what = step.spoken.lowercase(Locale.US)
+        // "At the traffic lights, turn right", when the turn is at a junction with lights (like Google and Waze).
+        val atLights = car && step.maneuver !in setOf(Maneuver.ARRIVE, Maneuver.DEPART, Maneuver.ROUNDABOUT) &&
+            s.roadInfo?.lightAt(route.along[step.pointIndex]) == true
+        val what = (if (atLights) app.getString(R.string.nav_voice_at_lights) + " " else "") + step.spoken.lowercase(Locale.US)
+        val whatNow = if (atLights) app.getString(R.string.nav_voice_at_lights_now, step.spoken.lowercase(Locale.US)) else step.spoken
         val advice = state.value.laneAdvice
         if (advice != null && advice != 0 && d in now..early && sinceTurn > 30 && spoken.add("$index:lane")) {
             val n = kotlin.math.abs(advice)
@@ -685,7 +692,7 @@ object NavSession {
         }
         when {
             d <= now && spoken.add("$index:now") ->
-                speak(step.spoken + thenText)
+                speak(whatNow + thenText)
             d in now..prepare && spoken.add("$index:near") ->
                 speak(app.getString(R.string.nav_in, spokenDistance(d), what) + thenText)
             d in prepare..early && sinceTurn > 60 && spoken.add("$index:far") ->
@@ -736,6 +743,9 @@ object NavSession {
         }
         _state.update { it.copy(lane = laneTracker.lane, laneSource = laneTracker.source) }
     }
+
+    /** The next traffic light shows on screen from this close. */
+    private const val LIGHT_CHIP_METERS = 300.0
 
     private fun heldLimit(mapped: Int, along: Double): Int {
         if (mapped > 0) {

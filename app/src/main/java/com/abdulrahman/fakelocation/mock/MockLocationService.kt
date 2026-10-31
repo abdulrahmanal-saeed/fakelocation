@@ -181,6 +181,7 @@ class MockLocationService : LifecycleService() {
             fired = mutableSetOf(),
             natural = prefs.naturalMovement,
             trafficPercent = prefs.trafficPercent,
+            redLightPercent = prefs.redLightPercent,
         )
         resumeTrip(run)
     }

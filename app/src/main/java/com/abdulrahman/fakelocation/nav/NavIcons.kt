@@ -128,6 +128,34 @@ object NavIcons {
         return bitmap
     }
 
+    /**
+     * A traffic light marker: a small dark traffic light on a white dot, with a coloured ring ([ring] 0 = none) for
+     * what a fake trip does there.
+     */
+    fun trafficLight(context: Context, ring: Int = 0, scale: Float = context.resources.displayMetrics.density): Bitmap {
+        val size = (24 * scale).toInt()
+        val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(bitmap)
+        val paint = Paint(Paint.ANTI_ALIAS_FLAG)
+        val c = size / 2f
+        paint.color = if (ring != 0) ring else 0xFF94A3B8.toInt()
+        canvas.drawCircle(c, c, c, paint)
+        paint.color = 0xFFFFFFFF.toInt()
+        canvas.drawCircle(c, c, c - 2.5f * scale, paint)
+        paint.color = 0xFF1E293B.toInt()
+        val w = 6.5f * scale
+        val h = 14f * scale
+        canvas.drawRoundRect(RectF(c - w / 2, c - h / 2, c + w / 2, c + h / 2), 2.5f * scale, 2.5f * scale, paint)
+        val r = 1.5f * scale
+        paint.color = 0xFFEF4444.toInt()
+        canvas.drawCircle(c, c - 4.3f * scale, r, paint)
+        paint.color = 0xFFF59E0B.toInt()
+        canvas.drawCircle(c, c, r, paint)
+        paint.color = 0xFF22C55E.toInt()
+        canvas.drawCircle(c, c + 4.3f * scale, r, paint)
+        return bitmap
+    }
+
     /** A numbered stop marker: white number on a blue dot with a white ring. */
     fun numberDot(context: Context, number: Int, scale: Float = context.resources.displayMetrics.density): Bitmap {
         val size = (26 * scale).toInt()

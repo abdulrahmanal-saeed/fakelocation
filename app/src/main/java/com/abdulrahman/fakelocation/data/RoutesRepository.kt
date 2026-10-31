@@ -124,6 +124,11 @@ object RouteJson {
             .put("points", coords)
             .put("seconds", JSONArray(path.segmentSeconds.map { round(it, 2) }))
             .put("traffic", path.trafficAware)
+            .apply {
+                if (path.lights.isNotEmpty()) put("lights", JSONArray(path.lights.map {
+                    JSONArray().put(it.point).put(it.rule.name).put(it.waitSeconds)
+                }))
+            }
             .put("legs", JSONArray(path.legs.map {
                 JSONObject().put("distance", it.distanceMeters).put("duration", it.durationSeconds)
                     .put("first", it.firstPoint).put("last", it.lastPoint)
@@ -142,6 +147,16 @@ object RouteJson {
                 Leg(l.getDouble("distance"), l.getDouble("duration"), l.getInt("first"), l.getInt("last"))
             },
             trafficAware = json.optBoolean("traffic", false),
+            lights = json.optJSONArray("lights")?.let { arr ->
+                (0 until arr.length()).mapNotNull { i ->
+                    val l = arr.optJSONArray(i) ?: return@mapNotNull null
+                    TrafficLight(
+                        l.getInt(0),
+                        runCatching { LightRule.valueOf(l.getString(1)) }.getOrDefault(LightRule.AUTO),
+                        l.optInt(2, TrafficLight.DEFAULT_WAIT_SECONDS),
+                    )
+                }.filter { it.point in 0 until coords.length() / 2 }
+            }.orEmpty(),
         )
     }
 

@@ -186,6 +186,20 @@ server fails, routes come from Valhalla instead, for fake trips and for navigati
   map and the other screens. Android Auto and the other screens keep the classic map.
 - The APK now carries only the phone's kind of native code (64-bit ARM): about 17 MB (8.6 MB for the small one).
 
+**v2.9.0:** Traffic lights (from OpenStreetMap, where they're mapped).
+- **Fake car trips stop at red lights.** When a car route is worked out, the lights on it are looked up and saved with
+  the route (so it also runs offline). At a red light the fake position slows down over the last 40 m, stands still
+  (speed 0, still facing the road) and pulls away again, like a real car in Google Maps and other apps.
+  - Settings → Fake movement → **Red lights**: None, Few (1 in 4), Some (about half, the default) or Many (2 in 3),
+    waiting 15 s – 1.5 min. Which ones are red is fixed for each route, so a speed change mid-trip doesn't reshuffle
+    them, and the waits count in the trip's times ("Arrive by" leaves earlier to cover them).
+  - In the route editor the lights show on the map: **tap one** to follow the setting (grey ring), always stop there
+    for 30 s – 2 min (red ring) or never stop (green ring). Routes saved before this get their lights the next time
+    they're opened in the editor.
+- **Real navigation:** traffic-light icons on the road ahead (both maps), a "Traffic light · 200 m" chip when one is
+  close, and turns at a junction with lights are announced as "In 300 meters, at the traffic lights, turn right".
+  Whether a light is red or green right now isn't known (there's no public live data for that).
+
 See [PLAN.md](PLAN.md) for the full feature list.
 
 ## Install

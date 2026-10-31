@@ -339,6 +339,27 @@
                     tools:text="30 m"
                     tools:visibility="visible" />
 
+                <!-- The next traffic light, when it's close. -->
+                <TextView
+                    android:id="@+id/lightChip"
+                    style="@style/Text.Item"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_gravity="end"
+                    android:layout_marginTop="8dp"
+                    android:background="@drawable/bg_round"
+                    android:drawablePadding="6dp"
+                    android:elevation="4dp"
+                    android:gravity="center_vertical"
+                    android:paddingHorizontal="12dp"
+                    android:paddingVertical="8dp"
+                    android:textSize="15sp"
+                    android:visibility="gone"
+                    app:drawableStartCompat="@drawable/ic_traffic"
+                    app:drawableTint="@color/ink"
+                    tools:text="Traffic light · 200 m"
+                    tools:visibility="visible" />
+
                 <!-- Average speed check: your average so far against the limit, and how far it goes on. -->
                 <TextView
                     android:id="@+id/averageChip"
