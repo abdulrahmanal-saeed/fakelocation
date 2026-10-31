@@ -562,4 +562,93 @@
     <string name="backup_replace_title">Replace everything?</string>
     <string name="backup_replace_body">Your favorites, routes, history and settings become exactly the backup’s. What’s on the phone now and not in the backup is deleted.</string>
     <string name="backup_restored">Backup restored</string>
+
+    <!-- Trip options: speed, the way back, laps -->
+    <string name="trip_options">Trip</string>
+    <string name="trip_speed">Speed</string>
+    <string name="speed_value">%1$s×</string>
+    <string name="trip_way">Way</string>
+    <string name="way_one">One way</string>
+    <string name="way_back">There and back</string>
+    <string name="trip_laps">Times in a row</string>
+    <string name="laps_value">%1$d×</string>
+    <string name="laps_need_loop">Repeating needs the trip to end where it starts: pick “There and back”, or end the route at its first stop.</string>
+    <string name="repeat_back">There and back</string>
+    <string name="repeat_back_laps">There and back ×%1$d</string>
+    <string name="repeat_laps">%1$d laps</string>
+    <string name="progress_stop_of">Stop %1$d of %2$d</string>
+
+    <!-- Weekly routes -->
+    <string name="repeat_on">Repeat every week on</string>
+    <string name="repeat_hint_off">Pick days to run this every week at this time.</string>
+    <string name="repeat_hint_on">%1$s. Next: %2$s. Turn all days off to stop repeating.</string>
+    <string name="every_day">Every day</string>
+    <string-array name="weekdays_short">
+        <item>Mon</item>
+        <item>Tue</item>
+        <item>Wed</item>
+        <item>Thu</item>
+        <item>Fri</item>
+        <item>Sat</item>
+        <item>Sun</item>
+    </string-array>
+    <string-array name="weekdays_letters">
+        <item>M</item>
+        <item>T</item>
+        <item>W</item>
+        <item>T</item>
+        <item>F</item>
+        <item>S</item>
+        <item>S</item>
+    </string-array>
+    <string name="schedule_start_label">%1$s %2$s</string>
+    <string name="schedule_arrive_label">%1$s · arrive %2$s</string>
+    <string name="save_schedule">Save weekly schedule</string>
+    <string name="schedule_saved">%1$s. Next run: %2$s</string>
+    <string name="channel_trip_start">Weekly routes</string>
+    <string name="schedule_due_title">%1$s is due</string>
+    <string name="schedule_due_text">Starts %1$s · tap to start the trip</string>
+    <string name="schedule_skipped_title">%1$s skipped</string>
+    <string name="schedule_skipped_text">Another trip was running. It will run again next time.</string>
+    <string name="schedule_started">%1$s started</string>
+
+    <!-- Move: joystick and wander -->
+    <string name="move_search">Search another place</string>
+    <string name="move_joystick">Move with joystick</string>
+    <string name="move_wander">Wander around here</string>
+    <string name="joystick">Joystick</string>
+    <string name="joystick_walk">Walk</string>
+    <string name="joystick_run">Run</string>
+    <string name="joystick_drive">Drive</string>
+    <string name="joystick_hint">Drag the orange knob: up is north. The further you push, the faster it goes.</string>
+    <string name="wander_radius">How far from here</string>
+    <string name="wander_time">For how long</string>
+    <string name="wander_200m">200 m</string>
+    <string name="wander_500m">500 m</string>
+    <string name="wander_1km">1 km</string>
+    <string name="wander_30min">30 min</string>
+    <string name="wander_1h">1 hour</string>
+    <string name="wander_2h">2 hours</string>
+    <string name="wander_hint">Walks along real streets to random spots nearby, stops a few minutes at each, and comes back here.</string>
+    <string name="wander_start">Start walking</string>
+    <string name="wander_planning">Planning the walk…</string>
+    <string name="wander_name">Wander · %1$s</string>
+    <string name="wander_spot">Spot %1$d</string>
+
+    <!-- GPX / KML -->
+    <string name="import_route">Import</string>
+    <string name="imported_route">Imported route</string>
+    <string name="import_start">Start</string>
+    <string name="import_end">End</string>
+    <string name="import_done">Route imported. Check it, then tap Timing to run it.</string>
+    <string name="import_not_a_track">That file has no track or points (GPX or KML)</string>
+    <string name="import_failed">Couldn’t read that file</string>
+    <string name="export_gpx">Export as GPX</string>
+    <string name="export_done">Route saved as GPX</string>
+    <string name="export_failed">Couldn’t save the file there. Try another folder.</string>
+
+    <!-- Launcher shortcuts -->
+    <string name="shortcut_go_to">Go to %1$s</string>
+    <string name="shortcut_stop">Stop</string>
+    <string name="shortcut_stop_long">Stop the fake location</string>
 </resources>

@@ -11,6 +11,7 @@ import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.os.PowerManager
+import android.os.SystemClock
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.app.ServiceCompat
@@ -28,6 +29,7 @@ import com.abdulrahman.fakelocation.data.format
 import com.abdulrahman.fakelocation.data.formatClock
 import com.abdulrahman.fakelocation.data.formatDistance
 import com.abdulrahman.fakelocation.data.formatDuration
+import com.abdulrahman.fakelocation.data.moved
 import com.abdulrahman.fakelocation.trip.Alert
 import com.abdulrahman.fakelocation.trip.AlertKind
 import com.abdulrahman.fakelocation.trip.TripAlarms
@@ -65,12 +67,37 @@ class MockLocationService : LifecycleService() {
     private val tick = object : Runnable {
         override fun run() {
             try {
-                if (trip != null) tickTrip() else session?.let { push(it.position, 0f, 0f, natural = false) }
+                if (trip != null) tickTrip() else session?.let(::tickFixed)
             } catch (e: Exception) {
                 Log.w(TAG, "tick failed", e)
             }
-            if (trip != null || session != null) handler.postDelayed(this, PUSH_INTERVAL_MS)
+            val fast = trip == null && MockState.joystick.value != null
+            if (trip != null || session != null) handler.postDelayed(this, if (fast) JOYSTICK_INTERVAL_MS else PUSH_INTERVAL_MS)
         }
+    }
+
+    private var lastFixedTick = 0L
+    private var lastSessionSave = 0L
+
+    /** A fixed spot, or one the joystick on the map is moving. */
+    private fun tickFixed(current: FakeSession) {
+        val now = SystemClock.elapsedRealtime()
+        val dt = if (lastFixedTick == 0L) 0.0 else (now - lastFixedTick).coerceIn(0, 2_000) / 1000.0
+        lastFixedTick = now
+        val stick = MockState.joystick.value
+        if (stick == null || stick.speedMps <= 0.0) {
+            push(current.position, stick?.bearing?.toFloat() ?: 0f, 0f, natural = false)
+            return
+        }
+        val moved = current.copy(position = current.position.moved(stick.bearing, stick.speedMps * dt))
+        session = moved
+        MockState.set(moved)
+        // Written now and then, so a restart picks up close to where the joystick left it.
+        if (now - lastSessionSave > SESSION_SAVE_MS) {
+            prefs.activeSession = moved
+            lastSessionSave = now
+        }
+        push(moved.position, stick.bearing.toFloat(), stick.speedMps.toFloat(), natural = false)
     }
 
     override fun onCreate() {
@@ -101,6 +128,12 @@ class MockLocationService : LifecycleService() {
                 startTrip(route, intent.getLongExtra(EXTRA_START_AT, System.currentTimeMillis()))
             }
             ACTION_PAUSE, ACTION_RESUME, ACTION_SKIP, ACTION_ADD_WAIT -> tripControl(intent.action!!)
+            ACTION_SET_SPEED -> trip?.let { run ->
+                run.changeSpeed(intent.getDoubleExtra(EXTRA_SPEED, 1.0).coerceIn(0.25, 5.0), System.currentTimeMillis())
+                saveTrip()
+                restartTicks()
+                lastSurfaceKey = null
+            }
             ACTION_REAL_GPS -> {
                 val real = intent.getBooleanExtra(EXTRA_REAL, false)
                 prefs.realGpsForNav = real
@@ -154,7 +187,8 @@ class MockLocationService : LifecycleService() {
         closeHistoryEntry()
         trip = null
         val run = TripRun(
-            route = route,
+            // The way back and the laps become plain stops, so the rest of the trip engine needs nothing special.
+            route = route.expanded(),
             clock = TripClock.startingAt(startAt),
             fired = mutableSetOf(),
             natural = prefs.naturalMovement,
@@ -208,7 +242,7 @@ class MockLocationService : LifecycleService() {
         MockState.setTrip(
             TripUi(
                 run.route.name, run.route.mode, run.timeline, t, point, run.clock.paused, now,
-                prefs.alertBeforeArriveMinutes * 60_000L, prefs.alertBeforeLeaveMinutes * 60_000L
+                prefs.alertBeforeArriveMinutes * 60_000L, prefs.alertBeforeLeaveMinutes * 60_000L, run.route.speed,
             )
         )
         notifications.notify(NOTIFICATION_ID, tripNotification(run, point))
@@ -586,6 +620,8 @@ class MockLocationService : LifecycleService() {
         private const val ALERT_NOTIFICATION_ID = 2
         private const val INFO_NOTIFICATION_ID = 3
         private const val PUSH_INTERVAL_MS = 1000L
+        private const val JOYSTICK_INTERVAL_MS = 500L
+        private const val SESSION_SAVE_MS = 5_000L
         private const val SURFACE_REFRESH_MS = 30_000L
         private const val ACTION_TELEPORT = "teleport"
         const val ACTION_STOP = "stop"
@@ -602,6 +638,8 @@ class MockLocationService : LifecycleService() {
         private const val EXTRA_NAME = "name"
         private const val EXTRA_ROUTE = "route"
         private const val EXTRA_START_AT = "start_at"
+        private const val ACTION_SET_SPEED = "set_speed"
+        private const val EXTRA_SPEED = "speed"
 
         fun teleport(context: Context, target: LatLon, name: String?) {
             val intent = Intent(context, MockLocationService::class.java)
@@ -627,6 +665,10 @@ class MockLocationService : LifecycleService() {
         /** Moving: jump to the next stop. Waiting: leave now. Scheduled: start now. */
         fun skip(context: Context) = send(context, ACTION_SKIP)
         fun addWait(context: Context) = send(context, ACTION_ADD_WAIT)
+
+        /** Trip speed from now on (1.0 = each street's speed). */
+        fun setSpeed(context: Context, speed: Double) =
+            context.startService(actionIntent(context, ACTION_SET_SPEED).putExtra(EXTRA_SPEED, speed))
         fun dismissAlarm(context: Context) = send(context, ACTION_DISMISS_ALARM)
 
         /** Navigation on: the app reads the real GPS chip while the fake location keeps running for other apps. */

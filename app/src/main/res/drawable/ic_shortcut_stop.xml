@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Launcher shortcut "stop faking": fixed colours, since launchers draw it without the app's theme. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="48dp" android:height="48dp" android:viewportWidth="48" android:viewportHeight="48">
+    <path android:pathData="M24,0a24,24 0 1,0 0.01,0z" android:fillColor="#0F1B2D" />
+    <group android:translateX="12" android:translateY="12">
+        <path android:pathData="M8,6h8a2,2 0 0 1 2,2v8a2,2 0 0 1 -2,2h-8a2,2 0 0 1 -2,-2v-8a2,2 0 0 1 2,-2z" android:fillColor="#FFFFFF" />
+    </group>
+</vector>

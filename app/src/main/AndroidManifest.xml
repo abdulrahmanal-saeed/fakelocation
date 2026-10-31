@@ -170,6 +170,18 @@
             </intent-filter>
         </receiver>
 
+        <!-- Repeating routes: the alarm itself, and setting it again after a reboot, update or clock change. -->
+        <receiver
+            android:name=".system.TripScheduleReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+                <action android:name="android.intent.action.TIME_SET" />
+                <action android:name="android.intent.action.TIMEZONE_CHANGED" />
+            </intent-filter>
+        </receiver>
+
         <!-- Android Auto -->
         <meta-data
             android:name="com.google.android.gms.car.application"

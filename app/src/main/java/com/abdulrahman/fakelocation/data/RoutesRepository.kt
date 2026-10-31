@@ -77,6 +77,10 @@ object RouteJson {
         .put("updatedAt", route.updatedAt)
         .put("timingMode", route.timing.mode.name)
         .apply { route.timing.timeMillis?.let { put("timingTime", it) } }
+        .apply { if (route.timing.days != 0) put("timingDays", route.timing.days) }
+        .apply { if (route.speed != 1.0) put("speed", route.speed) }
+        .apply { if (route.returnTrip) put("returnTrip", true) }
+        .apply { if (route.laps != 1) put("laps", route.laps) }
         .put("stops", JSONArray(route.stops.map {
             JSONObject().put("id", it.id).put("name", it.name).put("lat", it.position.lat).put("lon", it.position.lon)
                 .put("wait", it.waitMinutes)
@@ -96,9 +100,13 @@ object RouteJson {
         path = json.optJSONObject("path")?.let(::readPath),
         timing = Timing(
             TimingMode.valueOf(json.optString("timingMode", TimingMode.NOW.name)),
-            if (json.has("timingTime")) json.getLong("timingTime") else null
+            if (json.has("timingTime")) json.getLong("timingTime") else null,
+            json.optInt("timingDays", 0),
         ),
         updatedAt = json.optLong("updatedAt", System.currentTimeMillis()),
+        speed = json.optDouble("speed", 1.0).takeIf { it > 0 } ?: 1.0,
+        returnTrip = json.optBoolean("returnTrip", false),
+        laps = json.optInt("laps", 1).coerceIn(1, Route.MAX_LAPS),
     )
 
     private fun writePath(path: RoutePath): JSONObject {

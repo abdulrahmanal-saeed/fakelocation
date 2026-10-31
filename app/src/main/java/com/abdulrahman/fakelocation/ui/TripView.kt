@@ -151,6 +151,7 @@ class TripView(private val binding: FragmentMapBinding) {
         val stops = trip.stops
         val lastLetter = stopLetter(stops.lastIndex)
         val arriveLast = clockText(trip.wallOf(trip.timeline.arrive.last()))
+        binding.speedStat.setOnClickListener { chooseSpeed(trip.speed) }
         when (p.phase) {
             TripPhase.MOVING -> stats(
                 R.string.stat_speed to context.getString(R.string.kmh, (p.speedMps * 3.6f).roundToInt()),
@@ -168,6 +169,7 @@ class TripView(private val binding: FragmentMapBinding) {
                 lastLetter to arriveLast,
             )
         }
+        if (p.phase == TripPhase.MOVING && trip.speed != 1.0) binding.stat1Label.append(" · " + speedLabel(context, trip.speed))
 
         binding.tripHint.text = when {
             trip.paused -> context.getString(R.string.hint_paused)
@@ -219,6 +221,18 @@ class TripView(private val binding: FragmentMapBinding) {
         b2.setOnClickListener { MockLocationService.skip(context) }
     }
 
+    /** Trip speed (1× = each street's speed) for the rest of the trip. */
+    private fun chooseSpeed(current: Double) {
+        val labels = TRIP_SPEEDS.map { speedLabel(context, it) }.toTypedArray()
+        com.google.android.material.dialog.MaterialAlertDialogBuilder(context)
+            .setTitle(R.string.trip_speed)
+            .setSingleChoiceItems(labels, TRIP_SPEEDS.indexOf(current)) { dialog, which ->
+                MockLocationService.setSpeed(context, TRIP_SPEEDS[which])
+                dialog.dismiss()
+            }
+            .show()
+    }
+
     private fun stats(first: Pair<Int, String>, second: Pair<Int, String>, third: Pair<String, String>) {
         binding.stat1Label.setText(first.first)
         binding.stat1Value.text = first.second
@@ -228,7 +242,7 @@ class TripView(private val binding: FragmentMapBinding) {
         binding.stat3Value.text = third.second
     }
 
-    /** A B C D with bars between them, filled up to where the trip is. */
+    /** A B C D with bars between them, filled up to where the trip is (one bar for trips with many stops). */
     private fun bindProgress(trip: TripUi) {
         val row = binding.progressRow
         row.removeAllViews()
@@ -236,6 +250,17 @@ class TripView(private val binding: FragmentMapBinding) {
         val p = trip.point
         val size = (26 * density).toInt()
         val gap = (6 * density).toInt()
+        if (stops.size > MAX_PROGRESS_DOTS) {
+            val fill = if (p.phase == TripPhase.SCHEDULED) 0f else (p.distanceDone / trip.timeline.totalDistance.coerceAtLeast(1.0)).toFloat()
+            row.addView(bar(fill.coerceIn(0f, 1f)), LinearLayout.LayoutParams(0, (4 * density).toInt(), 1f).apply { marginEnd = gap })
+            val count = TextView(context).apply {
+                text = context.getString(R.string.progress_stop_of, (trip.nextStop ?: stops.lastIndex) + 1, stops.size)
+                textSize = 12f
+                setTextColor(ContextCompat.getColor(context, R.color.muted))
+            }
+            row.addView(count, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT))
+            return
+        }
         stops.forEachIndexed { i, _ ->
             if (i > 0) {
                 val leg = i - 1
@@ -281,6 +306,11 @@ class TripView(private val binding: FragmentMapBinding) {
     }
 
     private fun clock(ms: Long) = formatClock(ms.coerceAtLeast(0) + 999).removePrefix("00:")
+
+    private companion object {
+        /** More stops than this (e.g. several laps) don't fit as letters across the screen. */
+        const val MAX_PROGRESS_DOTS = 9
+    }
 
     /** Orange circle with a white arrow pointing along [bearing] (degrees clockwise from north). */
     private fun arrow(bearing: Float): Drawable {

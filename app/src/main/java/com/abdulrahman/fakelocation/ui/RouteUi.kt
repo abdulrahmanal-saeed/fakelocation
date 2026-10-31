@@ -39,7 +39,7 @@ fun Context.modeLabel(mode: TravelMode) = getString(if (mode == TravelMode.CAR) 
 
 fun Context.routeMeta(route: Route): String {
     val path = route.path
-    return if (path == null) {
+    val base = if (path == null) {
         getString(R.string.route_meta_unrouted, modeLabel(route.mode), route.stops.size)
     } else {
         getString(
@@ -47,6 +47,41 @@ fun Context.routeMeta(route: Route): String {
             formatDistance(path.distanceMeters), formatDuration(Schedule.totalMillis(route.stops, path))
         )
     }
+    val extras = listOfNotNull(
+        repeatLabel(route),
+        route.speed.takeIf { it != 1.0 }?.let { speedLabel(this, it) },
+        scheduleLabel(route.timing),
+    )
+    return (listOf(base) + extras).joinToString(" · ")
+}
+
+/** Trip speeds offered: slower than the streets, as they are, and faster. */
+val TRIP_SPEEDS = listOf(0.5, 0.75, 1.0, 1.5, 2.0, 3.0)
+
+/** "1×", "1.5×", "0.75×" */
+fun speedLabel(context: Context, speed: Double): String =
+    context.getString(R.string.speed_value, if (speed % 1.0 == 0.0) speed.toInt().toString() else speed.toString())
+
+/** "There and back ×2", "3 laps", or null for a plain one-way trip. */
+fun Context.repeatLabel(route: Route): String? {
+    val laps = if (route.canRepeat) route.laps else 1
+    return when {
+        route.returnTrip && laps > 1 -> getString(R.string.repeat_back_laps, laps)
+        route.returnTrip -> getString(R.string.repeat_back)
+        laps > 1 -> getString(R.string.repeat_laps, laps)
+        else -> null
+    }
+}
+
+/** "Mon–Fri 07:30", "Sat, Sun · arrive 09:00", or null when the route doesn't repeat. */
+fun Context.scheduleLabel(timing: com.abdulrahman.fakelocation.data.Timing): String? {
+    if (!timing.repeats) return null
+    val time = clockText(timing.timeMillis!!)
+    val days = com.abdulrahman.fakelocation.trip.TripSchedule.daysText(
+        timing.days, resources.getStringArray(R.array.weekdays_short).toList(), getString(R.string.every_day),
+    )
+    return if (timing.mode == com.abdulrahman.fakelocation.data.TimingMode.ARRIVE_BY) getString(R.string.schedule_arrive_label, days, time)
+    else getString(R.string.schedule_start_label, days, time)
 }
 
 fun Context.editedText(time: Long): String =

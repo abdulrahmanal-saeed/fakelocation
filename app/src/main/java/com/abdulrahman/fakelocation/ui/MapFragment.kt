@@ -23,12 +23,24 @@ import com.abdulrahman.fakelocation.data.LatLon
 import com.abdulrahman.fakelocation.data.Place
 import com.abdulrahman.fakelocation.data.PlacesRepository
 import com.abdulrahman.fakelocation.data.Prefs
+import com.abdulrahman.fakelocation.data.Route
+import com.abdulrahman.fakelocation.data.RoutesRepository
+import com.abdulrahman.fakelocation.data.TravelMode
 import com.abdulrahman.fakelocation.data.distanceMeters
 import com.abdulrahman.fakelocation.data.format
 import com.abdulrahman.fakelocation.data.formatClock
+import com.abdulrahman.fakelocation.databinding.DialogWanderBinding
 import com.abdulrahman.fakelocation.databinding.FragmentMapBinding
+import com.abdulrahman.fakelocation.geo.NoInternetException
+import com.abdulrahman.fakelocation.geo.PlaceSearch
+import com.abdulrahman.fakelocation.geo.Router
+import com.abdulrahman.fakelocation.mock.Joystick
 import com.abdulrahman.fakelocation.mock.MockLocationService
 import com.abdulrahman.fakelocation.mock.MockState
+import com.abdulrahman.fakelocation.trip.Wander
+import com.google.android.material.dialog.MaterialAlertDialogBuilder
+import kotlin.math.roundToInt
+import kotlin.random.Random
 import com.google.android.gms.location.LocationCallback
 import com.google.android.gms.location.LocationRequest
 import com.google.android.gms.location.LocationResult
@@ -138,6 +150,8 @@ class MapFragment : Fragment(R.layout.fragment_map) {
     }
 
     override fun onPause() {
+        // Leaving the screen lets go of the joystick: the fake position stops where it is.
+        MockState.joystick.value?.let { MockState.joystick.value = it.copy(speedMps = 0.0) }
         binding.map.onPause()
         stopRealLocationTracking()
         super.onPause()
@@ -262,7 +276,8 @@ class MapFragment : Fragment(R.layout.fragment_map) {
         }
         binding.planRouteButton.setOnClickListener { main.newRouteFromHere() }
         binding.routeFromHereButton.setOnClickListener { main.newRouteFromHere() }
-        binding.moveButton.setOnClickListener { main.openSearch() }
+        binding.moveButton.setOnClickListener { showMoveOptions() }
+        setupJoystick()
         binding.stopButton.setOnClickListener { MockLocationService.stop(requireContext()) }
         binding.saveButton.setOnClickListener {
             val session = MockState.session.value ?: return@setOnClickListener
@@ -278,6 +293,105 @@ class MapFragment : Fragment(R.layout.fragment_map) {
             }
         }
     }
+
+    // region Move: search, joystick, wander
+
+    private fun showMoveOptions() {
+        val items = arrayOf(getString(R.string.move_search), getString(R.string.move_joystick), getString(R.string.move_wander))
+        MaterialAlertDialogBuilder(requireContext())
+            .setTitle(R.string.move)
+            .setItems(items) { _, which ->
+                when (which) {
+                    0 -> main.openSearch()
+                    1 -> openJoystick()
+                    else -> askWander()
+                }
+            }
+            .show()
+    }
+
+    private val joystickOpen get() = MockState.joystick.value != null
+
+    /** Top speed for each joystick setting, in m/s (walk 5, run 11, drive 50 km/h). */
+    private fun joystickMaxSpeed(): Double = when (binding.joystickSpeedGroup.checkedButtonId) {
+        R.id.joyRun -> 3.0
+        R.id.joyDrive -> 13.9
+        else -> 1.4
+    }
+
+    private fun setupJoystick() {
+        binding.joystick.onMove = { bearing, amount ->
+            val speed = amount * joystickMaxSpeed()
+            MockState.joystick.value = Joystick(bearing, speed)
+            binding.joystickSpeed.text = getString(R.string.kmh, (speed * 3.6).roundToInt())
+        }
+        binding.joystickDone.setOnClickListener { closeJoystick() }
+        if (joystickOpen) showJoystickPanel(true)
+    }
+
+    private fun openJoystick() {
+        MockState.joystick.value = Joystick(0.0, 0.0)
+        showJoystickPanel(true)
+    }
+
+    private fun showJoystickPanel(show: Boolean) {
+        val b = _binding ?: return
+        b.joystickPanel.isVisible = show
+        b.activePanel.isVisible = !show && MockState.session.value != null
+        b.joystickSpeed.text = getString(R.string.kmh, 0)
+    }
+
+    /** Done: stand still where the joystick left the fake position, under that place's name. */
+    private fun closeJoystick() {
+        MockState.joystick.value = null
+        showJoystickPanel(false)
+        val session = MockState.session.value ?: return
+        val context = requireContext().applicationContext
+        viewLifecycleOwner.lifecycleScope.launch {
+            val place = runCatching { PlaceSearch.reverse(context, session.position) }.getOrNull()
+            MockLocationService.teleport(context, session.position, place?.name ?: session.position.format())
+        }
+    }
+
+    private fun askWander() {
+        val dialog = DialogWanderBinding.inflate(layoutInflater)
+        MaterialAlertDialogBuilder(requireContext())
+            .setTitle(R.string.move_wander)
+            .setView(dialog.root)
+            .setPositiveButton(R.string.wander_start) { _, _ ->
+                val radius = when (dialog.radiusGroup.checkedButtonId) {
+                    R.id.radius200 -> 200.0
+                    R.id.radius1000 -> 1000.0
+                    else -> 500.0
+                }
+                val minutes = when (dialog.timeGroup.checkedButtonId) {
+                    R.id.time30 -> 30
+                    R.id.time120 -> 120
+                    else -> 60
+                }
+                startWander(radius, minutes)
+            }
+            .setNegativeButton(R.string.cancel, null)
+            .show()
+    }
+
+    /** A walk to random spots nearby along real streets, run as a fake trip (not saved with the routes). */
+    private fun startWander(radius: Double, minutes: Int) {
+        val session = MockState.session.value ?: return
+        val context = requireContext().applicationContext
+        context.toast(R.string.wander_planning)
+        viewLifecycleOwner.lifecycleScope.launch {
+            val stops = Wander.stops(session.position, session.name, radius, minutes, Random.Default) { getString(R.string.wander_spot, it) }
+            runCatching { Router.route(context, stops.map { it.position }, TravelMode.WALK) }
+                .onSuccess { path ->
+                    val route = Route(RoutesRepository.newId(), getString(R.string.wander_name, session.name), TravelMode.WALK, stops, path)
+                    MockLocationService.startTrip(context, route, System.currentTimeMillis())
+                }
+                .onFailure { context.toast(if (it is NoInternetException) R.string.no_internet else R.string.route_failed) }
+        }
+    }
+
+    // endregion
 
     private fun renderTrip(trip: com.abdulrahman.fakelocation.mock.TripUi) {
         val view = tripView ?: TripView(binding).also { tripView = it }
@@ -309,8 +423,14 @@ class MapFragment : Fragment(R.layout.fragment_map) {
 
     private fun renderSession(session: FakeSession?, favorites: List<Favorite>) {
         val map = binding.map
+        // Stopped (e.g. from the notification) while the joystick was open.
+        if (session == null && joystickOpen) {
+            MockState.joystick.value = null
+            binding.joystickPanel.isVisible = false
+        }
         binding.idlePanel.isVisible = session == null
-        binding.activePanel.isVisible = session != null
+        binding.activePanel.isVisible = session != null && !joystickOpen
+        if (session != null && joystickOpen) map.controller.setCenter(GeoPoint(session.position.lat, session.position.lon))
         binding.activePill.isVisible = session != null
         binding.chipsScroll.isVisible = session == null
         timerHandler.removeCallbacks(timerTick)

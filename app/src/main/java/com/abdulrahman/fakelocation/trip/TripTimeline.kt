@@ -72,6 +72,23 @@ class TripTimeline(val stops: List<Stop>, rawPath: RoutePath, val natural: Boole
 
     private fun legMs(i: Int) = (path.legs[i].durationSeconds * 1000).toLong()
 
+    /**
+     * The moment in [other] (the same stops, other speeds) that matches [t] here: the same share of the same leg, or
+     * the same minute of the same wait. Used to change speed mid-trip without the position jumping.
+     */
+    fun sameMomentIn(other: TripTimeline, t: Long): Long {
+        if (t < 0) return t
+        if (t >= totalMs) return other.totalMs
+        for (i in stops.indices) {
+            if (t >= arrive[i] && t < leave[i]) return other.arrive[i] + (t - arrive[i])
+            if (i < stops.lastIndex && t >= leave[i] && t < arrive[i + 1]) {
+                val share = (t - leave[i]).toDouble() / (arrive[i + 1] - leave[i])
+                return other.leave[i] + (share * (other.arrive[i + 1] - other.leave[i])).toLong()
+            }
+        }
+        return other.totalMs
+    }
+
     fun at(t: Long): TripPoint {
         if (t < 0) return still(TripPhase.SCHEDULED, 0)
         if (t >= totalMs) return still(TripPhase.FINISHED, stops.lastIndex)

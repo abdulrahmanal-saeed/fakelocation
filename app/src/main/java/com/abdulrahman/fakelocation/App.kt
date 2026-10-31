@@ -1,7 +1,15 @@
 package com.abdulrahman.fakelocation
 
 import android.app.Application
+import com.abdulrahman.fakelocation.data.PlacesRepository
 import com.abdulrahman.fakelocation.data.Prefs
+import com.abdulrahman.fakelocation.data.RoutesRepository
+import com.abdulrahman.fakelocation.system.AppShortcuts
+import com.abdulrahman.fakelocation.system.TripScheduler
+import kotlinx.coroutines.MainScope
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.launch
 import org.osmdroid.config.Configuration
 
 class App : Application() {
@@ -15,6 +23,22 @@ class App : Application() {
         }
         applyMapCacheLimit(Prefs(this).mapCacheMb)
         com.abdulrahman.fakelocation.nav.NavSession.init(this)
+
+        // Weekly route alarms and launcher shortcuts follow the saved routes and favorites, whichever screen changed them.
+        val scope = MainScope()
+        scope.launch {
+            RoutesRepository.get(this@App).routes
+                .map { routes ->
+                    routes.filter { it.timing.repeats }.map {
+                        listOf(it.id, it.timing, it.path?.durationSeconds, it.speed, it.returnTrip, it.laps, it.stops.map { s -> s.waitMinutes })
+                    }
+                }
+                .distinctUntilChanged()
+                .collect { TripScheduler.update(this@App) }
+        }
+        scope.launch {
+            PlacesRepository.get(this@App).favorites.collect { AppShortcuts.update(this@App, it) }
+        }
     }
 
     companion object {
