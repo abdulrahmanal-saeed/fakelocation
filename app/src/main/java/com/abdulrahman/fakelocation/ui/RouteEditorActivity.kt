@@ -28,7 +28,9 @@ import com.abdulrahman.fakelocation.R
 import com.abdulrahman.fakelocation.data.LatLon
 import com.abdulrahman.fakelocation.data.Place
 import com.abdulrahman.fakelocation.data.Prefs
+import com.abdulrahman.fakelocation.data.LightRule
 import com.abdulrahman.fakelocation.data.Route
+import com.abdulrahman.fakelocation.data.RoutePath
 import com.abdulrahman.fakelocation.data.RoutesRepository
 import com.abdulrahman.fakelocation.data.Schedule
 import com.abdulrahman.fakelocation.data.Stop
@@ -42,6 +44,8 @@ import com.abdulrahman.fakelocation.databinding.ItemStopBinding
 import com.abdulrahman.fakelocation.geo.NoInternetException
 import com.abdulrahman.fakelocation.geo.PlaceSearch
 import com.abdulrahman.fakelocation.geo.Router
+import com.abdulrahman.fakelocation.geo.TrafficLights
+import com.abdulrahman.fakelocation.nav.NavIcons
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.snackbar.Snackbar
 import kotlinx.coroutines.Job
@@ -76,6 +80,10 @@ class RouteEditorActivity : AppCompatActivity() {
         }
     }
     private val stopMarkers = mutableListOf<Marker>()
+    private val lightMarkers = mutableListOf<Marker>()
+    private var lightsJob: Job? = null
+    /** The path whose traffic lights were looked up (once per path). */
+    private var lightsCheckedFor: RoutePath? = null
 
     private val searchLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         SearchActivity.placeFrom(result.data)?.let { addStop(it) }
@@ -101,7 +109,10 @@ class RouteEditorActivity : AppCompatActivity() {
         setupMap()
         setupPanel()
         render()
-        if (route.path == null) requestRoute(immediate = true) else fitMap()
+        if (route.path == null) requestRoute(immediate = true) else {
+            fitMap()
+            findLights()
+        }
     }
 
     override fun onResume() {
@@ -250,6 +261,7 @@ class RouteEditorActivity : AppCompatActivity() {
 
     private fun requestRoute(immediate: Boolean) {
         routingJob?.cancel()
+        lightsJob?.cancel()
         routingError = null
         if (route.stops.size < 2) {
             render()
@@ -267,11 +279,64 @@ class RouteEditorActivity : AppCompatActivity() {
                 persist()
                 render()
                 fitMap()
+                findLights()
             }.onFailure {
                 routingError = it
                 render()
             }
         }
+    }
+
+    /**
+     * Car routes: the traffic lights along the path, from OpenStreetMap, so fake trips can stop at red ones. Looked up
+     * once per path; a route saved before this (or where nothing came back) is checked again when opened.
+     */
+    private fun findLights() {
+        val path = route.path ?: return
+        if (route.mode != TravelMode.CAR || path.lights.isNotEmpty() || lightsCheckedFor === path) return
+        lightsCheckedFor = path
+        lightsJob?.cancel()
+        lightsJob = lifecycleScope.launch {
+            val found = runCatching { TrafficLights.find(path) }
+                .onFailure { android.util.Log.w("RouteEditor", "traffic lights didn't load", it) }
+                .getOrNull() ?: return@launch
+            if (route.path !== path || found.isEmpty()) return@launch
+            route = route.copy(path = path.copy(lights = found))
+            lightsCheckedFor = route.path
+            persist()
+            render()
+        }
+    }
+
+    /** Tap a light: follow the setting, always stop there (for how long), or never stop. */
+    private fun chooseLight(index: Int) {
+        val path = route.path ?: return
+        val light = path.lights.getOrNull(index) ?: return
+        val waits = listOf(30, 60, 90, 120)
+        val labels = listOf(getString(R.string.light_auto, Prefs(this).redLightPercent)) +
+            waits.map { getString(R.string.light_stop, formatDuration(it * 1000L)) } + getString(R.string.light_go)
+        val checked = when (light.rule) {
+            LightRule.AUTO -> 0
+            LightRule.STOP -> 1 + waits.indexOfFirst { it >= light.waitSeconds }.let { if (it < 0) waits.lastIndex else it }
+            LightRule.GO -> labels.lastIndex
+        }
+        MaterialAlertDialogBuilder(this)
+            .setTitle(R.string.light_title)
+            .setSingleChoiceItems(labels.toTypedArray(), checked) { dialog, which ->
+                val changed = when (which) {
+                    0 -> light.copy(rule = LightRule.AUTO)
+                    labels.lastIndex -> light.copy(rule = LightRule.GO)
+                    else -> light.copy(rule = LightRule.STOP, waitSeconds = waits[which - 1])
+                }
+                val current = route.path ?: return@setSingleChoiceItems
+                route = route.copy(path = current.copy(lights = current.lights.mapIndexed { i, l -> if (i == index) changed else l }))
+                lightsCheckedFor = route.path
+                persist()
+                render()
+                dialog.dismiss()
+            }
+            .setNegativeButton(R.string.cancel, null)
+            .show()
     }
 
     private fun render() {
@@ -296,7 +361,8 @@ class RouteEditorActivity : AppCompatActivity() {
                 formatDuration((path.durationSeconds * 1000).toLong()),
                 getString(if (route.mode == TravelMode.CAR) R.string.driving else R.string.walking),
                 formatDuration(route.waitMinutes * 60_000L).takeIf { route.waitMinutes > 0 } ?: "0m",
-            ) + if (path.trafficAware) " · " + getString(R.string.route_google_traffic) else ""
+            ) + (if (path.trafficAware) " · " + getString(R.string.route_google_traffic) else "") +
+                (if (route.mode == TravelMode.CAR && path.lights.isNotEmpty()) "\n" + resources.getQuantityString(R.plurals.route_lights, path.lights.size, path.lights.size) else "")
             else -> getString(R.string.route_calculating)
         }
         binding.nextButton.isEnabled = path != null && route.stops.size >= 2 && !loading
@@ -316,6 +382,27 @@ class RouteEditorActivity : AppCompatActivity() {
             }
         }
         map.overlays.addAll(stopMarkers)
+        lightMarkers.forEach { map.overlays.remove(it) }
+        lightMarkers.clear()
+        route.path?.takeIf { route.mode == TravelMode.CAR }?.let { p ->
+            p.lights.forEachIndexed { i, light ->
+                val at = p.points.getOrNull(light.point) ?: return@forEachIndexed
+                val ring = when (light.rule) {
+                    LightRule.AUTO -> 0
+                    LightRule.STOP -> ContextCompat.getColor(this, R.color.limit_red)
+                    LightRule.GO -> ContextCompat.getColor(this, R.color.route_green)
+                }
+                lightMarkers += Marker(map).apply {
+                    position = GeoPoint(at.lat, at.lon)
+                    icon = android.graphics.drawable.BitmapDrawable(resources, NavIcons.trafficLight(this@RouteEditorActivity, ring))
+                    setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
+                    setInfoWindow(null)
+                    setOnMarkerClickListener { _, _ -> chooseLight(i); true }
+                }
+            }
+        }
+        // Under the stop letters, over the path.
+        map.overlays.addAll(map.overlays.indexOf(pathLine) + 1, lightMarkers)
         val path = route.path
         pathLine.setPoints(
             path?.points?.map { GeoPoint(it.lat, it.lon) }

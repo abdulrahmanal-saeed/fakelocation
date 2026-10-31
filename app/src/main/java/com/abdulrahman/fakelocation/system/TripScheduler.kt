@@ -41,7 +41,7 @@ object TripScheduler {
         val now = System.currentTimeMillis()
         val armed = HashSet<Long>()
         for (route in RoutesRepository.get(app).routes.value) {
-            val start = TripSchedule.nextStart(route, prefs.trafficPercent, now, ZoneId.systemDefault()) ?: continue
+            val start = TripSchedule.nextStart(route, prefs.trafficPercent, now, ZoneId.systemDefault(), prefs.redLightPercent) ?: continue
             exact(alarms, start, fireIntent(app, route.id, start))
             armed += route.id
         }

@@ -364,6 +364,7 @@ class NavigateActivity : AppCompatActivity() {
     private fun renderPlanning(s: NavSession.State) {
         binding.speedRow.isVisible = false
         binding.cameraChip.isVisible = false
+        binding.lightChip.isVisible = false
         binding.averageChip.isVisible = false
         binding.tollChip.isVisible = false
         binding.streetPill.isVisible = false
@@ -419,6 +420,8 @@ class NavigateActivity : AppCompatActivity() {
         binding.speedLimit.text = s.limitKmh.toString()
         binding.cameraChip.isVisible = s.cameraMeters != null
         binding.cameraChip.text = s.cameraMeters?.let { formatDistance(it) }
+        binding.lightChip.isVisible = s.lightMeters != null
+        binding.lightChip.text = s.lightMeters?.let { getString(R.string.nav_light_chip, formatDistance(it)) }
         val average = s.averageCheck
         binding.averageChip.isVisible = average != null
         if (average != null) {

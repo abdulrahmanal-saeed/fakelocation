@@ -132,6 +132,20 @@
     <string name="route_failed">Couldn’t get a route. Check your internet and try again.</string>
     <string name="retry">Retry</string>
     <string name="route_summary">%1$s · %2$s %3$s · %4$s waiting</string>
+    <plurals name="route_lights">
+        <item quantity="one">%d traffic light (tap to set)</item>
+        <item quantity="other">%d traffic lights (tap one to set it)</item>
+    </plurals>
+    <string name="light_title">Traffic light</string>
+    <string name="light_auto">As in Settings (red about %d%% of the time)</string>
+    <string name="light_stop">Always stop · %s</string>
+    <string name="light_go">Never stop</string>
+    <string name="red_lights">Red lights</string>
+    <string name="red_lights_hint">On fake car trips, how many traffic lights are red: the trip slows down, stops 15 s – 1.5 min and pulls away. Each light can also be set in the route.</string>
+    <string name="red_lights_none">None</string>
+    <string name="red_lights_few">Few (1 in 4)</string>
+    <string name="red_lights_some">Some (about half)</string>
+    <string name="red_lights_many">Many (2 in 3)</string>
     <string name="driving">driving</string>
     <string name="walking">walking</string>
     <string name="next_timing">Next: timing</string>
@@ -457,6 +471,9 @@
     <string name="settings_reset_price">Use built-in price</string>
     <string name="car_tolls_avoided">No tolls ✓</string>
     <string name="nav_voice_then">, then %1$s</string>
+    <string name="nav_voice_at_lights">at the traffic lights,</string>
+    <string name="nav_voice_at_lights_now">At the traffic lights, %1$s</string>
+    <string name="nav_light_chip">Traffic light · %1$s</string>
     <string name="nav_voice_continue">Continue for %1$s</string>
     <string name="nav_then_short">Then</string>
     <string name="nav_voice_lanes_right">Move %1$s to the right</string>
@@ -706,7 +723,7 @@
     <string name="theme_dark">Dark</string>
     <string name="whats_new">What’s new</string>
     <string name="whats_new_title">What’s new in %1$s</string>
-    <string name="whats_new_body">• Driving: the car now moves smoothly along the road between GPS fixes (no more lagging a second behind or cutting corners), the map turns and zooms gently, zooming out a little so the next turn shows before you reach it.\n\n• Tunnels: when the GPS drops out the car carries on along the route at your speed, with distances and voice, until the signal is back.\n\n• Moved the map while driving? It follows you again by itself after 10 seconds.\n\n• Your real location on the map: updated every second and gliding, with a circle showing how accurate the GPS is and a cone showing which way you face.\n\n• Navigation: notices sooner when you take a wrong turn, shows Google’s live traffic on the whole map (with a Google key, button on the left), and average speed checks with your average so far.\n\n• Fake trips: the arrow on the map glides along the road instead of jumping once a second, and the joystick moves the pin smoothly. Settings → Fake movement → Location updates sends the moving fake position up to 5 times a second.\n\n• Try the vector map for navigation (Settings → Map &amp; routing, beta): smooth turning, upright street names, a tilted view while driving and a real night map.</string>
+    <string name="whats_new_body">• Driving: the car now moves smoothly along the road between GPS fixes (no more lagging a second behind or cutting corners), the map turns and zooms gently, zooming out a little so the next turn shows before you reach it.\n\n• Tunnels: when the GPS drops out the car carries on along the route at your speed, with distances and voice, until the signal is back.\n\n• Moved the map while driving? It follows you again by itself after 10 seconds.\n\n• Your real location on the map: updated every second and gliding, with a circle showing how accurate the GPS is and a cone showing which way you face.\n\n• Navigation: notices sooner when you take a wrong turn, shows Google’s live traffic on the whole map (with a Google key, button on the left), and average speed checks with your average so far.\n\n• Fake trips: the arrow on the map glides along the road instead of jumping once a second, and the joystick moves the pin smoothly. Settings → Fake movement → Location updates sends the moving fake position up to 5 times a second.\n\n• Try the vector map for navigation (Settings → Map &amp; routing, beta): smooth turning, upright street names, a tilted view while driving and a real night map.\n\n• Traffic lights: fake car trips stop at some red lights (Settings → Fake movement → Red lights; tap a light on the route to set it), and navigation shows the lights ahead and says “at the traffic lights, turn right”.</string>
 
     <!-- Updates -->
     <string name="update_check">Check for updates</string>

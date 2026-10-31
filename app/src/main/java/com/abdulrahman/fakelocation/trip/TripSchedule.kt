@@ -21,11 +21,11 @@ object TripSchedule {
      * the last stop at the chosen time for "arrive by" (which can mean starting the evening before). Null when the
      * route doesn't repeat or has no path yet.
      */
-    fun nextStart(route: Route, trafficPercent: Int, now: Long, zone: ZoneId): Long? {
+    fun nextStart(route: Route, trafficPercent: Int, now: Long, zone: ZoneId, redLightPercent: Int = 0): Long? {
         val timing = route.timing
         if (!timing.repeats) return null
         val trip = route.expanded()
-        val path = trip.travelPath(trafficPercent) ?: return null
+        val path = trip.travelPath(trafficPercent, redLightPercent) ?: return null
         val lead = if (timing.mode == TimingMode.ARRIVE_BY) Schedule.totalMillis(trip.stops, path) else 0L
         val clock = Instant.ofEpochMilli(timing.timeMillis!!).atZone(zone).toLocalTime().withSecond(0).withNano(0)
         val today = Instant.ofEpochMilli(now).atZone(zone).toLocalDate()

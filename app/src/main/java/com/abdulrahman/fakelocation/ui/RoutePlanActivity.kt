@@ -149,7 +149,7 @@ class RoutePlanActivity : AppCompatActivity() {
         val saved = route.copy(timing = Timing(mode, pickedTime, days))
         repo.save(saved)
         TripScheduler.update(this)
-        val next = TripSchedule.nextStart(saved, prefs.trafficPercent, System.currentTimeMillis(), java.time.ZoneId.systemDefault())
+        val next = TripSchedule.nextStart(saved, prefs.trafficPercent, System.currentTimeMillis(), java.time.ZoneId.systemDefault(), prefs.redLightPercent)
         val label = scheduleLabel(saved.timing).orEmpty()
         Toast.makeText(
             this,
@@ -179,12 +179,12 @@ class RoutePlanActivity : AppCompatActivity() {
     private val trip get() = route.expanded()
 
     /** The path with the traffic setting and speed applied, as the trip will actually run it. */
-    private val travelPath get() = trip.travelPath(prefs.trafficPercent)!!
+    private val travelPath get() = trip.travelPath(prefs.trafficPercent, prefs.redLightPercent)!!
 
     /** When the next weekly run starts, while repeat days are picked. */
     private fun nextRun(now: Long): Long? =
         if (!repeating) null
-        else TripSchedule.nextStart(route.copy(timing = Timing(mode, pickedTime, days)), prefs.trafficPercent, now, java.time.ZoneId.systemDefault())
+        else TripSchedule.nextStart(route.copy(timing = Timing(mode, pickedTime, days)), prefs.trafficPercent, now, java.time.ZoneId.systemDefault(), prefs.redLightPercent)
 
     private fun startAt(now: Long): Long {
         nextRun(now)?.let { return it }

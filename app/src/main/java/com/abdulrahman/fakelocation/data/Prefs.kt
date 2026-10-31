@@ -147,6 +147,11 @@ class Prefs(context: Context) {
         get() = prefs.getString("google_traffic_session", null)
         set(value) = prefs.edit { if (value == null) remove("google_traffic_session") else putString("google_traffic_session", value) }
 
+    /** Of the traffic lights on a fake trip left on "auto", how many in 100 are red (0 = drive through them all). */
+    var redLightPercent: Int
+        get() = prefs.getInt("red_lights", 45)
+        set(value) = prefs.edit { putInt("red_lights", value) }
+
     /** How many times a second a moving fake location is sent (1, 2 or 5). */
     var fakeUpdatesPerSecond: Int
         get() = prefs.getInt("fake_updates_per_second", 1)
@@ -320,7 +325,7 @@ class Prefs(context: Context) {
          * stays out, and so does the lane camera, which needs the camera permission on the new phone first.
          */
         val BACKUP_SETTINGS: Map<String, SettingType> = buildMap {
-            for (key in listOf("alert_arrive", "alert_leave", "traffic", "map_cache_mb", "parking_alert_min", "parking_hours", "fake_updates_per_second")) {
+            for (key in listOf("alert_arrive", "alert_leave", "traffic", "map_cache_mb", "parking_alert_min", "parking_hours", "fake_updates_per_second", "red_lights")) {
                 put(key, SettingType.INT)
             }
             for (key in listOf(
@@ -336,7 +341,7 @@ class Prefs(context: Context) {
 
         // What "Reset to defaults" clears on each Settings page. The plate and the Google key are kept.
         val RESET_ALERTS = listOf("alert_arrive", "alert_leave", "ring_silent", "vibrate")
-        val RESET_MOVEMENT = listOf("natural", "traffic", "fake_updates_per_second")
+        val RESET_MOVEMENT = listOf("natural", "traffic", "fake_updates_per_second", "red_lights")
         val RESET_LANES = listOf("lane_guidance", "lane_camera", "nav_voice", "voice_level", "pause_music", "voice_call", "nav_speech_rate")
         val RESET_COSTS = listOf("fuel_type", "fuel_consumption", "parking_alert_min") + FUEL_PRICES
         val RESET_GOOGLE = listOf("map_provider", "google_routes", "google_search", "google_tile_session")

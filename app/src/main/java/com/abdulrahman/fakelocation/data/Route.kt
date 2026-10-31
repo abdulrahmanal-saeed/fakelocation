@@ -5,6 +5,19 @@ enum class TravelMode { CAR, WALK }
 /** One stop on a route. [waitMinutes] is how long to stay there before moving on. */
 data class Stop(val id: Long, val name: String, val position: LatLon, val waitMinutes: Int)
 
+/** What a fake trip does at one traffic light: what the setting says (some red, some green), always stop, or never. */
+enum class LightRule { AUTO, STOP, GO }
+
+/**
+ * A traffic light on the path, at [point] (an index into the path's points). [waitSeconds] is how long to stop when
+ * the rule is [LightRule.STOP].
+ */
+data class TrafficLight(val point: Int, val rule: LightRule = LightRule.AUTO, val waitSeconds: Int = DEFAULT_WAIT_SECONDS) {
+    companion object {
+        const val DEFAULT_WAIT_SECONDS = 60
+    }
+}
+
 /** One stretch of road between two stops, as returned by the router. */
 data class Leg(val distanceMeters: Double, val durationSeconds: Double, val firstPoint: Int, val lastPoint: Int)
 
@@ -18,6 +31,8 @@ data class RoutePath(
     val legs: List<Leg>,
     /** True when the times already include live traffic (Google), so the traffic setting is not added again. */
     val trafficAware: Boolean = false,
+    /** Traffic lights along the way (from OpenStreetMap), in order. */
+    val lights: List<TrafficLight> = emptyList(),
 ) {
     val distanceMeters get() = legs.sumOf { it.distanceMeters }
     val durationSeconds get() = legs.sumOf { it.durationSeconds }
@@ -34,6 +49,7 @@ data class RoutePath(
             points = points.asReversed().toList(),
             segmentSeconds = segmentSeconds.asReversed().toList(),
             legs = legs.asReversed().map { it.copy(firstPoint = last - it.lastPoint, lastPoint = last - it.firstPoint) },
+            lights = lights.asReversed().map { it.copy(point = last - it.point) },
         )
     }
 
@@ -48,8 +64,80 @@ data class RoutePath(
             segmentSeconds = segmentSeconds + next.segmentSeconds,
             legs = legs + next.legs.map { it.copy(firstPoint = it.firstPoint + offset, lastPoint = it.lastPoint + offset) },
             trafficAware = trafficAware && next.trafficAware,
+            lights = lights + next.lights.map { it.copy(point = it.point + offset) },
         )
     }
+
+    /**
+     * The path with a stop at some traffic lights: [waits] maps a point index to the seconds spent standing there. The
+     * car slows down over the last [rampMeters] before the light and speeds up again over as many after it (taking
+     * twice as long there, as braking to a stop and pulling away do), then the light point is repeated with the wait
+     * as a piece of road of no length. Each leg gets longer by what was added, so arrival times move with it.
+     */
+    fun withStops(waits: Map<Int, Double>, rampMeters: Double = 40.0): RoutePath {
+        // A light right at a stop of the trip is part of that stop's wait.
+        val ends = legs.flatMap { listOf(it.firstPoint, it.lastPoint) }.toSet()
+        val stops = waits.filter { (k, w) -> w > 0 && k in 1 until points.lastIndex && k !in ends }
+        if (stops.isEmpty()) return this
+        val along = DoubleArray(points.size)
+        for (k in 1 until points.size) along[k] = along[k - 1] + distanceMeters(points[k - 1], points[k])
+        // Never ramp across a stop of the trip itself (a leg's ends).
+        val legOf = IntArray(points.size)
+        legs.forEachIndexed { i, leg -> for (k in leg.firstPoint..leg.lastPoint) legOf[k] = i }
+        val cuts = ArrayList<Double>()
+        val slow = ArrayList<ClosedFloatingPointRange<Double>>()
+        for ((k, _) in stops) {
+            val leg = legs[legOf[k]]
+            val from = maxOf(along[k] - rampMeters, along[leg.firstPoint])
+            val to = minOf(along[k] + rampMeters, along[leg.lastPoint])
+            cuts += from
+            cuts += to
+            slow += from..to
+        }
+        val newPoints = ArrayList<LatLon>()
+        val newSeconds = ArrayList<Double>()
+        val newIndex = IntArray(points.size)
+        val added = DoubleArray(legs.size)
+        newPoints += points[0]
+        for (k in 0 until points.lastIndex) {
+            newIndex[k] = newPoints.lastIndex
+            val a = along[k]
+            val b = along[k + 1]
+            val length = b - a
+            // Split this piece of road where a slow-down or speed-up starts or ends.
+            val inside = cuts.filter { it > a + 0.5 && it < b - 0.5 }.distinct().sorted()
+            var last = a
+            for (c in inside + b) {
+                val share = if (length > 0) (c - last) / length else 1.0
+                var seconds = segmentSeconds[k] * share
+                val mid = (last + c) / 2
+                if (slow.any { mid in it }) {
+                    added[legOf[k]] += seconds
+                    seconds *= 2
+                }
+                newSeconds += seconds
+                newPoints += if (c == b) points[k + 1] else interpolate(points[k], points[k + 1], (c - a) / length)
+                last = c
+            }
+            // Standing at the light.
+            stops[k + 1]?.let { wait ->
+                newPoints += points[k + 1]
+                newSeconds += wait
+                added[legOf[k + 1]] += wait
+            }
+        }
+        newIndex[points.lastIndex] = newPoints.lastIndex
+        return RoutePath(
+            points = newPoints,
+            segmentSeconds = newSeconds,
+            legs = legs.mapIndexed { i, leg ->
+                leg.copy(durationSeconds = leg.durationSeconds + added[i], firstPoint = newIndex[leg.firstPoint], lastPoint = newIndex[leg.lastPoint])
+            },
+            trafficAware = trafficAware,
+        )
+    }
+
+    private fun interpolate(a: LatLon, b: LatLon, f: Double) = LatLon(a.lat + (b.lat - a.lat) * f, a.lon + (b.lon - a.lon) * f)
 }
 
 enum class TimingMode { NOW, START_AT, ARRIVE_BY }
@@ -77,11 +165,36 @@ data class Route(
     /** How many times in a row the whole trip (with the way back) is done. Only for trips that end where they start. */
     val laps: Int = 1,
 ) {
-    /** The path as the trip runs it: traffic slowdown (cars only, not already in the times) and the chosen speed. */
-    fun travelPath(trafficPercent: Int): RoutePath? {
+    /**
+     * The path as the trip runs it: traffic slowdown (cars only, not already in the times), stops at red lights
+     * ([redLightPercent] of the lights left on "auto" are red, see [redLights]) and the chosen speed.
+     */
+    fun travelPath(trafficPercent: Int, redLightPercent: Int = 0): RoutePath? {
         val path = path ?: return null
         val traffic = if (mode == TravelMode.CAR && !path.trafficAware) 1 + trafficPercent / 100.0 else 1.0
-        return path.slower(traffic / speed)
+        return path.slower(traffic / speed).withStops(redLights(redLightPercent).mapValues { it.value / speed })
+    }
+
+    /**
+     * Which lights are red on this trip and for how many seconds (by point index): the ones set to "stop", and of
+     * those on "auto" about [percent] in 100, waiting 15 s to 1.5 min. Always the same for the same route, so working
+     * the trip out again (a speed change, a restart) gives the same lights.
+     */
+    fun redLights(percent: Int): Map<Int, Double> {
+        val path = path ?: return emptyMap()
+        if (mode != TravelMode.CAR) return emptyMap()
+        val red = HashMap<Int, Double>()
+        for (light in path.lights) {
+            when (light.rule) {
+                LightRule.STOP -> red[light.point] = light.waitSeconds.toDouble()
+                LightRule.GO -> Unit
+                LightRule.AUTO -> {
+                    val random = kotlin.random.Random(id * 7919 + light.point)
+                    if (random.nextInt(100) < percent) red[light.point] = random.nextInt(15, 91).toDouble()
+                }
+            }
+        }
+        return red
     }
 
     /** Waiting time that counts towards the trip: every stop except the last one. */

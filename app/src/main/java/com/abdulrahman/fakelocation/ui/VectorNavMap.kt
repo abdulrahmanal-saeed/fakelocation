@@ -85,6 +85,7 @@ class VectorNavMap(
     private var lastFrameAt = 0L
     private var lastLineAt = 0L
     private var laneKey: Any? = null
+    private var lightsKey: Any? = null
     private var fittedRoute: NavRoute? = null
     private var navigatingShown = false
 
@@ -154,7 +155,8 @@ class VectorNavMap(
             it.setTint(ContextCompat.getColor(context, R.color.ink))
             st.addImage(IMG_DESTINATION, it.toBitmap())
         }
-        for (id in listOf(ALTERNATIVES, TRAFFIC_SLOW, TRAFFIC_JAM, ROUTE, TURN, CAMERAS, STOPS, DESTINATION, LANES, ME)) {
+        st.addImage(IMG_LIGHT, NavIcons.trafficLight(context))
+        for (id in listOf(ALTERNATIVES, TRAFFIC_SLOW, TRAFFIC_JAM, ROUTE, TURN, LIGHTS, CAMERAS, STOPS, DESTINATION, LANES, ME)) {
             st.addSource(GeoJsonSource(id))
         }
         val labels = st.layers.firstOrNull { it is SymbolLayer }?.id
@@ -166,6 +168,7 @@ class VectorNavMap(
         below(line(TRAFFIC_JAM, TRAFFIC_JAM, R.color.traffic_jam, 9f))
         below(line(TURN, TURN, R.color.white, 6f))
         // Markers on top of everything, flat on the tilted map like the road itself.
+        st.addLayer(symbol(LIGHTS, Expression.literal(IMG_LIGHT)).withProperties(PropertyFactory.iconSize(0.85f)))
         st.addLayer(symbol(CAMERAS, Expression.literal(IMG_CAMERA)))
         st.addLayer(symbol(STOPS, Expression.get("icon")))
         st.addLayer(symbol(DESTINATION, Expression.literal(IMG_DESTINATION)).withProperties(PropertyFactory.iconAnchor(Property.ICON_ANCHOR_BOTTOM)))
@@ -178,6 +181,7 @@ class VectorNavMap(
             )
         )
         laneKey = null
+        lightsKey = null
         trafficUrl?.let { addTraffic(st, it) }
     }
 
@@ -226,6 +230,11 @@ class VectorNavMap(
         // Cameras, the destination and stops.
         val cameras = if (r != null) s.roadInfo?.camerasAlong.orEmpty().map { Feature.fromGeometry(pointOf(r.pointAt(it))) } else emptyList()
         source(CAMERAS)?.setGeoJson(FeatureCollection.fromFeatures(cameras))
+        val lightsNow = NavShapes.lightsKey(s)
+        if (lightsNow != lightsKey) {
+            lightsKey = lightsNow
+            source(LIGHTS)?.setGeoJson(FeatureCollection.fromFeatures(NavShapes.lights(s).map { Feature.fromGeometry(pointOf(it)) }))
+        }
         source(DESTINATION)?.setGeoJson(FeatureCollection.fromFeatures(listOfNotNull(r?.points?.lastOrNull()?.let { Feature.fromGeometry(pointOf(it)) })))
         drawStops()
         // The white arrow at the next turn and the lane bubble.
@@ -457,6 +466,8 @@ class VectorNavMap(
         const val TRAFFIC_TILES = "fl-traffic-tiles"
         const val TURN = "fl-turn"
         const val CAMERAS = "fl-cameras"
+        const val LIGHTS = "fl-lights"
+        const val IMG_LIGHT = "fl-light"
         const val STOPS = "fl-stops"
         const val DESTINATION = "fl-destination"
         const val LANES = "fl-lanes"

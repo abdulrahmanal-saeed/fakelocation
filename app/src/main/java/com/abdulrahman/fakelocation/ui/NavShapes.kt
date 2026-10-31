@@ -23,6 +23,24 @@ object NavShapes {
         return r.slice(start, end) to arrowHead(back, tip)
     }
 
+    /**
+     * Traffic lights to show: while driving, the ones from just behind the car to [AHEAD_METERS] ahead; before
+     * starting, all that are known on the route.
+     */
+    fun lights(s: NavSession.State): List<LatLon> {
+        val r = s.route ?: return emptyList()
+        if (s.mode != com.abdulrahman.fakelocation.data.TravelMode.CAR) return emptyList()
+        val all = s.roadInfo?.lightsAlong.orEmpty()
+        val p = s.progress
+        val shown = if (s.navigating && p != null) all.filter { it in p.alongMeters - 30..p.alongMeters + AHEAD_METERS } else all
+        return shown.map { r.pointAt(it) }
+    }
+
+    /** A key that changes when [lights] would give something else (the car moves on in 250 m steps). */
+    fun lightsKey(s: NavSession.State): Any = Triple(s.roadInfo?.lightsAlong, s.route, s.progress?.takeIf { s.navigating }?.let { (it.alongMeters / 250).toInt() })
+
+    const val AHEAD_METERS = 2500.0
+
     /** Lanes to take before the next turn, in a bubble just before the junction: where, which lanes, which step. */
     data class LaneBubble(val at: LatLon, val lanes: List<Lane>, val step: NavStep)
 

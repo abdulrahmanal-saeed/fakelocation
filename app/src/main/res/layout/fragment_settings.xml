@@ -271,6 +271,16 @@
 
                 <View style="@style/Divider" />
 
+                <LinearLayout android:id="@+id/redLightsRow" style="@style/SettingsRow.Clickable">
+                    <LinearLayout style="@style/SettingsRowText">
+                        <TextView style="@style/Text.Item" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/red_lights" />
+                        <TextView style="@style/Text.Caption" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/red_lights_hint" android:textSize="12sp" />
+                    </LinearLayout>
+                    <TextView android:id="@+id/redLightsValue" style="@style/SettingsRowValue.Accent" />
+                </LinearLayout>
+
+                <View style="@style/Divider" />
+
                 <LinearLayout android:id="@+id/updateRateRow" style="@style/SettingsRow.Clickable">
                     <LinearLayout style="@style/SettingsRowText">
                         <TextView style="@style/Text.Item" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/update_rate" />

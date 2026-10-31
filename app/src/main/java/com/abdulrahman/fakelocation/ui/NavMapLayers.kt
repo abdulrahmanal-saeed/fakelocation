@@ -42,6 +42,9 @@ class NavMapLayers(private val map: MapView) : Choreographer.FrameCallback {
     private var drawnRoute: NavRoute? = null
     private var drawnRoadInfo: RoadInfo? = null
     private val cameraMarkers = mutableListOf<Marker>()
+    private val lightMarkers = mutableListOf<Marker>()
+    private var lightsKey: Any? = null
+    private val lightIcon by lazy { BitmapDrawable(context.resources, NavIcons.trafficLight(context, scale = context.resources.displayMetrics.density * 0.85f)) }
     private val stopMarkers = mutableListOf<Marker>()
 
     private val routeCasing by lazy { line(R.color.route_green_dark, 13f) }
@@ -141,6 +144,20 @@ class NavMapLayers(private val map: MapView) : Choreographer.FrameCallback {
                 }
             }
             map.overlays.addAll(cameraMarkers)
+        }
+        val key = NavShapes.lightsKey(s)
+        if (key != lightsKey) {
+            lightsKey = key
+            lightMarkers.forEach { map.overlays.remove(it) }
+            lightMarkers.clear()
+            NavShapes.lights(s).forEach { at ->
+                lightMarkers += marker(Marker.ANCHOR_CENTER).apply {
+                    position = GeoPoint(at.lat, at.lon)
+                    icon = lightIcon
+                }
+            }
+            // Over the route line, under everything else.
+            map.overlays.addAll(map.overlays.indexOf(turnHead) + 1, lightMarkers)
         }
         // Only the road still ahead is drawn: while driving it starts under the car (see [doFrame]).
         val p = s.progress

@@ -117,6 +117,17 @@ class SettingsFragment : Fragment(R.layout.fragment_settings) {
                 }
                 .show()
         }
+        binding.redLightsRow.setOnClickListener {
+            val options = RED_LIGHT_OPTIONS
+            MaterialAlertDialogBuilder(requireContext())
+                .setTitle(R.string.red_lights)
+                .setSingleChoiceItems(options.map { getString(it.second) }.toTypedArray(), options.indexOfFirst { it.first == prefs.redLightPercent }) { dialog, which ->
+                    prefs.redLightPercent = options[which].first
+                    render()
+                    dialog.dismiss()
+                }
+                .show()
+        }
         binding.updateRateRow.setOnClickListener {
             val options = listOf(1, 2, 5)
             MaterialAlertDialogBuilder(requireContext())
@@ -235,6 +246,7 @@ class SettingsFragment : Fragment(R.layout.fragment_settings) {
         b.leaveValue.text = minutes(prefs.alertBeforeLeaveMinutes)
         b.trafficValue.text = trafficLabel(prefs.trafficPercent)
         b.updateRateValue.text = getString(R.string.update_rate_value, prefs.fakeUpdatesPerSecond)
+        b.redLightsValue.setText(RED_LIGHT_OPTIONS.minBy { kotlin.math.abs(it.first - prefs.redLightPercent) }.second)
         b.silentSwitch.isChecked = prefs.ringInSilent
         b.vibrateSwitch.isChecked = prefs.vibrate
         b.naturalSwitch.isChecked = prefs.naturalMovement
@@ -331,3 +343,11 @@ class SettingsFragment : Fragment(R.layout.fragment_settings) {
 fun android.content.Context.canShowFullScreenAlarms(): Boolean =
     Build.VERSION.SDK_INT < Build.VERSION_CODES.UPSIDE_DOWN_CAKE ||
         getSystemService(NotificationManager::class.java).canUseFullScreenIntent()
+
+/** Red lights on fake trips: share of lights (in 100) and its label. */
+private val RED_LIGHT_OPTIONS = listOf(
+    0 to R.string.red_lights_none,
+    25 to R.string.red_lights_few,
+    45 to R.string.red_lights_some,
+    65 to R.string.red_lights_many,
+)
