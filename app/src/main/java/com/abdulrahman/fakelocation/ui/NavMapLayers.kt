@@ -1,22 +1,27 @@
 package com.abdulrahman.fakelocation.ui
 
-import android.animation.ValueAnimator
 import android.content.Context
 import android.graphics.Paint
 import android.graphics.drawable.BitmapDrawable
-import android.view.animation.LinearInterpolator
+import android.os.SystemClock
+import android.view.Choreographer
 import androidx.core.content.ContextCompat
 import com.abdulrahman.fakelocation.R
 import com.abdulrahman.fakelocation.data.LatLon
 import com.abdulrahman.fakelocation.data.Place
 import com.abdulrahman.fakelocation.data.TravelMode
+import com.abdulrahman.fakelocation.nav.CarMotion
+import com.abdulrahman.fakelocation.nav.HeadingSmoother
 import com.abdulrahman.fakelocation.nav.NavIcons
 import com.abdulrahman.fakelocation.nav.NavProgress
 import com.abdulrahman.fakelocation.nav.NavRoute
 import com.abdulrahman.fakelocation.nav.NavSession
 import com.abdulrahman.fakelocation.nav.RoadInfo
+import com.abdulrahman.fakelocation.nav.ZoomPlanner
+import com.abdulrahman.fakelocation.trip.TripTimeline
 import org.osmdroid.util.BoundingBox
 import org.osmdroid.util.GeoPoint
+import org.osmdroid.util.TileSystem
 import org.osmdroid.views.MapView
 import org.osmdroid.views.overlay.Marker
 import org.osmdroid.views.overlay.Polyline
@@ -24,9 +29,13 @@ import kotlin.math.abs
 
 /**
  * What the Navigate screen draws on its map: the green road ahead (shrinking as you drive), traffic, the white turn
- * arrow and lane bubble, speed cameras, stop numbers, the destination pin, and the car gliding between GPS fixes.
+ * arrow and lane bubble, speed cameras, stop numbers, the destination pin, and the car.
+ *
+ * The car is drawn on every screen frame while the screen is visible ([start] / [stop]): it carries on along the road
+ * at your speed between GPS fixes and blends each new fix in ([CarMotion]), turns smoothly ([HeadingSmoother]), and
+ * the zoom glides with speed and upcoming turns ([ZoomPlanner]).
  */
-class NavMapLayers(private val map: MapView) {
+class NavMapLayers(private val map: MapView) : Choreographer.FrameCallback {
 
     private val context: Context = map.context
 
@@ -53,13 +62,17 @@ class NavMapLayers(private val map: MapView) {
         }
     }
 
-    // The car glides between GPS fixes instead of jumping once a second.
-    private var shownAt: LatLon? = null
-    private var shownBearing = 0f
-    private var lastFixAt = 0L
-    private var lastTarget: LatLon? = null
-    private var carAnimator: ValueAnimator? = null
-    /** Where the remaining (green) route starts: the car's position at the previous fix. */
+    private val motion = CarMotion()
+    private val heading = HeadingSmoother()
+    private var state: NavSession.State? = null
+    private var lastFixId = -1L
+    private var running = false
+    private var frameQueued = false
+    private var lastFrameAt = 0L
+    private var lastLineAt = 0L
+    private var shownHeading = 0f
+    private val iconCache = HashMap<Int, BitmapDrawable>()
+    /** Where the remaining (green) route starts: where the car is drawn. */
     private var lineFromAlong = 0.0
 
     /** The route lines and turn arrow, at the bottom of the overlays. */
@@ -69,14 +82,30 @@ class NavMapLayers(private val map: MapView) {
 
     /** Route, cameras, turn arrow and the car, for the latest navigation state. */
     fun draw(s: NavSession.State) {
+        state = s
         drawRoute(s)
-        drawMe(s)
+        takeFix(s)
+        queueFrame()
     }
 
-    /** Recentre: follow the car again and place it at the next fix without gliding from far away. */
+    /** Recentre: follow the car again. */
     fun recenter() {
         follow = true
-        lastTarget = null
+        queueFrame()
+    }
+
+    /** The screen is visible: draw frames. */
+    fun start() {
+        running = true
+        lastFrameAt = 0L
+        queueFrame()
+    }
+
+    /** The screen is hidden: no frames (saves battery; navigation itself carries on). */
+    fun stop() {
+        running = false
+        frameQueued = false
+        Choreographer.getInstance().removeFrameCallback(this)
     }
 
     /** Numbered dots for the stops on the way. */
@@ -119,15 +148,19 @@ class NavMapLayers(private val map: MapView) {
             }
             map.overlays.addAll(cameraMarkers)
         }
-        // Only the road still ahead is drawn: it starts where the car is and shrinks as you drive.
+        // Only the road still ahead is drawn: while driving it starts under the car (see [doFrame]).
         val p = s.progress
-        val from = if (r != null && s.navigating && p != null && p.offRouteMeters < 40) lineFromAlong.coerceAtMost(p.alongMeters) else 0.0
-        if (r != null && s.navigating && p != null) lineFromAlong = p.alongMeters
+        if (!s.navigating || r == null || p == null || p.offRouteMeters >= 40) lineFromAlong = 0.0
+        drawAhead(r, lineFromAlong)
+        drawTurn(s, r, p)
+    }
+
+    /** The green line and traffic from [from] metres along the route to its end. */
+    private fun drawAhead(r: NavRoute?, from: Double) {
         val ahead = r?.let { if (from > 0) it.slice(from, it.length) else it.points }.orEmpty().map { GeoPoint(it.lat, it.lon) }
         routeCasing.setPoints(ahead)
         routeLine.setPoints(ahead)
         drawTraffic(r, from)
-        drawTurn(s, r, p)
     }
 
     /** Yellow / red over the green where Google reports slow traffic or a jam. */
@@ -197,67 +230,89 @@ class NavMapLayers(private val map: MapView) {
         return listOf(at(-9.0, 7.0), tip, at(-9.0, -7.0))
     }
 
-    private fun drawMe(s: NavSession.State) {
+    /** A new position from the GPS (or estimated in a tunnel): hand it to the motion. */
+    private fun takeFix(s: NavSession.State) {
+        if (s.fixId == lastFixId) return
+        lastFixId = s.fixId
         val here = s.real ?: return
         val r = s.route
         val p = s.progress
         val onRoute = s.navigating && r != null && p != null && p.offRouteMeters < 25
-        val target = if (onRoute) p!!.snapped else here
-        // On the route, point along the road ahead (steadier than the GPS heading).
-        val bearing = if (onRoute) {
-            com.abdulrahman.fakelocation.trip.TripTimeline.bearing(r!!.pointAt(p!!.alongMeters), r.pointAt(p.alongMeters + 20))
-        } else s.bearing
-        if (target == lastTarget) return
-        lastTarget = target
-        val now = System.currentTimeMillis()
-        val duration = (now - lastFixAt).coerceIn(250, 1200)
-        lastFixAt = now
-        val startAt = shownAt ?: target
-        val startBearing = shownBearing
-        val turn = ((bearing - startBearing + 540) % 360) - 180
-        carAnimator?.cancel()
-        if (s.navigating && s.mode == TravelMode.CAR) adjustZoom(s.speedKmh)
-        carAnimator = ValueAnimator.ofFloat(0f, 1f).apply {
-            this.duration = if (startAt == target) 0 else duration
-            interpolator = LinearInterpolator()
-            addUpdateListener { a ->
-                val f = a.animatedValue as Float
-                val pos = LatLon(startAt.lat + (target.lat - startAt.lat) * f, startAt.lon + (target.lon - startAt.lon) * f)
-                placeCar(s, pos, (startBearing + turn * f + 360) % 360)
-            }
-            start()
+        val now = SystemClock.uptimeMillis()
+        if (onRoute) motion.onFix(p!!.snapped, r, p.alongMeters, s.speedKmh / 3.6, s.bearing, now)
+        else motion.onFix(here, null, null, s.speedKmh / 3.6, s.bearing, now)
+    }
+
+    private fun queueFrame() {
+        if (!running || frameQueued) return
+        frameQueued = true
+        Choreographer.getInstance().postFrameCallback(this)
+    }
+
+    override fun doFrame(frameTimeNanos: Long) {
+        frameQueued = false
+        if (!running) return
+        val s = state ?: return
+        val now = SystemClock.uptimeMillis()
+        val dt = if (lastFrameAt == 0L) 16L else (now - lastFrameAt).coerceIn(0L, 200L)
+        lastFrameAt = now
+        val pose = motion.poseAt(now) ?: return
+        val r = s.route
+        val along = pose.along
+        // On the route, point along the road ahead (steadier than the GPS heading); elsewhere the GPS heading.
+        val target = if (along != null && r != null) TripTimeline.bearing(r.pointAt(along - 5), r.pointAt(along + 15)) else s.bearing
+        val before = shownHeading
+        shownHeading = heading.update(target, now)
+        val zoomed = if (s.navigating && follow && s.mode == TravelMode.CAR) glideZoom(s, pose.position, dt) else false
+        placeCar(s, pose.position, shownHeading)
+        // The green line starts under the car; ten times a second is plenty for that.
+        if (s.navigating && r != null && along != null && now - lastLineAt > 100) {
+            lastLineAt = now
+            lineFromAlong = along
+            drawAhead(r, along)
         }
+        map.invalidate()
+        val turning = abs(HeadingSmoother.difference(before.toDouble(), target.toDouble())) > 0.3
+        if (motion.moving(now) || turning || zoomed) queueFrame()
     }
 
     private fun placeCar(s: NavSession.State, pos: LatLon, bearing: Float) {
-        shownAt = pos
-        shownBearing = bearing
         me.position = GeoPoint(pos.lat, pos.lon)
         val map = map
         if (s.navigating && follow) {
             // Heading up, with the car low on the screen so you see more of the road ahead.
-            map.setMapCenterOffset(0, (map.height * 0.24).toInt())
+            map.setMapCenterOffset(0, (map.height * CAR_LOW).toInt())
             map.mapOrientation = -bearing
             map.controller.setCenter(me.position)
         }
         val onScreen = bearing + map.mapOrientation
-        val bitmap = if (s.navigating && s.mode == TravelMode.CAR) NavIcons.car(context, onScreen) else NavIcons.arrow(context, onScreen)
-        me.icon = BitmapDrawable(context.resources, bitmap)
-        map.overlays.remove(me)
-        map.overlays.add(me)
-        map.invalidate()
+        val car = s.navigating && s.mode == TravelMode.CAR
+        val key = (if (car) 1000 else 0) + ((((onScreen % 360) + 360) % 360) / 2).toInt()
+        val icon = iconCache.getOrPut(key) {
+            val bitmap = if (car) NavIcons.car(context, onScreen) else NavIcons.arrow(context, onScreen)
+            BitmapDrawable(context.resources, bitmap)
+        }
+        if (me.icon !== icon) me.icon = icon
+        if (map.overlays.lastOrNull() !== me) {
+            map.overlays.remove(me)
+            map.overlays.add(me)
+        }
     }
 
-    /** Closer in town, further out on fast roads, changing gently. */
-    private fun adjustZoom(speedKmh: Int) {
-        val target = when {
-            speedKmh < 35 -> 17.8
-            speedKmh < 70 -> 17.2
-            speedKmh < 100 -> 16.6
-            else -> 16.1
-        }
+    /** Glides the zoom toward what the speed and the next turn call for; true while it is still moving. */
+    private fun glideZoom(s: NavSession.State, at: LatLon, dt: Long): Boolean {
         val zoom = map.zoomLevelDouble
-        if (abs(target - zoom) > 0.05) map.controller.setZoom(zoom + (target - zoom).coerceIn(-0.2, 0.2))
+        val p = s.progress
+        val step = p?.nextStep
+        val turnAhead = step != null && step.maneuver != com.abdulrahman.fakelocation.nav.Maneuver.DEPART &&
+            step.maneuver != com.abdulrahman.fakelocation.nav.Maneuver.STRAIGHT && !p.arrived
+        val pixelsPerMeter = 1.0 / TileSystem.GroundResolution(at.lat, zoom)
+        // Room above the car: it sits low on the screen, and the turn card covers the top.
+        val ahead = map.height * (0.5 + CAR_LOW - 0.22)
+        val target = ZoomPlanner.target(s.speedKmh.toDouble(), if (turnAhead) p!!.metersToNextStep else null, zoom, pixelsPerMeter, ahead)
+        if (abs(target - zoom) < 0.01) return false
+        map.controller.setZoom(ZoomPlanner.ease(zoom, target, dt))
+        return true
     }
 
     fun fit(r: NavRoute) {
@@ -280,5 +335,10 @@ class NavMapLayers(private val map: MapView) {
         setAnchor(Marker.ANCHOR_CENTER, anchorY)
         setInfoWindow(null)
         setOnMarkerClickListener { _, _ -> true }
+    }
+
+    private companion object {
+        /** How far below the middle of the map the car sits while driving (share of the map's height). */
+        const val CAR_LOW = 0.24
     }
 }

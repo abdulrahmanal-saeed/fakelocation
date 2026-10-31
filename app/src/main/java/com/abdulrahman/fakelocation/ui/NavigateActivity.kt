@@ -125,11 +125,19 @@ class NavigateActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         binding.map.onResume()
+        layers.start()
     }
 
     override fun onPause() {
+        layers.stop()
+        binding.map.removeCallbacks(autoRecenter)
         binding.map.onPause()
         super.onPause()
+    }
+
+    /** After you've looked around the map while driving, it goes back to following the car by itself (like Waze). */
+    private val autoRecenter = Runnable {
+        if (NavSession.state.value.navigating && !layers.follow) layers.recenter()
     }
 
     private fun applyInsets() {
@@ -156,7 +164,12 @@ class NavigateActivity : AppCompatActivity() {
         controller.setCenter(GeoPoint(start.lat, start.lon))
         layers.attach()
         setOnTouchListener { _, event ->
-            if (event.actionMasked == MotionEvent.ACTION_MOVE) layers.follow = false
+            when (event.actionMasked) {
+                MotionEvent.ACTION_DOWN -> removeCallbacks(autoRecenter)
+                MotionEvent.ACTION_MOVE -> layers.follow = false
+                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL ->
+                    if (!layers.follow && NavSession.state.value.navigating) postDelayed(autoRecenter, AUTO_RECENTER_MS)
+            }
             false
         }
     }
@@ -333,9 +346,10 @@ class NavigateActivity : AppCompatActivity() {
     private fun renderDriving(s: NavSession.State) {
         val p = s.progress
         val parking = s.parkingNearby?.takeIf { p?.arrived == true }
-        binding.banner.isVisible = s.rerouting || s.toStartMeters > 0 || parking != null
+        binding.banner.isVisible = s.rerouting || s.gpsLost || s.toStartMeters > 0 || parking != null
         binding.banner.text = when {
             s.rerouting -> getString(R.string.nav_rerouting)
+            s.gpsLost -> getString(R.string.nav_gps_lost)
             s.toStartMeters > 0 -> getString(R.string.nav_go_to_start, formatDistance(s.toStartMeters))
             parking != null -> getString(
                 R.string.nav_parking_nearby, parking.name ?: getString(R.string.cat_parking),
@@ -487,6 +501,7 @@ class NavigateActivity : AppCompatActivity() {
         private const val EXTRA_TO_LAT = "to_lat"
         private const val EXTRA_TO_LON = "to_lon"
         private const val EXTRA_TO_NAME = "to_name"
+        private const val AUTO_RECENTER_MS = 10_000L
 
         fun intent(context: Context, destination: Place? = null) =
             Intent(context, NavigateActivity::class.java).apply {
