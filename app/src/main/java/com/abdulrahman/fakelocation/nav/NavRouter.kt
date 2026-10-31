@@ -6,7 +6,8 @@ import com.abdulrahman.fakelocation.data.LatLon
 import com.abdulrahman.fakelocation.data.Prefs
 import com.abdulrahman.fakelocation.data.TravelMode
 import com.abdulrahman.fakelocation.drive.Tolls
-import com.abdulrahman.fakelocation.geo.Nominatim
+import com.abdulrahman.fakelocation.geo.Http
+import com.abdulrahman.fakelocation.geo.HttpException
 import com.abdulrahman.fakelocation.geo.google.GoogleApi
 import com.abdulrahman.fakelocation.geo.google.Polyline
 import kotlinx.coroutines.Dispatchers
@@ -14,8 +15,6 @@ import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.IOException
-import java.net.HttpURLConnection
-import java.net.URL
 import java.util.Locale
 
 /** What to keep off the route. */
@@ -294,30 +293,12 @@ object NavRouter {
 
     private const val VALHALLA = "https://valhalla1.openstreetmap.de/route"
 
-    private fun get(url: String): String = request(url, null)
+    /** OSRM explains failures in a JSON body, so a non-2xx answer with a body is still returned. */
+    private fun get(url: String): String =
+        Http.request(url).let { if (it.ok || it.body.isNotBlank()) it.body else throw HttpException(it.code, it.body) }
 
-    private fun post(url: String, body: JSONObject): String = request(url, body)
-
-    private fun request(url: String, body: JSONObject?): String {
-        val connection = URL(url).openConnection() as HttpURLConnection
-        try {
-            connection.setRequestProperty("User-Agent", Nominatim.USER_AGENT)
-            connection.connectTimeout = 15_000
-            connection.readTimeout = 20_000
-            if (body != null) {
-                connection.requestMethod = "POST"
-                connection.doOutput = true
-                connection.setRequestProperty("Content-Type", "application/json")
-                connection.outputStream.use { it.write(body.toString().toByteArray()) }
-            }
-            val code = connection.responseCode
-            val text = (if (code in 200..299) connection.inputStream else connection.errorStream)?.bufferedReader()?.use { it.readText() }
-            if (code !in 200..299 && body != null) throw IOException("HTTP $code: ${text?.take(200)}")
-            return text ?: throw IOException("HTTP $code")
-        } finally {
-            connection.disconnect()
-        }
-    }
+    private fun post(url: String, body: JSONObject): String =
+        Http.request(url, "POST", body.toString(), contentType = "application/json").requireOk()
 
     /** Adds a step's shape, skipping points that repeat the previous one. */
     private fun ArrayList<LatLon>.appendShape(shape: List<LatLon>) {

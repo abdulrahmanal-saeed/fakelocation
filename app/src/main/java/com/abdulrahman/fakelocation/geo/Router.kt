@@ -13,8 +13,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import java.io.IOException
-import java.net.HttpURLConnection
-import java.net.URL
 import java.util.Locale
 
 /**
@@ -51,7 +49,9 @@ object Router {
         for (url in urls) {
             try {
                 return@withContext parse(get(url))
-            } catch (e: IOException) {
+            } catch (e: Exception) {
+                // Includes a server that answers an HTML error page (not JSON): try the next one.
+                Log.w("Router", "OSRM server failed: ${url.substringBefore("/route/")}", e)
                 lastError = e
             }
         }
@@ -87,17 +87,7 @@ object Router {
         return RoutePath(points, seconds, legs)
     }
 
-    private fun get(url: String): String {
-        val connection = URL(url).openConnection() as HttpURLConnection
-        try {
-            connection.setRequestProperty("User-Agent", Nominatim.USER_AGENT)
-            connection.connectTimeout = 15_000
-            connection.readTimeout = 20_000
-            val code = connection.responseCode
-            val stream = if (code in 200..299) connection.inputStream else connection.errorStream ?: throw IOException("HTTP $code")
-            return stream.bufferedReader().use { it.readText() }
-        } finally {
-            connection.disconnect()
-        }
-    }
+    /** OSRM explains failures in a JSON body, so a non-2xx answer with a body is handed to [parse] too. */
+    private fun get(url: String): String =
+        Http.request(url).let { if (it.ok || it.body.isNotBlank()) it.body else throw HttpException(it.code, it.body) }
 }

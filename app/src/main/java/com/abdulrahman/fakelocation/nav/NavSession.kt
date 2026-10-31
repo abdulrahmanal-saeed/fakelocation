@@ -12,6 +12,7 @@ import android.os.Build
 import android.os.Looper
 import android.speech.tts.TextToSpeech
 import android.speech.tts.UtteranceProgressListener
+import android.util.Log
 import androidx.core.content.ContextCompat
 import com.abdulrahman.fakelocation.R
 import com.abdulrahman.fakelocation.data.LatLon
@@ -31,6 +32,7 @@ import com.google.android.gms.location.LocationRequest
 import com.google.android.gms.location.LocationResult
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -48,6 +50,8 @@ import kotlin.math.roundToInt
  */
 @SuppressLint("StaticFieldLeak") // holds the application context only
 object NavSession {
+
+    private const val TAG = "NavSession"
 
     enum class Status { IDLE, ROUTING, PREVIEW, NAVIGATING, ERROR }
 
@@ -238,7 +242,11 @@ object NavSession {
         routingJob = scope.launch {
             runCatching { NavRouter.route(app, start, target.position, s.mode, via, s.avoid) }
                 .onSuccess { routeStopBase = base; setRoute(it) }
-                .onFailure { _state.update { st -> st.copy(status = if (st.navigating) Status.NAVIGATING else Status.ERROR, rerouting = false) } }
+                .onFailure { e ->
+                    if (e is CancellationException) throw e
+                    Log.w(TAG, "route failed", e)
+                    _state.update { st -> st.copy(status = if (st.navigating) Status.NAVIGATING else Status.ERROR, rerouting = false) }
+                }
         }
     }
 
@@ -305,7 +313,9 @@ object NavSession {
         if (roadInfoJob?.isActive == true) return
         val car = state.value.mode == TravelMode.CAR
         roadInfoJob = scope.launch {
-            val info = runCatching { RoadInfoFetcher.fetch(route, from, from + RoadInfoFetcher.CHUNK_METERS) }.getOrNull()
+            val info = runCatching { RoadInfoFetcher.fetch(route, from, from + RoadInfoFetcher.CHUNK_METERS) }
+                .onFailure { Log.w(TAG, "speed limits / lanes didn't load", it) }
+                .getOrNull()
             if (state.value.route !== route) return@launch
             if (info == null) {
                 roadInfoFailedAt = System.currentTimeMillis()
@@ -354,6 +364,7 @@ object NavSession {
         runCatching { locationManager.registerGnssStatusCallback(gnssCallback, android.os.Handler(Looper.getMainLooper())) }
         // The GPS chip itself: real even while a fake location runs for other apps.
         runCatching { locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 1000L, 0f, gpsListener, Looper.getMainLooper()) }
+            .onFailure { Log.w(TAG, "real GPS didn't start", it) }
         // Without a fake location, Google's location service is real too and gets a first fix faster.
         if (!MockState.isFaking) {
             fused.requestLocationUpdates(LocationRequest.Builder(Priority.PRIORITY_HIGH_ACCURACY, 1000L).build(), fusedCallback, Looper.getMainLooper())

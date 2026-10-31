@@ -73,6 +73,13 @@ turns the volume up for the sentence and back after, and boosts the voice itself
 volume, or long-press the speaker button while driving). "Voice over Bluetooth call" plays directions like a phone
 call so most car stereos cut the radio.
 
+**v1.8.1:** Groundwork. Every build runs the unit tests first, and only the default branch replaces "Latest build",
+so a test build from another branch never lands on the phone. All internet calls go through one helper: a server
+that can't be reached is tried once more, and with no connection at all search and routes say "No internet
+connection" instead of a general error. Fixed a brief false "Search needs internet" while typing, and a false
+"Couldn't get a route" when the route was recalculated. Failures that used to be silent (Google falling back,
+speed limits not loading, GPS not starting) are now written to the log.
+
 See [PLAN.md](PLAN.md) for the full feature list.
 
 ## Install

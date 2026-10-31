@@ -1,9 +1,8 @@
 package com.abdulrahman.fakelocation.geo
 
+import android.util.Log
 import org.json.JSONObject
 import java.io.IOException
-import java.net.HttpURLConnection
-import java.net.URL
 import java.net.URLEncoder
 
 /** OpenStreetMap's query service (Overpass). Public servers can be busy, so several are tried in turn. */
@@ -21,27 +20,22 @@ object Overpass {
         for (server in servers) {
             try {
                 return post(server, query)
+            } catch (e: NoInternetException) {
+                throw e // every other server would fail the same way
             } catch (e: Exception) {
+                Log.w("Overpass", "Overpass server failed: $server", e)
                 lastError = e
             }
         }
         throw lastError ?: IOException("No Overpass server answered")
     }
 
-    private fun post(server: String, query: String): JSONObject {
-        val connection = URL(server).openConnection() as HttpURLConnection
-        try {
-            connection.requestMethod = "POST"
-            connection.doOutput = true
-            connection.connectTimeout = 15_000
-            connection.readTimeout = 40_000
-            connection.setRequestProperty("User-Agent", Nominatim.USER_AGENT)
-            connection.setRequestProperty("Content-Type", "application/x-www-form-urlencoded")
-            connection.outputStream.use { it.write(("data=" + URLEncoder.encode(query, "UTF-8")).toByteArray()) }
-            if (connection.responseCode !in 200..299) throw IOException("Overpass HTTP ${connection.responseCode}")
-            return JSONObject(connection.inputStream.bufferedReader().use { it.readText() })
-        } finally {
-            connection.disconnect()
-        }
-    }
+    private fun post(server: String, query: String): JSONObject = JSONObject(
+        Http.request(
+            server, "POST",
+            body = "data=" + URLEncoder.encode(query, "UTF-8"),
+            contentType = "application/x-www-form-urlencoded",
+            readTimeoutMs = 40_000,
+        ).requireOk()
+    )
 }

@@ -3,7 +3,6 @@ package com.abdulrahman.fakelocation.geo
 import com.abdulrahman.fakelocation.data.Place
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import java.net.HttpURLConnection
 import java.net.URL
 
 /**
@@ -31,33 +30,25 @@ object MapsLinkResolver {
     private fun followRedirects(start: String): Place? {
         var current = start
         repeat(MAX_HOPS) {
-            val connection = (URL(current).openConnection() as HttpURLConnection).apply {
-                instanceFollowRedirects = false
-                connectTimeout = 10_000
-                readTimeout = 10_000
-                setRequestProperty("User-Agent", BROWSER_UA)
-                setRequestProperty("Accept-Language", "en")
+            val response = Http.request(
+                current,
+                // Google sends browsers a page with the coordinates in it; the app's own User-Agent gets less.
+                headers = mapOf("User-Agent" to BROWSER_UA, "Accept-Language" to "en"),
+                connectTimeoutMs = 10_000,
+                readTimeoutMs = 10_000,
+                followRedirects = false,
+                maxChars = MAX_PAGE_CHARS,
+            )
+            val location = response.header("Location")
+            if (response.code in 300..399 && location != null) {
+                current = URL(URL(current), location).toString()
+                LocationText.parseMapsUrl(current)?.let { return Place(it, LocationText.extractName(current)) }
+                return@repeat
             }
-            try {
-                val code = connection.responseCode
-                val location = connection.getHeaderField("Location")
-                if (code in 300..399 && location != null) {
-                    current = URL(URL(current), location).toString()
-                    LocationText.parseMapsUrl(current)?.let { return Place(it, LocationText.extractName(current)) }
-                    return@repeat
-                }
-                if (code == 200) {
-                    val page = connection.inputStream.bufferedReader().use { reader ->
-                        val buffer = CharArray(MAX_PAGE_CHARS)
-                        val read = reader.read(buffer)
-                        if (read > 0) String(buffer, 0, read) else ""
-                    }
-                    return LocationText.parseMapsUrl(page)?.let { Place(it, LocationText.extractName(current)) }
-                }
-                return null
-            } finally {
-                connection.disconnect()
+            if (response.code == 200) {
+                return LocationText.parseMapsUrl(response.body)?.let { Place(it, LocationText.extractName(current)) }
             }
+            return null
         }
         return null
     }

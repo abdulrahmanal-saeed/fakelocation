@@ -21,10 +21,12 @@ import com.abdulrahman.fakelocation.data.formatDistance
 import com.abdulrahman.fakelocation.databinding.ActivitySearchBinding
 import com.abdulrahman.fakelocation.geo.LocationText
 import com.abdulrahman.fakelocation.geo.MapsLinkResolver
+import com.abdulrahman.fakelocation.geo.NoInternetException
 import com.abdulrahman.fakelocation.geo.PlaceSearch
 import com.abdulrahman.fakelocation.geo.NearbySearch
 import com.abdulrahman.fakelocation.geo.PlaceCategory
 import com.abdulrahman.fakelocation.mock.MockState
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -107,7 +109,7 @@ class SearchActivity : AppCompatActivity() {
             showStatus(R.string.searching)
             runCatching { NearbySearch.find(this@SearchActivity, category, center) }
                 .onSuccess { if (it.isEmpty()) showStatus(R.string.nearby_none) else showResults(it, from = center) }
-                .onFailure { showStatus(R.string.search_error) }
+                .onFailure { showError(it) }
         }
     }
 
@@ -159,9 +161,15 @@ class SearchActivity : AppCompatActivity() {
             results.onSuccess { places ->
                 if (places.isEmpty()) showStatus(if (isLink) R.string.link_failed else R.string.no_results) else showResults(places)
             }.onFailure {
-                showStatus(R.string.search_error)
+                showError(it)
             }
         }
+    }
+
+    private fun showError(error: Throwable) {
+        // A newer search replaced this one: nothing failed.
+        if (error is CancellationException) throw error
+        showStatus(if (error is NoInternetException) R.string.no_internet else R.string.search_error)
     }
 
     private fun nearPoint(): LatLon? = MockState.session.value?.position ?: prefs.lastRealLocation

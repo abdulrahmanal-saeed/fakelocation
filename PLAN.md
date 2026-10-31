@@ -45,3 +45,9 @@ Design (all screens, logo, splash): https://claude.ai/artifact/9FMXf1izujP79r3BA
 | 11 | Driving polish: smooth car, shrinking route, compact card, lane bubbles, traffic colours, speed-limit chunks, better voice | Done (v1.6.0) |
 | 12 | Lane-level guidance: lane counts, lane tracking (turns + gyroscope + camera + dual-frequency GPS), lane advice, voice choice | Done (v1.7.0) |
 | 13 | Louder voice: pause/lower music, volume raise and boost, Bluetooth call channel to cut the car radio | Done (v1.8.0) |
+| 14 | Groundwork: tests in CI, publish from the default branch only, one HTTP helper with retry and "No internet", logging, more tests | Done (v1.8.1) |
+| 15 | Data & settings: backup/restore, own routing server with fallback, settings split into sections, reset, health check | Planned (v1.9.0) |
+| 16 | Fake: joystick, trip speed, repeat / there and back, repeating schedule, wander, GPX/KML, app shortcuts | Planned (v2.0.0) |
+| 17 | Real navigation: alternative routes, Home/Work, night map, drive log, share ETA, parking on arrival | Planned (v2.1.0) |
+| 18 | UI/UX: dark theme, undo, reorder favorites, empty states, haptics, accessibility, favorites widget, what's new | Planned (v2.2.0) |
+| 19 | Refactor & release: split big screens/service, R8 release build, update checker | Planned (v2.3.0) |

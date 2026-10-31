@@ -113,7 +113,9 @@ class MockLocationService : LifecycleService() {
             }
             // Restarted by the system after being killed: pick up where we were.
             null -> {
-                val savedTrip = prefs.activeTrip?.let { runCatching { TripRun.fromJson(it) }.getOrNull() }
+                val savedTrip = prefs.activeTrip?.let {
+                    runCatching { TripRun.fromJson(it) }.onFailure { e -> Log.w(TAG, "saved trip unreadable", e) }.getOrNull()
+                }
                 when {
                     savedTrip != null -> resumeTrip(savedTrip)
                     prefs.activeSession != null -> startFixed(prefs.activeSession!!, newVisit = false)
