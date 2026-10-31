@@ -15,6 +15,8 @@ import android.speech.tts.UtteranceProgressListener
 import android.util.Log
 import androidx.core.content.ContextCompat
 import com.abdulrahman.fakelocation.R
+import com.abdulrahman.fakelocation.data.Drive
+import com.abdulrahman.fakelocation.data.DriveLog
 import com.abdulrahman.fakelocation.data.LatLon
 import com.abdulrahman.fakelocation.data.Place
 import com.abdulrahman.fakelocation.data.Prefs
@@ -24,6 +26,8 @@ import com.abdulrahman.fakelocation.drive.Fuel
 import com.abdulrahman.fakelocation.drive.TollGate
 import com.abdulrahman.fakelocation.drive.TollPass
 import com.abdulrahman.fakelocation.drive.Tolls
+import com.abdulrahman.fakelocation.geo.NearbySearch
+import com.abdulrahman.fakelocation.geo.PlaceCategory
 import com.abdulrahman.fakelocation.mock.MockLocationService
 import com.abdulrahman.fakelocation.mock.MockState
 import com.abdulrahman.fakelocation.trip.TripTimeline
@@ -92,6 +96,10 @@ object NavSession {
         val laneAdvice: Int? = null,
         /** The GPS uses a second frequency (L5/E5a): metre-level fixes. */
         val dualFrequency: Boolean = false,
+        /** Ways to choose from before starting ([route] is one of them); empty while driving. */
+        val routes: List<NavRoute> = emptyList(),
+        /** Parking closest to where we arrived (cars), to drive on to it. */
+        val parkingNearby: Place? = null,
     ) {
         val navigating get() = status == Status.NAVIGATING
 
@@ -240,8 +248,9 @@ object NavSession {
         val base = if (s.navigating) s.stopsReached else 0
         val via = s.stops.drop(base).map { it.position }
         routingJob = scope.launch {
-            runCatching { NavRouter.route(app, start, target.position, s.mode, via, s.avoid) }
-                .onSuccess { routeStopBase = base; setRoute(it) }
+            // Before starting there's a choice of ways; while driving, just the best one from here.
+            runCatching { NavRouter.routes(app, start, target.position, s.mode, via, s.avoid, alternatives = !s.navigating) }
+                .onSuccess { routeStopBase = base; setRoute(it.first(), it) }
                 .onFailure { e ->
                     if (e is CancellationException) throw e
                     Log.w(TAG, "route failed", e)
@@ -250,12 +259,21 @@ object NavSession {
         }
     }
 
+    /** Picks one of the ways shown before starting. */
+    fun chooseRoute(index: Int) {
+        val s = state.value
+        val chosen = s.routes.getOrNull(index) ?: return
+        if (s.navigating || chosen === s.route) return
+        setRoute(chosen, s.routes)
+    }
+
     fun start() {
         if (state.value.route == null) return
         routeStopBase = 0
         laneTracker.reset()
         lastStepIndex = -1
-        _state.update { it.copy(status = Status.NAVIGATING, stopsReached = 0) }
+        drive = DriveRecorder(System.currentTimeMillis())
+        _state.update { it.copy(status = Status.NAVIGATING, stopsReached = 0, routes = emptyList(), parkingNearby = null) }
         startListening()
         ContextCompat.startForegroundService(app, NavigationService.intent(app))
         speak(state.value.route?.steps?.firstOrNull()?.spoken.orEmpty())
@@ -264,7 +282,8 @@ object NavSession {
 
     fun stop() {
         if (!state.value.navigating) return
-        _state.update { it.copy(status = if (it.route != null) Status.PREVIEW else Status.IDLE, progress = null, rerouting = false) }
+        recordDrive()
+        _state.update { it.copy(status = if (it.route != null) Status.PREVIEW else Status.IDLE, progress = null, rerouting = false, parkingNearby = null) }
         app.stopService(NavigationService.intent(app))
         tts?.stop()
         if (clients == 0) stopListening()
@@ -288,7 +307,7 @@ object NavSession {
 
     // endregion
 
-    private fun setRoute(route: NavRoute) {
+    private fun setRoute(route: NavRoute, options: List<NavRoute> = emptyList()) {
         tracker = NavTracker(route)
         spoken.clear()
         offRouteCount = 0
@@ -298,7 +317,8 @@ object NavSession {
             it.copy(route = route, roadInfo = null, progress = null, rerouting = false,
                 status = if (it.navigating) Status.NAVIGATING else Status.PREVIEW,
                 tolls = if (car) tollsOn(route, Tolls.GATES) else emptyList(),
-                fuelCostAed = if (car) Fuel.cost(route.distanceMeters, prefs.fuelConsumption, prefs.fuelPrice()) else 0.0)
+                fuelCostAed = if (car) Fuel.cost(route.distanceMeters, prefs.fuelConsumption, prefs.fuelPrice()) else 0.0,
+                routes = if (it.navigating) emptyList() else options)
         }
         roadInfoJob?.cancel()
         roadInfoFailedAt = 0L
@@ -335,6 +355,73 @@ object NavSession {
         if (covered >= route.length || along < covered - 6000) return
         if (System.currentTimeMillis() - roadInfoFailedAt < 20_000) return
         fetchRoadInfo(route, if (info == null) (along - 500).coerceAtLeast(0.0) else covered)
+    }
+
+    /** Salik / Darb and fuel for one of the ways offered before starting (cars), for the choice list. */
+    fun costOf(route: NavRoute): Pair<Double, Double> {
+        if (state.value.mode != TravelMode.CAR) return 0.0 to 0.0
+        val prefs = Prefs(app)
+        val tolls = tollsOn(route, Tolls.GATES).sumOf { it.priceAed }
+        return tolls to Fuel.cost(route.distanceMeters, prefs.fuelConsumption, prefs.fuelPrice())
+    }
+
+    // region Drive log
+
+    /** What one navigation has driven so far: real GPS distance, gates passed. */
+    private class DriveRecorder(val startedAt: Long) {
+        var meters = 0.0
+        var last: LatLon? = null
+        val gates = HashSet<String>()
+        var tollsAed = 0.0
+        var recorded = false
+    }
+
+    private var drive: DriveRecorder? = null
+
+    private fun trackDrive(location: Location, here: LatLon, progress: NavProgress?, s: State) {
+        val d = drive ?: return
+        if (location.hasAccuracy() && location.accuracy > 30f) return
+        d.last?.let { prev ->
+            val step = distanceMeters(prev, here)
+            if (step < 300) d.meters += step // a bigger jump is the GPS catching up, not driving
+        }
+        d.last = here
+        if (progress != null) {
+            for (pass in s.tolls) {
+                if (pass.alongMeters <= progress.alongMeters && d.gates.add("${pass.gate.name}:${pass.alongMeters.roundToInt()}")) d.tollsAed += pass.priceAed
+            }
+        }
+    }
+
+    /** Navigation ended (arrived, or stopped on the way): add it to the drive log once, if it went anywhere. */
+    private fun recordDrive() {
+        val d = drive ?: return
+        if (d.recorded || d.meters < DriveLog.MIN_METERS) return
+        d.recorded = true
+        val s = state.value
+        val prefs = Prefs(app)
+        val car = s.mode == TravelMode.CAR
+        DriveLog.get(app).add(
+            Drive(
+                id = System.nanoTime(), startedAt = d.startedAt, endedAt = System.currentTimeMillis(),
+                destination = s.to?.name ?: app.getString(R.string.nav_choose_destination), mode = s.mode, meters = d.meters,
+                tollsAed = d.tollsAed, tollGates = d.gates.size,
+                fuelAed = if (car) Fuel.cost(d.meters, prefs.fuelConsumption, prefs.fuelPrice()) else 0.0,
+            )
+        )
+    }
+
+    // endregion
+
+    /** Arrived by car: look up the nearest parking once, to offer driving on to it. */
+    private fun findParking(at: LatLon) {
+        scope.launch {
+            val nearest = runCatching { NearbySearch.find(app, PlaceCategory.PARKING, at) }
+                .onFailure { Log.w(TAG, "no parking nearby", it) }
+                .getOrNull()
+                ?.firstOrNull { distanceMeters(it.position, at) > 40 } // not the place we're already at
+            if (state.value.progress?.arrived == true) _state.update { it.copy(parkingNearby = nearest) }
+        }
     }
 
     private fun tollsOn(route: NavRoute, gates: List<TollGate>): List<TollPass> = Tolls.passes(
@@ -424,6 +511,7 @@ object NavSession {
                 cameraMeters = camera, toStartMeters = if (toStart > NavTracker.OFF_ROUTE_METERS) toStart else 0.0,
                 nextToll = toll?.takeIf { tollMeters != null }, tollMeters = tollMeters, stopsReached = reached)
         }
+        if (s.navigating) trackDrive(location, here, progress, s)
         if (s.navigating && route != null && progress != null) guide(route, progress, camera, limit)
     }
 
@@ -449,7 +537,11 @@ object NavSession {
             )
         }
         if (p.arrived) {
-            if (spoken.add("arrived")) speak(app.getString(R.string.nav_arrived))
+            if (spoken.add("arrived")) {
+                speak(app.getString(R.string.nav_arrived))
+                recordDrive()
+                if (s.mode == TravelMode.CAR) s.to?.let { findParking(it.position) }
+            }
             return
         }
         val step = p.nextStep ?: return

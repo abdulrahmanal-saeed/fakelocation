@@ -483,6 +483,21 @@
         app:layout_constraintEnd_toEndOf="parent"
         tools:visibility="visible" />
 
+    <!-- Share where you are and when you'll arrive (WhatsApp, SMS…). -->
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/shareFab"
+        style="@style/MapFab"
+        android:layout_width="52dp"
+        android:layout_height="52dp"
+        android:layout_marginStart="16dp"
+        android:layout_marginBottom="14dp"
+        android:contentDescription="@string/nav_share_eta"
+        android:visibility="gone"
+        app:icon="@drawable/ic_share"
+        app:layout_constraintBottom_toTopOf="@id/bottomBarrier"
+        app:layout_constraintStart_toStartOf="parent"
+        tools:visibility="visible" />
+
     <TextView
         android:id="@+id/streetPill"
         style="@style/Text.Item"
@@ -626,6 +641,37 @@
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent">
 
+        <!-- No destination yet: one tap to Home or Work (long-press to change). -->
+        <LinearLayout
+            android:id="@+id/homeWorkRow"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="12dp"
+            android:orientation="horizontal"
+            android:visibility="gone"
+            tools:visibility="visible">
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/homeButton"
+                style="@style/Button.Soft"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="6dp"
+                android:layout_weight="1"
+                android:text="@string/nav_home"
+                app:icon="@drawable/ic_home" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/workButton"
+                style="@style/Button.Soft"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="6dp"
+                android:layout_weight="1"
+                android:text="@string/nav_work"
+                app:icon="@drawable/ic_work" />
+        </LinearLayout>
+
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -673,6 +719,23 @@
                 app:icon="@drawable/ic_volume"
                 tools:visibility="visible" />
         </LinearLayout>
+
+        <!-- Other ways to go: time, distance and cost each; tap to pick. -->
+        <HorizontalScrollView
+            android:id="@+id/routeOptionsScroll"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:scrollbars="none"
+            android:visibility="gone"
+            tools:visibility="visible">
+
+            <LinearLayout
+                android:id="@+id/routeOptions"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal" />
+        </HorizontalScrollView>
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/mainButton"

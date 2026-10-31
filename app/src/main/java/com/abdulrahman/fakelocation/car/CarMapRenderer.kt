@@ -25,6 +25,7 @@ import com.abdulrahman.fakelocation.data.TravelMode
 import com.abdulrahman.fakelocation.geo.google.GoogleTiles
 import com.abdulrahman.fakelocation.nav.NavIcons
 import com.abdulrahman.fakelocation.nav.NavSession
+import com.abdulrahman.fakelocation.nav.NightMap
 import com.abdulrahman.fakelocation.nav.Traffic
 import com.abdulrahman.fakelocation.trip.TripTimeline
 import kotlinx.coroutines.Dispatchers
@@ -139,7 +140,7 @@ class CarMapRenderer(private val carContext: CarContext, private val owner: Life
     }
 
     private fun draw(canvas: Canvas, state: NavSession.State) {
-        canvas.drawColor(0xFFE9EDF1.toInt())
+        canvas.drawColor(if (carContext.isDarkMode) 0xFF16191E.toInt() else 0xFFE9EDF1.toInt())
         val area = visibleArea ?: Rect(0, 0, width, height)
         val scale = (dpi / 160f).coerceIn(1f, 2.5f)
         val route = state.route
@@ -204,6 +205,8 @@ class CarMapRenderer(private val carContext: CarContext, private val owner: Life
             val left = (anchorX + tx * tile - cx).toInt()
             val top = (anchorY + ty * tile - cy).toInt()
             drawable.setBounds(left, top, (left + tile + 1).toInt(), (top + tile + 1).toInt())
+            // The car decides day / night (headlights, its own setting): follow it.
+            drawable.colorFilter = if (carContext.isDarkMode) NightMap.filter else null
             if (drawable is ReusableBitmapDrawable) {
                 drawable.beginUsingDrawable()
                 try {

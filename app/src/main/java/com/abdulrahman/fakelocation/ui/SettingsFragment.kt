@@ -14,6 +14,7 @@ import com.abdulrahman.fakelocation.R
 import com.abdulrahman.fakelocation.data.Prefs
 import com.abdulrahman.fakelocation.databinding.FragmentSettingsBinding
 import com.abdulrahman.fakelocation.mock.AlarmPlayer
+import com.abdulrahman.fakelocation.nav.NightMapMode
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import androidx.lifecycle.lifecycleScope
 import com.abdulrahman.fakelocation.App
@@ -67,6 +68,18 @@ class SettingsFragment : Fragment(R.layout.fragment_settings) {
         binding.openGoogle.setOnClickListener { open(Page.GOOGLE) }
         binding.openMap.setOnClickListener { open(Page.MAP) }
         binding.openBackup.setOnClickListener { open(Page.BACKUP) }
+        binding.openDriveLog.setOnClickListener { startActivity(android.content.Intent(requireContext(), DriveLogActivity::class.java)) }
+        binding.nightMapRow.setOnClickListener {
+            val modes = NightMapMode.entries
+            MaterialAlertDialogBuilder(requireContext())
+                .setTitle(R.string.night_map)
+                .setSingleChoiceItems(modes.map { getString(nightLabel(it)) }.toTypedArray(), modes.indexOf(prefs.nightMap)) { dialog, which ->
+                    prefs.nightMap = modes[which]
+                    render()
+                    dialog.dismiss()
+                }
+                .show()
+        }
         binding.resetButton.setOnClickListener { page?.let(::confirmReset) }
 
         binding.arriveRow.setOnClickListener {
@@ -190,6 +203,7 @@ class SettingsFragment : Fragment(R.layout.fragment_settings) {
         lanes.render()
         backup.render()
         servers.render()
+        b.nightMapValue.setText(nightLabel(prefs.nightMap))
         b.arriveValue.text = minutes(prefs.alertBeforeArriveMinutes)
         b.leaveValue.text = minutes(prefs.alertBeforeLeaveMinutes)
         b.trafficValue.text = trafficLabel(prefs.trafficPercent)
@@ -204,6 +218,12 @@ class SettingsFragment : Fragment(R.layout.fragment_settings) {
             val used = MapCache.sizeBytes()
             _binding?.offlineValue?.text = getString(R.string.offline_used, megabytes(used), megabytes(prefs.mapCacheMb * 1024L * 1024L))
         }
+    }
+
+    private fun nightLabel(mode: NightMapMode) = when (mode) {
+        NightMapMode.AUTO -> R.string.night_map_auto
+        NightMapMode.ALWAYS -> R.string.night_map_always
+        NightMapMode.OFF -> R.string.off
     }
 
     private fun megabytes(bytes: Long): String =

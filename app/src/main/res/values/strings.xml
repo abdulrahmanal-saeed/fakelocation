@@ -647,6 +647,37 @@
     <string name="export_done">Route saved as GPX</string>
     <string name="export_failed">Couldn’t save the file there. Try another folder.</string>
 
+    <!-- Navigation: other ways, Home / Work, share, parking, night map, drive log -->
+    <string name="nav_option_fastest">Fastest</string>
+    <string name="nav_option_slower">+%1$d min</string>
+    <string name="nav_option_description">Way %1$d: %2$s, %3$s</string>
+    <string name="nav_home">Home</string>
+    <string name="nav_work">Work</string>
+    <string name="nav_share_eta">Share arrival time</string>
+    <string name="nav_share_text">On my way to %1$s, arriving around %2$s (%3$d min).</string>
+    <string name="nav_share_where">Where I am now: %1$s</string>
+    <string name="nav_parking_nearby">P  Parking nearby: %1$s · %2$s. Tap to drive there.</string>
+    <string name="car_home_work">Home &amp; Work</string>
+    <string name="night_map">Night map</string>
+    <string name="night_map_hint">Darker map colours on the Navigate screen, so it doesn’t dazzle at night</string>
+    <string name="night_map_auto">After sunset</string>
+    <string name="night_map_always">Always</string>
+    <string name="drive_log">Drive log</string>
+    <string name="drive_log_hint">Real drives with navigation: distance, Salik / Darb, fuel per month</string>
+    <string name="drive_log_empty">No drives yet. Every time you navigate somewhere with the app, the drive shows up here with its distance, tolls and fuel.</string>
+    <string name="drive_log_clear_title">Clear the drive log?</string>
+    <string name="drive_stat_distance">Distance</string>
+    <string name="drive_stat_tolls">Tolls</string>
+    <string name="drive_stat_fuel">Fuel</string>
+    <plurals name="drive_month_summary">
+        <item quantity="one">1 drive · %2$s on the road</item>
+        <item quantity="other">%1$d drives · %2$s on the road</item>
+    </plurals>
+    <string name="shortcut_home">Home</string>
+    <string name="shortcut_home_long">Navigate home</string>
+    <string name="shortcut_work">Work</string>
+    <string name="shortcut_work_long">Navigate to work</string>
+
     <!-- Launcher shortcuts -->
     <string name="shortcut_go_to">Go to %1$s</string>
     <string name="shortcut_stop">Stop</string>

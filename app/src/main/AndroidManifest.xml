@@ -160,6 +160,9 @@
             android:name=".ui.ParkingActivity"
             android:exported="false"
             android:windowSoftInputMode="adjustResize" />
+        <activity
+            android:name=".ui.DriveLogActivity"
+            android:exported="false" />
 
         <receiver
             android:name=".drive.ParkingReceiver"
