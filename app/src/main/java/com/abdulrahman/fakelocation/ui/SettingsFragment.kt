@@ -117,6 +117,17 @@ class SettingsFragment : Fragment(R.layout.fragment_settings) {
                 }
                 .show()
         }
+        binding.updateRateRow.setOnClickListener {
+            val options = listOf(1, 2, 5)
+            MaterialAlertDialogBuilder(requireContext())
+                .setTitle(R.string.update_rate)
+                .setSingleChoiceItems(options.map { getString(R.string.update_rate_value, it) }.toTypedArray(), options.indexOf(prefs.fakeUpdatesPerSecond)) { dialog, which ->
+                    prefs.fakeUpdatesPerSecond = options[which]
+                    render()
+                    dialog.dismiss()
+                }
+                .show()
+        }
         binding.silentSwitch.setOnCheckedChangeListener { _, checked -> prefs.ringInSilent = checked }
         binding.vibrateSwitch.setOnCheckedChangeListener { _, checked -> prefs.vibrate = checked }
         binding.naturalSwitch.setOnCheckedChangeListener { _, checked -> prefs.naturalMovement = checked }
@@ -222,6 +233,7 @@ class SettingsFragment : Fragment(R.layout.fragment_settings) {
         b.arriveValue.text = minutes(prefs.alertBeforeArriveMinutes)
         b.leaveValue.text = minutes(prefs.alertBeforeLeaveMinutes)
         b.trafficValue.text = trafficLabel(prefs.trafficPercent)
+        b.updateRateValue.text = getString(R.string.update_rate_value, prefs.fakeUpdatesPerSecond)
         b.silentSwitch.isChecked = prefs.ringInSilent
         b.vibrateSwitch.isChecked = prefs.vibrate
         b.naturalSwitch.isChecked = prefs.naturalMovement

@@ -165,6 +165,14 @@ server fails, routes come from Valhalla instead, for fake trips and for navigati
   starts and how long it is, and a chip shows your average so far against the limit and the distance left, turning
   red when you're over. Only where they're mapped.
 
+**v2.7.0:** Smoother fake movement.
+- The trip arrow on the map moves on every screen frame, exactly where the trip is at that moment (worked out from the
+  trip itself), and turns smoothly, instead of jumping once a second. The map follows it without the little jolts.
+- The fake pin glides with the joystick too.
+- **Location updates while moving** (Settings → Fake movement): 1, 2 or 5 a second. Apps that ask for fast updates
+  (some navigation and fitness apps) see smoother movement; the notification, alarms and widget still update once a
+  second. The small natural GPS wander is worked out per second, so it looks the same at any rate.
+
 See [PLAN.md](PLAN.md) for the full feature list.
 
 ## Install
