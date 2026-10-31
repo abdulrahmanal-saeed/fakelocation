@@ -695,11 +695,7 @@
     <string name="theme_dark">Dark</string>
     <string name="whats_new">What’s new</string>
     <string name="whats_new_title">What’s new in %1$s</string>
-    <string name="whats_new_body">• Driving: the car now moves smoothly along the road between GPS fixes (no more lagging a second behind or cutting corners), the map turns and zooms gently, zooming out a little so the next turn shows before you reach it.
-
-• Tunnels: when the GPS drops out the car carries on along the route at your speed, with distances and voice, until the signal is back.
-
-• Moved the map while driving? It follows you again by itself after 10 seconds.</string>
+    <string name="whats_new_body">• Driving: the car now moves smoothly along the road between GPS fixes (no more lagging a second behind or cutting corners), the map turns and zooms gently, zooming out a little so the next turn shows before you reach it.\n\n• Tunnels: when the GPS drops out the car carries on along the route at your speed, with distances and voice, until the signal is back.\n\n• Moved the map while driving? It follows you again by itself after 10 seconds.\n\n• Your real location on the map: updated every second and gliding, with a circle showing how accurate the GPS is and a cone showing which way you face.</string>
 
     <!-- Updates -->
     <string name="update_check">Check for updates</string>

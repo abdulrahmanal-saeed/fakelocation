@@ -27,6 +27,7 @@ import com.abdulrahman.fakelocation.drive.Fuel
 import com.abdulrahman.fakelocation.drive.TollGate
 import com.abdulrahman.fakelocation.drive.TollPass
 import com.abdulrahman.fakelocation.drive.Tolls
+import com.abdulrahman.fakelocation.geo.LocationKalman
 import com.abdulrahman.fakelocation.geo.NearbySearch
 import com.abdulrahman.fakelocation.geo.PlaceCategory
 import com.abdulrahman.fakelocation.mock.MockLocationService
@@ -132,6 +133,11 @@ object NavSession {
     /** When the last real GPS fix came in (uptime ms; 0 = none yet this drive). */
     private var lastRealFixAt = 0L
     private val deadReckoning = DeadReckoning()
+    /**
+     * Spots GPS glitches (a fix bouncing off a building) so they don't reach the route tracking. The fixes themselves
+     * go on as the GPS gave them: the car is smoothed on screen, and smoothing here would only add lag at turns.
+     */
+    private var kalman = LocationKalman()
     /** Dead reckoning ran out (too long or too far): wait for the GPS. */
     private var deadReckoningDone = false
     private val handler = android.os.Handler(Looper.getMainLooper())
@@ -290,6 +296,7 @@ object NavSession {
         routeStopBase = 0
         laneTracker.reset()
         lastStepIndex = -1
+        kalman = LocationKalman(if (state.value.mode == TravelMode.CAR) LocationKalman.CAR_ACCELERATION else LocationKalman.WALK_ACCELERATION)
         drive = DriveRecorder(System.currentTimeMillis())
         _state.update { it.copy(status = Status.NAVIGATING, stopsReached = 0, routes = emptyList(), parkingNearby = null) }
         startListening()
@@ -497,9 +504,21 @@ object NavSession {
 
     private fun onLocation(location: Location) {
         if (location.isMockCompat()) return
-        lastRealFixAt = SystemClock.uptimeMillis()
+        val now = SystemClock.uptimeMillis()
+        lastRealFixAt = now
         deadReckoning.stop()
         deadReckoningDone = false
+        val smoothed = kalman.update(
+            LatLon(location.latitude, location.longitude),
+            if (location.hasAccuracy()) location.accuracy.toDouble() else 15.0,
+            now,
+            if (location.hasSpeed()) location.speed.toDouble() else null,
+            if (location.hasBearing() && location.hasSpeed()) location.bearing else null,
+        )
+        if (smoothed.rejected) {
+            Log.d(TAG, "GPS glitch ignored (${location.accuracy} m)")
+            return
+        }
         handle(location, estimated = false)
     }
 

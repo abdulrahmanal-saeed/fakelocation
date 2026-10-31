@@ -144,6 +144,15 @@ server fails, routes come from Valhalla instead, for fake trips and for navigati
   signal".
 - Moved the map while driving? It goes back to following the car by itself after 10 seconds.
 
+**v2.5.0:** The blue dot.
+- Your real position on the main map is updated every second while the map is on screen (and not at all when it
+  isn't) and glides between fixes instead of jumping.
+- A pale circle shows how accurate the GPS is right now, and a cone shows which way the phone points (from the
+  compass, corrected to true north) or, while you move, which way you're going.
+- GPS smoothing (a Kalman filter) takes out the small jitter and ignores a fix that suddenly lands far away (a signal
+  bouncing off a building) unless the next ones agree. Navigation uses it to ignore those glitches too, so they no
+  longer cause a false "off the route".
+
 See [PLAN.md](PLAN.md) for the full feature list.
 
 ## Install
