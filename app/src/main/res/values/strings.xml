@@ -349,6 +349,7 @@
     <string name="nav_traffic">%1$s · Google live traffic</string>
     <string name="nav_then">Then: %1$s</string>
     <string name="nav_rerouting">Off the route · finding a new way…</string>
+    <string name="nav_gps_lost">No GPS signal · following the route</string>
     <string name="nav_go_to_start">Head to the start of the route · %1$s away</string>
     <string name="nav_arrived">You have arrived</string>
     <string name="nav_fake_on">Fake location still on for other apps · %1$s</string>
@@ -694,7 +695,11 @@
     <string name="theme_dark">Dark</string>
     <string name="whats_new">What’s new</string>
     <string name="whats_new_title">What’s new in %1$s</string>
-    <string name="whats_new_body">• Settings: a setup check with Fix buttons, pages, reset, backup &amp; restore, your own routing servers.\n\n• Fake trips: speed 0.5×–3× (also during a trip), there and back, several times in a row, weekly routes.\n\n• Move: joystick, and wander around a place.\n\n• Routes: import GPX / KML, export GPX.\n\n• Navigation: other ways to choose from, Home / Work, night map, drive log, share arrival time, parking when you arrive.\n\n• Dark theme, undo after deleting, drag favorites to sort them, a favorites widget, shortcuts on the app icon.\n\n• The app now tells you when a newer build is ready (Settings → About → Check for updates).</string>
+    <string name="whats_new_body">• Driving: the car now moves smoothly along the road between GPS fixes (no more lagging a second behind or cutting corners), the map turns and zooms gently, zooming out a little so the next turn shows before you reach it.
+
+• Tunnels: when the GPS drops out the car carries on along the route at your speed, with distances and voice, until the signal is back.
+
+• Moved the map while driving? It follows you again by itself after 10 seconds.</string>
 
     <!-- Updates -->
     <string name="update_check">Check for updates</string>

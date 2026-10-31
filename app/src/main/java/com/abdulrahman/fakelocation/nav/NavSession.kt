@@ -10,6 +10,7 @@ import android.media.AudioManager
 import android.media.ToneGenerator
 import android.os.Build
 import android.os.Looper
+import android.os.SystemClock
 import android.speech.tts.TextToSpeech
 import android.speech.tts.UtteranceProgressListener
 import android.util.Log
@@ -100,6 +101,10 @@ object NavSession {
         val routes: List<NavRoute> = emptyList(),
         /** Parking closest to where we arrived (cars), to drive on to it. */
         val parkingNearby: Place? = null,
+        /** Counts position updates (real or estimated), so the map can tell a new fix from other changes. */
+        val fixId: Long = 0,
+        /** No GPS for a few seconds (a tunnel): the position is being estimated along the route. */
+        val gpsLost: Boolean = false,
     ) {
         val navigating get() = status == Status.NAVIGATING
 
@@ -123,6 +128,19 @@ object NavSession {
     private var roadInfoJob: Job? = null
     private var tracker: NavTracker? = null
     private var lastFix: Location? = null
+    private var lastFixEstimated = false
+    /** When the last real GPS fix came in (uptime ms; 0 = none yet this drive). */
+    private var lastRealFixAt = 0L
+    private val deadReckoning = DeadReckoning()
+    /** Dead reckoning ran out (too long or too far): wait for the GPS. */
+    private var deadReckoningDone = false
+    private val handler = android.os.Handler(Looper.getMainLooper())
+    private val gpsWatch = object : Runnable {
+        override fun run() {
+            checkGps()
+            if (state.value.navigating) handler.postDelayed(this, 1000L)
+        }
+    }
     private var offRouteCount = 0
     private var lastReroute = 0L
     /** Stops already passed when the current route was made (it only contains the ones after). */
@@ -277,13 +295,20 @@ object NavSession {
         startListening()
         ContextCompat.startForegroundService(app, NavigationService.intent(app))
         speak(state.value.route?.steps?.firstOrNull()?.spoken.orEmpty())
-        lastFix?.let { onLocation(it) }
+        lastRealFixAt = if (lastFix != null) SystemClock.uptimeMillis() else 0L
+        deadReckoning.stop()
+        deadReckoningDone = false
+        handler.removeCallbacks(gpsWatch)
+        handler.postDelayed(gpsWatch, 1000L)
+        lastFix?.let { handle(it, lastFixEstimated) }
     }
 
     fun stop() {
         if (!state.value.navigating) return
         recordDrive()
-        _state.update { it.copy(status = if (it.route != null) Status.PREVIEW else Status.IDLE, progress = null, rerouting = false, parkingNearby = null) }
+        handler.removeCallbacks(gpsWatch)
+        deadReckoning.stop()
+        _state.update { it.copy(status = if (it.route != null) Status.PREVIEW else Status.IDLE, progress = null, rerouting = false, parkingNearby = null, gpsLost = false) }
         app.stopService(NavigationService.intent(app))
         tts?.stop()
         if (clients == 0) stopListening()
@@ -325,7 +350,8 @@ object NavSession {
         heldLimitAlong = 0.0
         if (state.value.navigating) lastStepIndex = -2
         fetchRoadInfo(route, 0.0)
-        lastFix?.let { onLocation(it) }
+        deadReckoning.stop()
+        lastFix?.let { handle(it, lastFixEstimated) }
     }
 
     /** Speed limits, cameras and lanes for the next stretch of the route (20 km at a time, ahead of the car). */
@@ -471,10 +497,58 @@ object NavSession {
 
     private fun onLocation(location: Location) {
         if (location.isMockCompat()) return
+        lastRealFixAt = SystemClock.uptimeMillis()
+        deadReckoning.stop()
+        deadReckoningDone = false
+        handle(location, estimated = false)
+    }
+
+    /**
+     * Once a second while driving: when the GPS has gone quiet (a tunnel), carry on along the route at the speed we
+     * had, so the car, the distances and the voice keep going until the signal is back.
+     */
+    private fun checkGps() {
+        val s = state.value
+        if (!s.navigating || lastRealFixAt == 0L) return
+        val now = SystemClock.uptimeMillis()
+        if (now - lastRealFixAt < DeadReckoning.AFTER_MS) return
+        val route = s.route
+        if (!deadReckoning.active && !deadReckoningDone) {
+            val p = s.progress
+            if (route != null && p != null && p.offRouteMeters < 30 && !p.arrived && s.toStartMeters == 0.0) {
+                deadReckoning.start(p.alongMeters, s.speedKmh / 3.6, lastRealFixAt)
+                estimatedRoute = route
+            }
+            if (!deadReckoning.active) deadReckoningDone = true
+        }
+        val along = if (route != null && route === estimatedRoute) deadReckoning.alongAt(now) else null
+        if (along == null || route == null) {
+            deadReckoning.stop()
+            deadReckoningDone = true
+            if (!s.gpsLost && now - lastRealFixAt > 5000) _state.update { it.copy(gpsLost = true) }
+            return
+        }
+        val at = route.pointAt(along)
+        val estimate = Location(LocationManager.GPS_PROVIDER).apply {
+            latitude = at.lat
+            longitude = at.lon
+            speed = deadReckoning.speedAt(now).toFloat()
+            bearing = TripTimeline.bearing(route.pointAt(along - 5), route.pointAt(along + 15))
+            accuracy = 30f
+            time = System.currentTimeMillis()
+        }
+        handle(estimate, estimated = true)
+    }
+
+    private var estimatedRoute: NavRoute? = null
+
+    /** A position to navigate from: a real fix, or one estimated along the route while the GPS is lost. */
+    private fun handle(location: Location, estimated: Boolean) {
         val here = LatLon(location.latitude, location.longitude)
-        Prefs(app).lastRealLocation = here
+        if (!estimated) Prefs(app).lastRealLocation = here
         val speed = speedKmh(location)
         lastFix = location
+        lastFixEstimated = estimated
         val s = state.value
         if (s.real == null && s.route == null && s.to != null) {
             _state.update { it.copy(real = here) }
@@ -498,15 +572,19 @@ object NavSession {
         val reached = if (route != null && progress != null && s.navigating) {
             routeStopBase + route.stopsAlong.count { it <= progress.alongMeters + 30 }
         } else s.stopsReached
-        val lanes = if (s.navigating && route != null && progress != null && s.mode == TravelMode.CAR && Prefs(app).laneGuidance) {
-            trackLane(location, route, progress, s)
-        } else null
-        _state.update {
-            it.copy(laneCount = lanes?.first ?: 0, lane = lanes?.second ?: 0, laneAdvice = lanes?.third,
-                laneSource = if (lanes != null) laneTracker.source else null)
+        // Estimated positions don't say anything about lanes: keep what was shown.
+        if (!estimated) {
+            val lanes = if (s.navigating && route != null && progress != null && s.mode == TravelMode.CAR && Prefs(app).laneGuidance) {
+                trackLane(location, route, progress, s)
+            } else null
+            _state.update {
+                it.copy(laneCount = lanes?.first ?: 0, lane = lanes?.second ?: 0, laneAdvice = lanes?.third,
+                    laneSource = if (lanes != null) laneTracker.source else null)
+            }
         }
         _state.update {
             it.copy(real = here, bearing = bearing, speedKmh = speed, limitKmh = limit, progress = progress,
+                fixId = it.fixId + 1, gpsLost = estimated,
                 speeding = if (over) true else if (speed <= limit || limit == 0) false else it.speeding,
                 cameraMeters = camera, toStartMeters = if (toStart > NavTracker.OFF_ROUTE_METERS) toStart else 0.0,
                 nextToll = toll?.takeIf { tollMeters != null }, tollMeters = tollMeters, stopsReached = reached)

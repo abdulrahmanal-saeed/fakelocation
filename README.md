@@ -134,6 +134,16 @@ server fails, routes come from Valhalla instead, for fake trips and for navigati
 - Code split up: the fake-location service's notifications and alarms, and the Navigate screen's map drawing, are now
   in their own files.
 
+**v2.4.0:** Smoother driving.
+- The car is drawn on every screen frame: between GPS fixes it carries on along the road at your speed and each new
+  fix is blended in, so it no longer lags a second behind, stops and starts, or cuts across corners.
+- The map turns smoothly (no shaking with the GPS heading) and the zoom glides: further out on fast roads, and out just
+  enough while a turn comes up that you see it before you reach it.
+- **Tunnels:** when the GPS goes quiet for 3 seconds the position is estimated along the route at the speed you had
+  (for up to 90 seconds / 2.5 km), so the car, distances, arrival time and voice keep going; the banner says "No GPS
+  signal".
+- Moved the map while driving? It goes back to following the car by itself after 10 seconds.
+
 See [PLAN.md](PLAN.md) for the full feature list.
 
 ## Install
