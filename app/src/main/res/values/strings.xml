@@ -67,6 +67,7 @@
     <string name="searching">Searching…</string>
     <string name="no_results">No places found</string>
     <string name="search_error">Search needs internet. Check your connection.</string>
+    <string name="no_internet">No internet connection. Turn on mobile data or Wi-Fi.</string>
     <string name="coordinates_result">Coordinates</string>
     <string name="reading_link">Reading link…</string>
     <string name="link_failed">Couldn’t read a location from that link</string>

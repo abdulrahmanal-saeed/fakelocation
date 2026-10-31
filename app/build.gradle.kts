@@ -11,8 +11,8 @@ android {
         applicationId = "com.abdulrahman.fakelocation"
         minSdk = 26
         targetSdk = 36
-        versionCode = 13
-        versionName = "1.8.0"
+        versionCode = 14
+        versionName = "1.8.1"
     }
 
     signingConfigs {

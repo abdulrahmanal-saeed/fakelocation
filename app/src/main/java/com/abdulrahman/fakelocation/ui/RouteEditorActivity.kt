@@ -39,6 +39,7 @@ import com.abdulrahman.fakelocation.data.formatDuration
 import com.abdulrahman.fakelocation.databinding.ActivityRouteEditorBinding
 import com.abdulrahman.fakelocation.databinding.ItemAddStopBinding
 import com.abdulrahman.fakelocation.databinding.ItemStopBinding
+import com.abdulrahman.fakelocation.geo.NoInternetException
 import com.abdulrahman.fakelocation.geo.PlaceSearch
 import com.abdulrahman.fakelocation.geo.Router
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
@@ -64,7 +65,8 @@ class RouteEditorActivity : AppCompatActivity() {
     private val adapter = StopsAdapter()
     private lateinit var touchHelper: ItemTouchHelper
     private var routingJob: Job? = null
-    private var routingFailed = false
+    private var routingError: Throwable? = null
+    private val routingFailed get() = routingError != null
     private val pathLine by lazy {
         Polyline(binding.map).apply {
             outlinePaint.color = ContextCompat.getColor(this@RouteEditorActivity, R.color.ink)
@@ -248,7 +250,7 @@ class RouteEditorActivity : AppCompatActivity() {
 
     private fun requestRoute(immediate: Boolean) {
         routingJob?.cancel()
-        routingFailed = false
+        routingError = null
         if (route.stops.size < 2) {
             render()
             return
@@ -266,7 +268,7 @@ class RouteEditorActivity : AppCompatActivity() {
                 render()
                 fitMap()
             }.onFailure {
-                routingFailed = true
+                routingError = it
                 render()
             }
         }
@@ -286,6 +288,7 @@ class RouteEditorActivity : AppCompatActivity() {
         binding.summary.text = when {
             route.stops.size < 2 -> getString(R.string.route_need_two)
             loading -> getString(R.string.route_calculating)
+            routingError is NoInternetException -> getString(R.string.no_internet)
             routingFailed -> getString(R.string.route_failed)
             path != null -> getString(
                 R.string.route_summary,

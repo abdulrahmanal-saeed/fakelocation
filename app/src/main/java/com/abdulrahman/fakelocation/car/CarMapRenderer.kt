@@ -8,6 +8,7 @@ import android.graphics.Rect
 import android.graphics.Typeface
 import android.os.Handler
 import android.os.Looper
+import android.util.Log
 import android.view.Surface
 import androidx.car.app.CarContext
 import androidx.car.app.SurfaceCallback
@@ -73,6 +74,7 @@ class CarMapRenderer(private val carContext: CarContext, private val owner: Life
             owner.lifecycleScope.launch {
                 runCatching { withContext(Dispatchers.IO) { GoogleTiles.tileSource(carContext, prefs.mapProvider) } }
                     .onSuccess { tiles.tileSource = it; requestRender() }
+                    .onFailure { Log.w("CarMapRenderer", "Google tiles unavailable, using OpenStreetMap", it) }
             }
         }
         owner.lifecycleScope.launch { NavSession.state.collect { requestRender() } }
