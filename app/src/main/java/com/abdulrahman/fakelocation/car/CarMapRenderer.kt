@@ -1,7 +1,5 @@
 package com.abdulrahman.fakelocation.car
 
-import com.abdulrahman.fakelocation.ui.MapStyle
-import com.abdulrahman.fakelocation.data.MapProvider
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
@@ -139,9 +137,7 @@ class CarMapRenderer(private val carContext: CarContext, private val owner: Life
     }
 
     private fun draw(canvas: Canvas, state: NavSession.State) {
-        val night = carContext.isDarkMode
-        canvas.drawColor(if (night) 0xFF1A2331.toInt() else 0xFFE9EDF1.toInt())
-        val tileFilter = if (night) MapStyle.nightFilterFor(Prefs(carContext).let { if (it.hasGoogleKey) it.mapProvider else MapProvider.OSM }) else null
+        canvas.drawColor(0xFFE9EDF1.toInt())
         val area = visibleArea ?: Rect(0, 0, width, height)
         val scale = (dpi / 160f).coerceIn(1f, 2.5f)
         val route = state.route
@@ -206,7 +202,6 @@ class CarMapRenderer(private val carContext: CarContext, private val owner: Life
             val left = (anchorX + tx * tile - cx).toInt()
             val top = (anchorY + ty * tile - cy).toInt()
             drawable.setBounds(left, top, (left + tile + 1).toInt(), (top + tile + 1).toInt())
-            drawable.colorFilter = tileFilter
             if (drawable is ReusableBitmapDrawable) {
                 drawable.beginUsingDrawable()
                 try {

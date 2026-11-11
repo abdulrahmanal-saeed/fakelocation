@@ -73,16 +73,6 @@ turns the volume up for the sentence and back after, and boosts the voice itself
 volume, or long-press the speaker button while driving). "Voice over Bluetooth call" plays directions like a phone
 call so most car stereos cut the radio.
 
-**v1.9.0:** Home and Work chips on the map, also while the fake location or a fake trip is on: tap for the place
-sheet (navigate there for real, or put the fake location there), long-press to change or remove; they're on the
-navigation screen and in Android Auto's saved places too. A choice of routes before starting: up to three ways plus a
-toll-free one when every way has a gate, each with its time, distance and tolls, as cards and as grey lines you can
-tap (Google, or Valhalla on OpenStreetMap; also in Android Auto). While driving with Google routes the traffic is
-checked every 4 minutes, and a clearly quicker way (2 minutes and 7 % or more) is offered on screen and by voice;
-nothing changes until you tap Switch. Night colours for the navigation screen: dark map and cards from sunset to
-sunrise at your location (or always / with the phone / off, in Settings → Driving screen); Android Auto's map goes
-dark with the car. Unit tests now run on every push, before the APK is built.
-
 See [PLAN.md](PLAN.md) for the full feature list.
 
 ## Install

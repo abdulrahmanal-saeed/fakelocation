@@ -1,7 +1,5 @@
 package com.abdulrahman.fakelocation.car
 
-import com.abdulrahman.fakelocation.data.Prefs
-import com.abdulrahman.fakelocation.nav.RouteOption
 import android.text.SpannableStringBuilder
 import androidx.car.app.CarContext
 import androidx.car.app.Screen
@@ -114,21 +112,15 @@ class CarSavedScreen(carContext: CarContext) : Screen(carContext) {
     override fun onGetTemplate(): Template {
         val repo = PlacesRepository.get(carContext)
         val limit = listLimit()
-        val prefs = Prefs(carContext)
-        val shortcuts = listOfNotNull(
-            prefs.home?.copy(name = carContext.getString(R.string.shortcut_home)),
-            prefs.work?.copy(name = carContext.getString(R.string.shortcut_work)),
-        )
         val favorites = ItemList.Builder()
-        shortcuts.forEach { favorites.addItem(placeRow(it, it.name.orEmpty())) }
-        repo.favorites.value.take((limit - shortcuts.size).coerceAtLeast(0)).forEach { favorites.addItem(placeRow(Place(it.position, it.name), it.name)) }
+        repo.favorites.value.take(limit).forEach { favorites.addItem(placeRow(Place(it.position, it.name), it.name)) }
         val recent = ItemList.Builder()
         repo.history.value.distinctBy { it.name }.take(limit).forEach { recent.addItem(placeRow(Place(it.position, it.name), it.name)) }
         val builder = ListTemplate.Builder().setHeaderAction(Action.BACK).setTitle(carContext.getString(R.string.car_saved))
-        if (shortcuts.isEmpty() && repo.favorites.value.isEmpty() && repo.history.value.isEmpty()) {
+        if (repo.favorites.value.isEmpty() && repo.history.value.isEmpty()) {
             return builder.setSingleList(ItemList.Builder().setNoItemsMessage(carContext.getString(R.string.car_no_saved)).build()).build()
         }
-        if (shortcuts.isNotEmpty() || repo.favorites.value.isNotEmpty()) {
+        if (repo.favorites.value.isNotEmpty()) {
             builder.addSectionedList(SectionedItemList.create(favorites.build(), carContext.getString(R.string.nav_places)))
         }
         if (repo.history.value.isNotEmpty()) {
@@ -205,7 +197,7 @@ class CarPreviewScreen(carContext: CarContext, private val place: Place) : Scree
             repeatOnLifecycle(Lifecycle.State.STARTED) {
                 var last: Any? = null
                 NavSession.state.collect { s ->
-                    val key = listOf(s.status, s.route, s.tolls, s.options.size, s.selected)
+                    val key = Triple(s.status, s.route, s.tolls)
                     if (key != last) { last = key; invalidate() }
                 }
             }
@@ -226,36 +218,13 @@ class CarPreviewScreen(carContext: CarContext, private val place: Place) : Scree
         val route = s.route
         if (route == null || s.status == NavSession.Status.ROUTING) return builder.setLoading(true).build()
 
-        // One row per way to get there (the list's selection chooses the route), or a single row.
-        val options = s.options.take(3).takeIf { it.size > 1 } // car screens list three routes at most
-        val tags = options?.let { RouteOption.tags(it) }
-        val items = ItemList.Builder()
-        (options?.map { it.route } ?: listOf(route)).forEachIndexed { i, r ->
-            val summary = SpannableStringBuilder()
-                .append(CarUi.durationText(r.durationSeconds))
-                .append(" · ")
-                .append(CarUi.distanceText(r.distanceMeters))
-            val row = Row.Builder().setTitle(summary)
-            if (options != null && tags != null) {
-                val label = carContext.getString(when (tags[i]) {
-                    RouteOption.Tag.FASTEST -> R.string.route_fastest
-                    RouteOption.Tag.NO_TOLLS -> R.string.route_no_tolls
-                    RouteOption.Tag.CHEAPER -> R.string.route_cheaper
-                    RouteOption.Tag.SHORTER -> R.string.route_shorter
-                    RouteOption.Tag.OTHER -> R.string.route_other
-                })
-                val o = options[i]
-                val tolls = if (o.tolls.isEmpty()) carContext.getString(R.string.route_option_free)
-                else carContext.getString(R.string.route_option_tolls, Fuel.aed(o.tollAed).replace(".00", ""))
-                row.addText("$label · $tolls")
-            } else {
-                row.addText(costText(s))
-                place.address?.takeIf { it.isNotBlank() }?.let { row.addText(it) }
-            }
-            items.addItem(row.build())
-        }
-        items.setSelectedIndex(if (options != null) s.selected.coerceIn(0, options.lastIndex) else 0)
-            .setOnSelectedListener { index -> if (options != null) NavSession.chooseRoute(index) }
+        val summary = SpannableStringBuilder()
+            .append(CarUi.durationText(route.durationSeconds))
+            .append(" · ")
+            .append(CarUi.distanceText(route.distanceMeters))
+        val row = Row.Builder().setTitle(summary)
+        row.addText(costText(s))
+        place.address?.takeIf { it.isNotBlank() }?.let { row.addText(it) }
         val avoid = s.avoid
         builder.setActionStrip(
             ActionStrip.Builder().addAction(
@@ -266,7 +235,7 @@ class CarPreviewScreen(carContext: CarContext, private val place: Place) : Scree
             ).build(),
         )
         return builder
-            .setItemList(items.build())
+            .setItemList(ItemList.Builder().addItem(row.build()).setSelectedIndex(0).setOnSelectedListener { }.build())
             .setNavigateAction(
                 Action.Builder().setTitle(carContext.getString(R.string.car_start)).setOnClickListener {
                     NavSession.start()

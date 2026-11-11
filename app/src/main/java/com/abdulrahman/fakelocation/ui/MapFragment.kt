@@ -62,12 +62,6 @@ class MapFragment : Fragment(R.layout.fragment_map) {
     private var tripView: TripView? = null
     private var tripShown = false
 
-    /** Which shortcut the search screen is picking a place for (true = home). */
-    private var pickingHome = true
-    private val pickShortcut = registerForActivityResult(androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult()) { result ->
-        SearchActivity.placeFrom(result.data)?.let { saveShortcut(pickingHome, it) }
-    }
-
     private val realLocationCallback = object : LocationCallback() {
         override fun onLocationResult(result: LocationResult) {
             val location = result.lastLocation ?: return
@@ -105,11 +99,10 @@ class MapFragment : Fragment(R.layout.fragment_map) {
                     .collect { (session, trip, favorites) ->
                         if (trip != null) {
                             renderTrip(trip)
-                            renderChips(emptyList(), shortcutsOnly = true)
                         } else {
                             if (tripShown) endTripView()
                             renderSession(session, favorites)
-                            renderChips(favorites, shortcutsOnly = session != null)
+                            renderChips(favorites)
                         }
                     }
             }
@@ -294,6 +287,7 @@ class MapFragment : Fragment(R.layout.fragment_map) {
             binding.map.overlays.remove(fakeMarker)
             binding.map.overlays.remove(selectionMarker)
             binding.searchPill.isVisible = false
+            binding.chipsScroll.isVisible = false
             binding.activePill.isVisible = false
             binding.idlePanel.isVisible = false
             binding.activePanel.isVisible = false
@@ -318,6 +312,7 @@ class MapFragment : Fragment(R.layout.fragment_map) {
         binding.idlePanel.isVisible = session == null
         binding.activePanel.isVisible = session != null
         binding.activePill.isVisible = session != null
+        binding.chipsScroll.isVisible = session == null
         timerHandler.removeCallbacks(timerTick)
         if (session == null) {
             map.overlays.remove(fakeMarker)
@@ -336,16 +331,9 @@ class MapFragment : Fragment(R.layout.fragment_map) {
         updateRealLocationTracking()
     }
 
-    /**
-     * Home and Work first, always there (also while the fake location or a fake trip is on), then favorites
-     * and Recent when nothing is being faked.
-     */
-    private fun renderChips(favorites: List<Favorite>, shortcutsOnly: Boolean) {
+    private fun renderChips(favorites: List<Favorite>) {
         val group = binding.chips
         group.removeAllViews()
-        group.addView(shortcutChip(home = true))
-        group.addView(shortcutChip(home = false))
-        if (shortcutsOnly) return
         for (favorite in favorites.take(6)) {
             group.addView(chip(favorite.name, iconFor(favorite.name), tinted = true) {
                 main.showPlace(Place(favorite.position, favorite.name))
@@ -367,77 +355,6 @@ class MapFragment : Fragment(R.layout.fragment_map) {
             chipIconTint = ContextCompat.getColorStateList(requireContext(), if (tinted) R.color.action else R.color.muted)
             setOnClickListener { onClick() }
         }
-
-    private fun shortcutChip(home: Boolean): Chip {
-        val place = if (home) prefs.home else prefs.work
-        val label = getString(when {
-            place != null -> if (home) R.string.shortcut_home else R.string.shortcut_work
-            else -> if (home) R.string.shortcut_set_home else R.string.shortcut_set_work
-        })
-        val icon = if (home) R.drawable.ic_home else R.drawable.ic_work
-        return chip(label, icon, tinted = place != null) {
-            // Opens the place sheet: navigate there for real, or put the fake location there.
-            if (place != null) main.showPlace(place.copy(name = label)) else pickShortcutPlace(home)
-        }.apply {
-            setOnLongClickListener {
-                if (place == null) pickShortcutPlace(home) else editShortcut(home)
-                true
-            }
-        }
-    }
-
-    /** Where is home / work: search for it, or take a spot already on screen. */
-    private fun pickShortcutPlace(home: Boolean) {
-        val fake = MockState.session.value
-        val choices = mutableListOf(R.string.shortcut_pick_search, R.string.shortcut_pick_map)
-        if (fake != null) choices += R.string.shortcut_pick_fake
-        com.google.android.material.dialog.MaterialAlertDialogBuilder(requireContext())
-            .setTitle(if (home) R.string.shortcut_set_home else R.string.shortcut_set_work)
-            .setItems(choices.map { getString(it) }.toTypedArray()) { _, which ->
-                when (choices[which]) {
-                    R.string.shortcut_pick_search -> {
-                        pickingHome = home
-                        pickShortcut.launch(android.content.Intent(requireContext(), SearchActivity::class.java))
-                    }
-                    R.string.shortcut_pick_map -> {
-                        val center = binding.map.mapCenter
-                        saveShortcut(home, Place(LatLon(center.latitude, center.longitude)))
-                    }
-                    else -> fake?.let { saveShortcut(home, Place(it.position, address = it.name)) }
-                }
-            }
-            .show()
-    }
-
-    private fun editShortcut(home: Boolean) {
-        val name = getString(if (home) R.string.shortcut_home else R.string.shortcut_work)
-        com.google.android.material.dialog.MaterialAlertDialogBuilder(requireContext())
-            .setTitle(name)
-            .setItems(arrayOf(getString(R.string.shortcut_change), getString(R.string.remove))) { _, which ->
-                if (which == 0) {
-                    pickShortcutPlace(home)
-                } else {
-                    if (home) prefs.home = null else prefs.work = null
-                    requireContext().toast(getString(R.string.shortcut_removed, name))
-                    refreshChips()
-                }
-            }
-            .show()
-    }
-
-    private fun saveShortcut(home: Boolean, place: Place) {
-        // The sheet shows "Home" / "Work" as the title, so the place's own name goes underneath.
-        val kept = place.copy(address = place.address ?: place.name)
-        if (home) prefs.home = kept else prefs.work = kept
-        requireContext().toast(getString(R.string.shortcut_saved, getString(if (home) R.string.shortcut_home else R.string.shortcut_work)))
-        refreshChips()
-    }
-
-    private fun refreshChips() {
-        if (_binding == null) return
-        val faking = MockState.session.value != null || MockState.trip.value != null
-        renderChips(places.favorites.value, shortcutsOnly = faking)
-    }
 
     private fun iconFor(name: String): Int {
         val lower = name.lowercase()

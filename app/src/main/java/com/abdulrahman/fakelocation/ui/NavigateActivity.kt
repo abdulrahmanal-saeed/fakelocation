@@ -29,10 +29,6 @@ import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import com.abdulrahman.fakelocation.R
 import com.abdulrahman.fakelocation.data.LatLon
-import com.abdulrahman.fakelocation.data.NightMode
-import com.abdulrahman.fakelocation.drive.Sun
-import com.abdulrahman.fakelocation.nav.RouteOption
-import androidx.appcompat.app.AppCompatDelegate
 import com.abdulrahman.fakelocation.data.Place
 import com.abdulrahman.fakelocation.data.Prefs
 import com.abdulrahman.fakelocation.data.TravelMode
@@ -68,14 +64,6 @@ class NavigateActivity : AppCompatActivity() {
     private var wasNavigating = false
     private val cameraMarkers = mutableListOf<Marker>()
 
-    private var night = false
-    private var lastNightCheck = 0L
-    /** Other ways to go (grey, tap to choose) and, while driving, the quicker way on offer. */
-    private val altLines = mutableListOf<Polyline>()
-    private var drawnAlternatives: Any? = null
-    private var shownOptions: List<RouteOption>? = null
-    private var shownSelected = -1
-
     private val routeCasing by lazy { line(R.color.route_green_dark, 13f) }
     private val routeLine by lazy { line(R.color.route_green, 9f) }
     private val trafficLines = mutableListOf<Polyline>()
@@ -96,7 +84,7 @@ class NavigateActivity : AppCompatActivity() {
     private val destination by lazy {
         marker(Marker.ANCHOR_BOTTOM).apply {
             icon = ContextCompat.getDrawable(this@NavigateActivity, R.drawable.marker_fake)?.mutate()
-                ?.apply { setTint(ContextCompat.getColor(this@NavigateActivity, R.color.drive_ink)) }
+                ?.apply { setTint(ContextCompat.getColor(this@NavigateActivity, R.color.ink)) }
         }
     }
 
@@ -119,11 +107,7 @@ class NavigateActivity : AppCompatActivity() {
     private val stopMarkers = mutableListOf<Marker>()
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        // Day or night colours are decided before anything is drawn (see values-night).
-        delegate.localNightMode = nightModeNow()
         super.onCreate(savedInstanceState)
-        night = (resources.configuration.uiMode and android.content.res.Configuration.UI_MODE_NIGHT_MASK) ==
-            android.content.res.Configuration.UI_MODE_NIGHT_YES
         enableEdgeToEdge()
         binding = ActivityNavigateBinding.inflate(layoutInflater)
         setContentView(binding.root)
@@ -164,29 +148,6 @@ class NavigateActivity : AppCompatActivity() {
         super.onPause()
     }
 
-    /** Night colours: always, never, with the phone, or (by default) while the sun is down where you are. */
-    private fun nightModeNow(): Int {
-        val prefs = Prefs(this)
-        return when (prefs.driveNight) {
-            NightMode.ON -> AppCompatDelegate.MODE_NIGHT_YES
-            NightMode.OFF -> AppCompatDelegate.MODE_NIGHT_NO
-            NightMode.PHONE -> AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM
-            NightMode.AUTO -> {
-                val at = NavSession.state.value.real ?: prefs.lastRealLocation ?: LatLon.HOME_REGION
-                if (Sun.isNight(at.lat, at.lon, System.currentTimeMillis())) AppCompatDelegate.MODE_NIGHT_YES else AppCompatDelegate.MODE_NIGHT_NO
-            }
-        }
-    }
-
-    /** At dusk and dawn the screen is rebuilt in the other colours; the route and guidance carry on untouched. */
-    private fun followTheSun() {
-        val now = System.currentTimeMillis()
-        if (now - lastNightCheck < 60_000) return
-        lastNightCheck = now
-        val wanted = nightModeNow()
-        if (wanted != delegate.localNightMode) delegate.localNightMode = wanted
-    }
-
     private fun applyInsets() {
         val top = (binding.top.layoutParams as ViewGroup.MarginLayoutParams).topMargin
         val bottom = binding.bottom.paddingBottom
@@ -202,7 +163,7 @@ class NavigateActivity : AppCompatActivity() {
 
     @SuppressLint("ClickableViewAccessibility")
     private fun setupMap() = with(binding.map) {
-        MapStyle.apply(this, lifecycleScope, night = night)
+        MapStyle.apply(this, lifecycleScope)
         setMultiTouchControls(true)
         zoomController.setVisibility(CustomZoomButtonsController.Visibility.NEVER)
         isTilesScaledToDpi = true
@@ -263,10 +224,6 @@ class NavigateActivity : AppCompatActivity() {
             follow = true
             NavSession.start()
         }
-        binding.fasterUseButton.setOnClickListener { NavSession.acceptFaster() }
-        binding.fasterKeepButton.setOnClickListener { NavSession.dismissFaster() }
-        binding.homeChip.setOnClickListener { Prefs(this).home?.let { NavSession.setDestination(it.copy(name = getString(R.string.shortcut_home))) } }
-        binding.workChip.setOnClickListener { Prefs(this).work?.let { NavSession.setDestination(it.copy(name = getString(R.string.shortcut_work))) } }
         binding.endButton.setOnClickListener {
             NavSession.stop()
             finish()
@@ -276,7 +233,6 @@ class NavigateActivity : AppCompatActivity() {
     // region Drawing
 
     private fun render(s: NavSession.State) {
-        followTheSun()
         val navigating = s.navigating
         if (navigating != wasNavigating) {
             wasNavigating = navigating
@@ -307,15 +263,6 @@ class NavigateActivity : AppCompatActivity() {
         binding.avoidTollsChip.isVisible = s.mode == TravelMode.CAR
         binding.avoidHighwaysChip.isVisible = s.mode == TravelMode.CAR
         renderStops(s)
-        renderOptions(s)
-        val prefs = Prefs(this)
-        binding.homeChip.isVisible = !navigating && s.to == null && prefs.home != null
-        binding.workChip.isVisible = !navigating && s.to == null && prefs.work != null
-        val faster = s.faster?.takeIf { navigating }
-        binding.fasterCard.isVisible = faster != null
-        if (faster != null) {
-            binding.fasterText.text = getString(R.string.nav_faster_saves, ((faster.savesSeconds + 30) / 60).toInt().coerceAtLeast(1))
-        }
 
         val session = MockState.session.value
         val trip = MockState.trip.value
@@ -376,7 +323,7 @@ class NavigateActivity : AppCompatActivity() {
         }
         binding.speedRow.isVisible = s.mode == TravelMode.CAR
         binding.mySpeed.text = s.speedKmh.toString()
-        binding.mySpeed.setTextColor(ContextCompat.getColor(this, if (s.speeding) R.color.limit_red else R.color.drive_ink))
+        binding.mySpeed.setTextColor(ContextCompat.getColor(this, if (s.speeding) R.color.limit_red else R.color.ink))
         binding.speedLimit.isVisible = s.limitKmh > 0
         binding.speedLimit.text = s.limitKmh.toString()
         binding.cameraChip.isVisible = s.cameraMeters != null
@@ -472,43 +419,6 @@ class NavigateActivity : AppCompatActivity() {
         }
     }
 
-    /** The ways to get there as cards: what each is good for, its time, distance and tolls. Tap to choose. */
-    private fun renderOptions(s: NavSession.State) {
-        val show = !s.navigating && s.options.size > 1 && s.status == NavSession.Status.PREVIEW
-        binding.optionsScroll.isVisible = show
-        if (!show || (s.options === shownOptions && s.selected == shownSelected)) return
-        shownOptions = s.options
-        shownSelected = s.selected
-        binding.optionsRow.removeAllViews()
-        val tags = RouteOption.tags(s.options)
-        s.options.forEachIndexed { i, option ->
-            val card = layoutInflater.inflate(R.layout.item_route_option, binding.optionsRow, false)
-            val chosen = i == s.selected
-            card.backgroundTintList = ColorStateList.valueOf(
-                ContextCompat.getColor(this, if (chosen) R.color.drive_option_selected else R.color.drive_ground))
-            card.findViewById<android.widget.TextView>(R.id.optionTag).apply {
-                setText(when (tags[i]) {
-                    RouteOption.Tag.FASTEST -> R.string.route_fastest
-                    RouteOption.Tag.NO_TOLLS -> R.string.route_no_tolls
-                    RouteOption.Tag.CHEAPER -> R.string.route_cheaper
-                    RouteOption.Tag.SHORTER -> R.string.route_shorter
-                    RouteOption.Tag.OTHER -> R.string.route_other
-                })
-                setTextColor(ContextCompat.getColor(this@NavigateActivity, if (chosen) R.color.drive_accent else R.color.drive_muted))
-            }
-            card.findViewById<android.widget.TextView>(R.id.optionTime).text = formatDuration((option.route.durationSeconds * 1000).toLong())
-            val distance = formatDistance(option.route.distanceMeters)
-            card.findViewById<android.widget.TextView>(R.id.optionDetail).text = when {
-                s.mode != TravelMode.CAR -> distance
-                option.tolls.isEmpty() -> getString(R.string.route_option_detail, distance, getString(R.string.route_option_free))
-                else -> getString(R.string.route_option_detail, distance,
-                    getString(R.string.route_option_tolls, Fuel.aed(option.tollAed).replace(".00", "")))
-            }
-            card.setOnClickListener { NavSession.chooseRoute(i) }
-            binding.optionsRow.addView(card)
-        }
-    }
-
     /** "Fuel ≈ AED 3.10 · Salik AED 10 (2 gates)". */
     private fun costLine(s: NavSession.State): String {
         val parts = mutableListOf(getString(R.string.nav_cost_fuel, Fuel.aed(s.fuelCostAed)))
@@ -581,7 +491,6 @@ class NavigateActivity : AppCompatActivity() {
             }
             binding.map.overlays.addAll(cameraMarkers)
         }
-        drawAlternatives(s)
         // Only the road still ahead is drawn: it starts where the car is and shrinks as you drive.
         val p = s.progress
         val from = if (r != null && s.navigating && p != null && p.offRouteMeters < 40) lineFromAlong.coerceAtMost(p.alongMeters) else 0.0
@@ -591,39 +500,6 @@ class NavigateActivity : AppCompatActivity() {
         routeLine.setPoints(ahead)
         drawTraffic(r, from)
         drawTurn(s, r, p)
-    }
-
-    /** Grey lines under the chosen route: the other ways before starting, or the quicker way offered while driving. */
-    private fun drawAlternatives(s: NavSession.State) {
-        val key: Any? = when {
-            s.navigating -> s.faster
-            s.status == NavSession.Status.PREVIEW && s.options.size > 1 -> s.options to s.selected
-            else -> null
-        }
-        val same = key === drawnAlternatives ||
-            (key is Pair<*, *> && (drawnAlternatives as? Pair<*, *>)?.let { it.first === key.first && it.second == key.second } == true)
-        if (same) return
-        drawnAlternatives = key
-        altLines.forEach { binding.map.overlays.remove(it) }
-        altLines.clear()
-        val others: List<Pair<NavRoute, Int?>> = when {
-            s.navigating -> listOfNotNull(s.faster?.route?.let { it to null })
-            key != null -> s.options.mapIndexedNotNull { i, o -> if (i == s.selected) null else o.route to i }
-            else -> emptyList()
-        }
-        for ((route, index) in others) {
-            val points = route.points.map { GeoPoint(it.lat, it.lon) }
-            altLines += line(R.color.drive_alt_route_edge, 10f).apply { setPoints(points) }
-            altLines += line(if (index == null) R.color.real else R.color.drive_alt_route, 7f).apply {
-                setPoints(points)
-                if (index != null) setOnClickListener { _, _, _ ->
-                    NavSession.chooseRoute(index)
-                    true
-                }
-            }
-        }
-        // Underneath the chosen route.
-        binding.map.overlays.addAll(0, altLines)
     }
 
     /** Yellow / red over the green where Google reports slow traffic or a jam. */

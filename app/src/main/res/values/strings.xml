@@ -490,44 +490,4 @@
     <string name="settings_voice_call">Voice over Bluetooth call</string>
     <string name="settings_voice_call_hint">Plays directions like a phone call, so most car stereos cut the radio and play them on the car speakers. Needs the phone paired with the car.</string>
     <string name="nav_volume_title">Navigation voice</string>
-
-    <!-- Home and work shortcuts -->
-    <string name="shortcut_home">Home</string>
-    <string name="shortcut_work">Work</string>
-    <string name="shortcut_set_home">Set home</string>
-    <string name="shortcut_set_work">Set work</string>
-    <string name="shortcut_pick_search">Search for a place</string>
-    <string name="shortcut_pick_map">Use the middle of the map</string>
-    <string name="shortcut_pick_fake">Use the fake location</string>
-    <string name="shortcut_change">Change the place</string>
-    <string name="shortcut_saved">%1$s saved</string>
-    <string name="shortcut_removed">%1$s removed</string>
-
-    <!-- Route options before starting -->
-    <string name="route_fastest">Fastest</string>
-    <string name="route_no_tolls">No tolls</string>
-    <string name="route_cheaper">Cheaper tolls</string>
-    <string name="route_shorter">Shorter</string>
-    <string name="route_other">Another way</string>
-    <string name="route_option_detail">%1$s · %2$s</string>
-    <string name="route_option_tolls">tolls %1$s</string>
-    <string name="route_option_free">no tolls</string>
-
-    <!-- A faster way while driving -->
-    <string name="nav_faster_title">Faster route found</string>
-    <string name="nav_faster_saves">Saves %1$d min</string>
-    <string name="nav_faster_use">Switch</string>
-    <string name="nav_faster_keep">Keep my route</string>
-    <string name="nav_faster_voice">A faster route is available. It saves %1$d minutes.</string>
-
-    <!-- Driving screen settings -->
-    <string name="settings_driving">Driving screen</string>
-    <string name="settings_night">Night colours</string>
-    <string name="settings_night_hint">Dark map and cards while navigating</string>
-    <string name="night_auto">Automatic (sunset)</string>
-    <string name="night_phone">Same as the phone</string>
-    <string name="night_on">Always</string>
-    <string name="night_off">Off</string>
-    <string name="settings_faster">Suggest faster routes</string>
-    <string name="settings_faster_hint">Checks the traffic every few minutes while you drive and offers a quicker way. Needs Google routes.</string>
 </resources>

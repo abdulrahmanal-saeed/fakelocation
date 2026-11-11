@@ -279,30 +279,6 @@
         <item name="android:elevation">4dp</item>
         <item name="android:letterSpacing">-0.04</item>
     </style>
-    <!-- Driving screen (day / night colours) -->
-    <style name="MapFab.Drive">
-        <item name="backgroundTint">@color/drive_surface</item>
-        <item name="iconTint">@color/drive_ink</item>
-    </style>
-
-    <style name="IconButton.Drive">
-        <item name="backgroundTint">@color/drive_chip</item>
-        <item name="iconTint">@color/drive_ink</item>
-    </style>
-
-    <style name="Tab.Drive">
-        <item name="backgroundTint">@color/drive_tab_bg</item>
-        <item name="android:textColor">@color/drive_tab_text</item>
-    </style>
-
-    <style name="NavField.Drive">
-        <item name="android:backgroundTint">@color/drive_ground</item>
-    </style>
-
-    <style name="NavFieldText.Drive">
-        <item name="android:textColor">@color/drive_ink</item>
-    </style>
-
     <style name="Divider">
         <item name="android:layout_width">match_parent</item>
         <item name="android:layout_height">1dp</item>
