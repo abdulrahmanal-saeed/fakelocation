@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:layout_marginEnd="8dp"
+    android:background="@drawable/bg_round"
+    android:backgroundTint="@color/drive_ground"
+    android:clickable="true"
+    android:focusable="true"
+    android:foreground="?attr/selectableItemBackground"
+    android:minWidth="124dp"
+    android:minHeight="56dp"
+    android:orientation="vertical"
+    android:paddingHorizontal="14dp"
+    android:paddingVertical="10dp">
+
+    <TextView
+        android:id="@+id/optionTag"
+        style="@style/Text.Caption"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textColor="@color/drive_muted"
+        android:textSize="12sp"
+        android:textStyle="bold"
+        tools:text="Fastest" />
+
+    <TextView
+        android:id="@+id/optionTime"
+        style="@style/Text.Title"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textColor="@color/drive_ink"
+        android:textSize="18sp"
+        tools:text="12 min" />
+
+    <TextView
+        android:id="@+id/optionDetail"
+        style="@style/Text.Caption"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textColor="@color/drive_muted"
+        android:textSize="12sp"
+        tools:text="4.3 km · tolls AED 8" />
+</LinearLayout>

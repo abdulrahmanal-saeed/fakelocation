@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Night colours of the driving screen only (the rest of the app stays light). -->
+    <color name="drive_surface">#1A2331</color>
+    <color name="drive_ground">#263143</color>
+    <color name="drive_chip">#2D394C</color>
+    <color name="drive_ink">#F1F5F9</color>
+    <color name="drive_ink_soft">#CBD5E1</color>
+    <color name="drive_muted">#9AA7B8</color>
+    <color name="drive_line">#3B4759</color>
+    <color name="drive_accent">#FB923C</color>
+    <color name="drive_option_selected">#4A2C17</color>
+    <color name="drive_alt_route">#64748B</color>
+    <color name="drive_alt_route_edge">#334155</color>
+    <color name="drive_map_credit">#B31A2331</color>
+</resources>
