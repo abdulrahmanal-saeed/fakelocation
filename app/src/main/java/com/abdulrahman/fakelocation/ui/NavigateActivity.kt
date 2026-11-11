@@ -91,6 +91,9 @@ class NavigateActivity : AppCompatActivity() {
     private var shownStops: Pair<List<Place>, Int>? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        // At night the cards go dark with the map, whatever the app's theme (see applyNight).
+        cardsNight = isNightNow(NavSession.state.value)
+        delegate.localNightMode = nightModeFor(cardsNight)
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         binding = ActivityNavigateBinding.inflate(layoutInflater)
@@ -269,6 +272,8 @@ class NavigateActivity : AppCompatActivity() {
             finish()
         }
         // Home / Work: go there in one tap; the first tap (or a long press) picks the place.
+        binding.fasterUseButton.setOnClickListener { NavSession.acceptFaster() }
+        binding.fasterKeepButton.setOnClickListener { NavSession.dismissFaster() }
         binding.homeButton.setOnClickListener {
             Prefs(this).home?.let { NavSession.setDestination(it) } ?: pickHome.launch(Intent(this, SearchActivity::class.java))
         }
@@ -306,7 +311,24 @@ class NavigateActivity : AppCompatActivity() {
     }
 
     /** Dark map at night (Settings → Map & routing); not on satellite pictures, which can't be darkened usefully. */
+    private var cardsNight = false
+
+    private fun isNightNow(s: NavSession.State): Boolean {
+        val prefs = Prefs(this)
+        return NightMap.isNight(prefs.nightMap, s.real ?: prefs.lastRealLocation, System.currentTimeMillis())
+    }
+
+    /** Night: dark cards on this screen. Day: whatever the app's theme says. */
+    private fun nightModeFor(night: Boolean) =
+        if (night) androidx.appcompat.app.AppCompatDelegate.MODE_NIGHT_YES else androidx.appcompat.app.AppCompatDelegate.MODE_NIGHT_UNSPECIFIED
+
     private fun applyNight(s: NavSession.State) {
+        // Dusk or dawn while the screen is open: it is rebuilt in the other colours; the route and guidance carry on.
+        val nightNow = isNightNow(s)
+        if (nightNow != cardsNight) {
+            cardsNight = nightNow
+            delegate.localNightMode = nightModeFor(nightNow)
+        }
         val prefs = Prefs(this)
         val satellite = prefs.hasGoogleKey && prefs.mapProvider in setOf(MapProvider.GOOGLE_SATELLITE, MapProvider.GOOGLE_HYBRID)
         val night = !satellite && NightMap.isNight(prefs.nightMap, s.real ?: prefs.lastRealLocation, System.currentTimeMillis())
@@ -354,6 +376,11 @@ class NavigateActivity : AppCompatActivity() {
 
         binding.homeWorkRow.isVisible = !navigating && s.to == null
         binding.shareFab.isVisible = navigating && s.progress?.arrived == false && s.to != null
+        val faster = s.faster?.takeIf { navigating }
+        binding.fasterCard.isVisible = faster != null
+        if (faster != null) {
+            binding.fasterText.text = getString(R.string.nav_faster_saves, ((faster.savesSeconds + 30) / 60).toInt().coerceAtLeast(1))
+        }
         applyNight(s)
         choices.render(s)
         navMap.draw(s)

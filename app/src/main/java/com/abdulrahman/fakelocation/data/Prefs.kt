@@ -163,6 +163,11 @@ class Prefs(context: Context) {
         set(value) = prefs.edit { putBoolean("vector_nav_map", value) }
 
     /** Live traffic drawn on the navigation map (with a Google key). */
+    /** Offer a quicker way while driving when the traffic changes (needs Google routes). */
+    var suggestFasterRoute: Boolean
+        get() = prefs.getBoolean("faster_route", true)
+        set(value) = prefs.edit { putBoolean("faster_route", value) }
+
     var trafficOnMap: Boolean
         get() = prefs.getBoolean("traffic_on_map", true)
         set(value) = prefs.edit { putBoolean("traffic_on_map", value) }
@@ -331,6 +336,7 @@ class Prefs(context: Context) {
             for (key in listOf(
                 "ring_silent", "vibrate", "natural", "google_routes", "google_search", "nav_muted", "lane_guidance",
                 "pause_music", "voice_call", "avoid_tolls", "avoid_highways", "traffic_on_map", "vector_nav_map",
+                "faster_route",
             )) put(key, SettingType.BOOLEAN)
             for (key in listOf("nav_speech_rate", "fuel_consumption") + FUEL_PRICES) put(key, SettingType.FLOAT)
             for (key in listOf(
@@ -344,7 +350,7 @@ class Prefs(context: Context) {
         val RESET_MOVEMENT = listOf("natural", "traffic", "fake_updates_per_second", "red_lights")
         val RESET_LANES = listOf("lane_guidance", "lane_camera", "nav_voice", "voice_level", "pause_music", "voice_call", "nav_speech_rate")
         val RESET_COSTS = listOf("fuel_type", "fuel_consumption", "parking_alert_min") + FUEL_PRICES
-        val RESET_GOOGLE = listOf("map_provider", "google_routes", "google_search", "google_tile_session")
+        val RESET_GOOGLE = listOf("map_provider", "google_routes", "google_search", "google_tile_session", "faster_route")
         val RESET_MAP = listOf("map_cache_mb", "osrm_server", "valhalla_server", "night_map", "vector_nav_map")
     }
 

@@ -112,10 +112,11 @@ class MapFragment : Fragment(R.layout.fragment_map) {
                     .collect { (session, trip, favorites) ->
                         if (trip != null) {
                             renderTrip(trip)
+                            renderChips(emptyList(), shortcutsOnly = true)
                         } else {
                             if (tripShown) endTripView()
                             renderSession(session, favorites)
-                            renderChips(favorites)
+                            renderChips(favorites, shortcutsOnly = session != null)
                         }
                     }
             }
@@ -415,7 +416,6 @@ class MapFragment : Fragment(R.layout.fragment_map) {
             binding.map.overlays.remove(fakeMarker)
             binding.map.overlays.remove(selectionMarker)
             binding.searchPill.isVisible = false
-            binding.chipsScroll.isVisible = false
             binding.activePill.isVisible = false
             binding.idlePanel.isVisible = false
             binding.activePanel.isVisible = false
@@ -446,7 +446,6 @@ class MapFragment : Fragment(R.layout.fragment_map) {
         binding.activePanel.isVisible = session != null && !joystickOpen
         fakeGlide.follow = session != null && joystickOpen
         binding.activePill.isVisible = session != null
-        binding.chipsScroll.isVisible = session == null
         timerHandler.removeCallbacks(timerTick)
         if (session == null) {
             map.overlays.remove(fakeMarker)
@@ -468,9 +467,16 @@ class MapFragment : Fragment(R.layout.fragment_map) {
         updateRealLocationTracking()
     }
 
-    private fun renderChips(favorites: List<Favorite>) {
+    /**
+     * Home and Work first, always there (also while the fake location or a fake trip is on), then favorites and
+     * Recent when nothing is being faked.
+     */
+    private fun renderChips(favorites: List<Favorite>, shortcutsOnly: Boolean) {
         val group = binding.chips
         group.removeAllViews()
+        group.addView(homeWorkChip(home = true))
+        group.addView(homeWorkChip(home = false))
+        if (shortcutsOnly) return
         for (favorite in favorites.take(6)) {
             group.addView(chip(favorite.name, iconFor(favorite.name), tinted = true) {
                 main.showPlace(Place(favorite.position, favorite.name))
@@ -492,6 +498,81 @@ class MapFragment : Fragment(R.layout.fragment_map) {
             chipIconTint = ContextCompat.getColorStateList(requireContext(), if (tinted) R.color.action else R.color.muted)
             setOnClickListener { onClick() }
         }
+
+    private var pickingHome = true
+    private val pickHomeWork = registerForActivityResult(androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult()) { result ->
+        SearchActivity.placeFrom(result.data)?.let { saveHomeWork(pickingHome, it) }
+    }
+
+    private fun homeWorkChip(home: Boolean): Chip {
+        val place = if (home) prefs.home else prefs.work
+        val name = getString(if (home) R.string.nav_home else R.string.nav_work)
+        val label = if (place != null) name else getString(if (home) R.string.map_set_home else R.string.map_set_work)
+        return chip(label, if (home) R.drawable.ic_home else R.drawable.ic_work, tinted = place != null) {
+            // The place sheet: navigate there for real, or put the fake location there.
+            if (place != null) main.showPlace(place.copy(name = name)) else pickHomeWork(home)
+        }.apply {
+            setOnLongClickListener {
+                if (place == null) pickHomeWork(home) else editHomeWork(home)
+                true
+            }
+        }
+    }
+
+    /** Where home / work is: search for it, or take a spot already on screen. */
+    private fun pickHomeWork(home: Boolean) {
+        val fake = MockState.session.value
+        val choices = mutableListOf(R.string.map_pick_search, R.string.map_pick_center)
+        if (fake != null) choices += R.string.map_pick_fake
+        com.google.android.material.dialog.MaterialAlertDialogBuilder(requireContext())
+            .setTitle(if (home) R.string.map_set_home else R.string.map_set_work)
+            .setItems(choices.map { getString(it) }.toTypedArray()) { _, which ->
+                when (choices[which]) {
+                    R.string.map_pick_search -> {
+                        pickingHome = home
+                        pickHomeWork.launch(android.content.Intent(requireContext(), SearchActivity::class.java))
+                    }
+                    R.string.map_pick_center -> {
+                        val center = binding.map.mapCenter
+                        saveHomeWork(home, Place(LatLon(center.latitude, center.longitude)))
+                    }
+                    else -> fake?.let { saveHomeWork(home, Place(it.position, address = it.name)) }
+                }
+            }
+            .show()
+    }
+
+    private fun editHomeWork(home: Boolean) {
+        val name = getString(if (home) R.string.nav_home else R.string.nav_work)
+        com.google.android.material.dialog.MaterialAlertDialogBuilder(requireContext())
+            .setTitle(name)
+            .setItems(arrayOf(getString(R.string.map_change_place), getString(R.string.remove))) { _, which ->
+                if (which == 0) {
+                    pickHomeWork(home)
+                } else {
+                    if (home) prefs.home = null else prefs.work = null
+                    homeWorkChanged(getString(R.string.map_place_removed, name))
+                }
+            }
+            .show()
+    }
+
+    /** Saved the way the Navigate screen saves it: named "Home" / "Work", with the place's own name as the address. */
+    private fun saveHomeWork(home: Boolean, place: Place) {
+        val name = getString(if (home) R.string.nav_home else R.string.nav_work)
+        val kept = place.copy(name = name, address = place.address ?: place.name)
+        if (home) prefs.home = kept else prefs.work = kept
+        homeWorkChanged(getString(R.string.map_place_saved, name))
+    }
+
+    private fun homeWorkChanged(message: String) {
+        val context = requireContext()
+        com.abdulrahman.fakelocation.system.AppShortcuts.update(context)
+        android.widget.Toast.makeText(context, message, android.widget.Toast.LENGTH_SHORT).show()
+        if (_binding == null) return
+        val faking = MockState.session.value != null || MockState.trip.value != null
+        renderChips(places.favorites.value, shortcutsOnly = faking)
+    }
 
     private fun iconFor(name: String): Int {
         val lower = name.lowercase()

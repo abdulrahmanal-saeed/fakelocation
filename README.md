@@ -204,6 +204,13 @@ server fails, routes come from Valhalla instead, for fake trips and for navigati
 library's default build uses Vulkan, which showed nothing), and if the map still hasn't drawn anything after 15
 seconds the Navigate screen goes back to the classic map by itself and says so.
 
+**v2.10.0:** Home and Work chips on the map, in every state: also while the fake location or a fake trip is on (the
+chip row used to disappear then). Tap for the place sheet (navigate there for real, or put the fake location there),
+long-press to change or remove; they are the same Home and Work as on the Navigate screen. While driving with Google
+routes the traffic is checked every 4 minutes, and a clearly quicker way (2 minutes and 7 % or more) is offered on
+screen and by voice; nothing changes until you tap Switch (Settings → Google Maps → Suggest faster routes). At night the
+Navigate screen's cards go dark together with the map, whatever the app's theme.
+
 See [PLAN.md](PLAN.md) for the full feature list.
 
 ## Install

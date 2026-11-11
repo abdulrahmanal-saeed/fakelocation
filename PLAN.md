@@ -57,3 +57,4 @@ Design (all screens, logo, splash): https://claude.ai/artifact/9FMXf1izujP79r3BA
 | 23 | Fake movement: smooth trip arrow, faster location updates option | Done (v2.7.0) |
 | 24 | Vector map (MapLibre) for the Navigate screen, beta | Done (v2.8.0) |
 | 25 | Traffic lights: fake trips stop at red lights (setting + per light), real navigation shows them and says "at the traffic lights" | Done (v2.9.0) |
+| 26 | Home/Work chips on the map (also while faking), faster-route offers while driving, dark cards at night on the Navigate screen | Done (v2.10.0) |
