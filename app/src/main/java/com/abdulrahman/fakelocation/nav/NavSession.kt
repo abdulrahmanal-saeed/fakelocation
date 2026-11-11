@@ -88,11 +88,6 @@ object NavSession {
         val laneAdvice: Int? = null,
         /** The GPS uses a second frequency (L5/E5a): metre-level fixes. */
         val dualFrequency: Boolean = false,
-        /** The ways to get there, best first, to choose from before starting ([route] is the chosen one). */
-        val options: List<RouteOption> = emptyList(),
-        val selected: Int = 0,
-        /** A quicker way found while driving, waiting for a yes or no. */
-        val faster: FasterRoute.Offer? = null,
     ) {
         val navigating get() = status == Status.NAVIGATING
 
@@ -133,10 +128,6 @@ object NavSession {
     private var laneSensors: LaneSensors? = null
     /** Index of the step we last drove past (−2: a new route just came in, don't count its start as a turn). */
     private var lastStepIndex = -1
-    private var fasterJob: Job? = null
-    private var lastFasterCheck = 0L
-    /** Time the driver has already chosen to give up (a slower option picked, or an offer turned down). */
-    private var declinedSaving = 0.0
     private val gnssCallback = object : GnssStatus.Callback() {
         override fun onSatelliteStatusChanged(status: GnssStatus) {
             var dual = false
@@ -165,8 +156,6 @@ object NavSession {
         _state.update { it.copy(muted = prefs.navMuted, real = prefs.lastRealLocation, avoid = Avoid(prefs.avoidTolls, prefs.avoidHighways)) }
     }
 
-    private fun savedAvoid() = Prefs(app).let { Avoid(it.avoidTolls, it.avoidHighways) }
-
     // region Who is watching
 
     /** A screen (phone or car) showing navigation: keep the real GPS running. */
@@ -185,8 +174,7 @@ object NavSession {
     // region Commands
 
     fun setDestination(place: Place) {
-        // A new trip starts from the saved "no tolls / no highways" choice, not from a route option picked last time.
-        _state.update { it.copy(to = place, avoid = if (it.navigating) it.avoid else savedAvoid()) }
+        _state.update { it.copy(to = place) }
         plan()
     }
 
@@ -247,58 +235,11 @@ object NavSession {
         _state.update { it.copy(status = if (it.navigating) Status.NAVIGATING else Status.ROUTING, rerouting = it.navigating) }
         val base = if (s.navigating) s.stopsReached else 0
         val via = s.stops.drop(base).map { it.position }
-        fasterJob?.cancel()
         routingJob = scope.launch {
-            // Before starting: a few ways to choose from. While driving: just the best way from here.
-            runCatching { NavRouter.routes(app, start, target.position, s.mode, via, s.avoid, alternatives = !s.navigating) }
-                .onSuccess { routes ->
-                    routeStopBase = base
-                    if (state.value.navigating) {
-                        setRoute(routes.first())
-                        return@onSuccess
-                    }
-                    val options = routes.map { option(it, s.mode, s.avoid) }
-                    _state.update { it.copy(options = options, selected = 0) }
-                    setRoute(routes.first())
-                    addTollFreeOption(start, target.position, s, options)
-                }
-                .onFailure { e ->
-                    // Replaced by a newer request: that one reports its own result.
-                    if (e is kotlinx.coroutines.CancellationException) return@onFailure
-                    _state.update { st -> st.copy(status = if (st.navigating) Status.NAVIGATING else Status.ERROR, rerouting = false) }
-                }
+            runCatching { NavRouter.route(app, start, target.position, s.mode, via, s.avoid) }
+                .onSuccess { routeStopBase = base; setRoute(it) }
+                .onFailure { _state.update { st -> st.copy(status = if (st.navigating) Status.NAVIGATING else Status.ERROR, rerouting = false) } }
         }
-    }
-
-    private fun option(route: NavRoute, mode: TravelMode, avoid: Avoid): RouteOption {
-        val car = mode == TravelMode.CAR
-        val prefs = Prefs(app)
-        return RouteOption(
-            route,
-            if (car) tollsOn(route, Tolls.GATES) else emptyList(),
-            if (car) Fuel.cost(route.distanceMeters, prefs.fuelConsumption, prefs.fuelPrice()) else 0.0,
-            avoid,
-        )
-    }
-
-    /** When every way found has a toll gate, also look for one without: often worth a few minutes. */
-    private suspend fun addTollFreeOption(start: LatLon, target: LatLon, s: State, options: List<RouteOption>) {
-        if (s.mode != TravelMode.CAR || s.avoid.tolls || s.stops.isNotEmpty()) return
-        if (options.any { it.tolls.isEmpty() }) return
-        val avoid = s.avoid.copy(tolls = true)
-        val free = runCatching { NavRouter.route(app, start, target, s.mode, emptyList(), avoid) }.getOrNull() ?: return
-        val extra = option(free, s.mode, avoid)
-        if (extra.tolls.isNotEmpty() || options.any { FasterRoute.sharedFraction(free, it.route) > 0.9 }) return
-        _state.update { if (it.options === options && !it.navigating) it.copy(options = options + extra) else it }
-    }
-
-    /** Picks one of the ways offered before starting. */
-    fun chooseRoute(index: Int) {
-        val s = state.value
-        val option = s.options.getOrNull(index) ?: return
-        if (s.navigating || index == s.selected) return
-        _state.update { it.copy(selected = index, avoid = option.avoid) }
-        setRoute(option.route)
     }
 
     fun start() {
@@ -306,11 +247,7 @@ object NavSession {
         routeStopBase = 0
         laneTracker.reset()
         lastStepIndex = -1
-        val s = state.value
-        val quickest = s.options.minOfOrNull { it.route.durationSeconds }
-        declinedSaving = if (quickest != null) ((s.route?.durationSeconds ?: quickest) - quickest).coerceAtLeast(0.0) else 0.0
-        lastFasterCheck = System.currentTimeMillis()
-        _state.update { it.copy(status = Status.NAVIGATING, stopsReached = 0, faster = null) }
+        _state.update { it.copy(status = Status.NAVIGATING, stopsReached = 0) }
         startListening()
         ContextCompat.startForegroundService(app, NavigationService.intent(app))
         speak(state.value.route?.steps?.firstOrNull()?.spoken.orEmpty())
@@ -319,8 +256,7 @@ object NavSession {
 
     fun stop() {
         if (!state.value.navigating) return
-        fasterJob?.cancel()
-        _state.update { it.copy(status = if (it.route != null) Status.PREVIEW else Status.IDLE, progress = null, rerouting = false, faster = null) }
+        _state.update { it.copy(status = if (it.route != null) Status.PREVIEW else Status.IDLE, progress = null, rerouting = false) }
         app.stopService(NavigationService.intent(app))
         tts?.stop()
         if (clients == 0) stopListening()
@@ -332,7 +268,7 @@ object NavSession {
         routingJob?.cancel()
         roadInfoJob?.cancel()
         tracker = null
-        _state.update { State(muted = it.muted, real = it.real, mode = it.mode, avoid = savedAvoid()) }
+        _state.update { State(muted = it.muted, real = it.real, mode = it.mode, avoid = it.avoid) }
     }
 
     fun toggleMute() {
@@ -351,16 +287,12 @@ object NavSession {
         val car = state.value.mode == TravelMode.CAR
         val prefs = Prefs(app)
         _state.update {
-            val listed = it.options.any { o -> o.route === route }
-            it.copy(route = route, roadInfo = null, progress = null, rerouting = false, faster = null,
-                options = if (listed) it.options else emptyList(), selected = if (listed) it.selected else 0,
+            it.copy(route = route, roadInfo = null, progress = null, rerouting = false,
                 status = if (it.navigating) Status.NAVIGATING else Status.PREVIEW,
                 tolls = if (car) tollsOn(route, Tolls.GATES) else emptyList(),
                 fuelCostAed = if (car) Fuel.cost(route.distanceMeters, prefs.fuelConsumption, prefs.fuelPrice()) else 0.0)
         }
         roadInfoJob?.cancel()
-        fasterJob?.cancel()
-        lastFasterCheck = System.currentTimeMillis()
         roadInfoFailedAt = 0L
         heldLimitAlong = 0.0
         if (state.value.navigating) lastStepIndex = -2
@@ -494,7 +426,6 @@ object NavSession {
             plan()
             return
         }
-        checkFasterRoute(route, p)
         if (camera != null && camera < 400 && spoken.add("camera:${(p.alongMeters + camera).roundToInt() / 50}")) {
             speak(app.getString(R.string.nav_camera_ahead) + if (limit > 0) ". " + app.getString(R.string.nav_speed_limit_voice, limit) else "")
         }
@@ -541,67 +472,6 @@ object NavSession {
                 speak(app.getString(R.string.nav_voice_continue, spokenDistance(d)))
         }
     }
-
-    // region A faster way while driving
-
-    /**
-     * Every few minutes on a route with live traffic, asks for the best way from here. If it's a different road
-     * and clearly quicker, it's offered on screen and by voice; nothing changes until the driver says yes.
-     */
-    private fun checkFasterRoute(route: NavRoute, p: NavProgress) {
-        val s = state.value
-        val now = System.currentTimeMillis()
-        s.faster?.let { offer ->
-            // Not answered: take it as a no, and don't ask again for the same saving.
-            if (now - offer.offeredAt > FASTER_OFFER_MILLIS) dismissFaster()
-            return
-        }
-        if (!route.trafficAware || s.mode != TravelMode.CAR || s.rerouting || p.arrived) return
-        if (now - lastFasterCheck < FASTER_CHECK_MILLIS || fasterJob?.isActive == true) return
-        if (p.offRouteMeters > 30 || p.remainingSeconds < 300 || !Prefs(app).suggestFasterRoute) return
-        val target = s.to ?: return
-        lastFasterCheck = now
-        val base = s.stopsReached
-        val via = s.stops.drop(base).map { it.position }
-        fasterJob = scope.launch {
-            val fresh = runCatching { NavRouter.routes(app, p.snapped, target.position, s.mode, via, s.avoid) }.getOrNull() ?: return@launch
-            val offer = kotlinx.coroutines.withContext(Dispatchers.Default) {
-                FasterRoute.pick(route, p.alongMeters, p.remainingSeconds, fresh, declinedSaving)
-            } ?: return@launch
-            val st = state.value
-            if (st.route !== route || !st.navigating || st.rerouting) return@launch
-            _state.update { it.copy(faster = offer.copy(stopBase = base, offeredAt = System.currentTimeMillis())) }
-            speak(app.getString(R.string.nav_faster_voice, ((offer.savesSeconds / 60).roundToInt()).coerceAtLeast(1)), queue = true)
-        }
-    }
-
-    /** Switch to the quicker way that was offered. */
-    fun acceptFaster() {
-        val s = state.value
-        val offer = s.faster ?: return
-        if (!s.navigating) return
-        val here = s.real
-        // Still at the start of the new way: take it as it is. Driven past the fork meanwhile: find it again from here.
-        if (here != null && NavTracker(offer.route).update(here).offRouteMeters < NavTracker.OFF_ROUTE_METERS) {
-            routeStopBase = offer.stopBase
-            _state.update { it.copy(from = null) }
-            setRoute(offer.route)
-        } else {
-            _state.update { it.copy(from = null, faster = null) }
-            plan()
-        }
-    }
-
-    fun dismissFaster() {
-        val offer = state.value.faster ?: return
-        declinedSaving = maxOf(declinedSaving, offer.savesSeconds)
-        _state.update { it.copy(faster = null) }
-    }
-
-    private const val FASTER_CHECK_MILLIS = 4 * 60_000L
-    private const val FASTER_OFFER_MILLIS = 75_000L
-
-    // endregion
 
     /** Feeds the lane tracker with this fix; returns lane count, our lane and the advice for the next turn. */
     private fun trackLane(location: Location, route: NavRoute, p: NavProgress, s: State): Triple<Int, Int, Int?> {

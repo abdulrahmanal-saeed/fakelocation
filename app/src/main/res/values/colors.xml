@@ -23,18 +23,4 @@
     <color name="success">#15803D</color>
     <color name="success_bg">#DCFCE7</color>
     <color name="idle_dot">#94A3B8</color>
-
-    <!-- Driving screen: these have night versions in values-night -->
-    <color name="drive_surface">#FFFFFF</color>
-    <color name="drive_ground">#F4F6F9</color>
-    <color name="drive_chip">#EEF1F5</color>
-    <color name="drive_ink">#0F1B2D</color>
-    <color name="drive_ink_soft">#33404F</color>
-    <color name="drive_muted">#556274</color>
-    <color name="drive_line">#DCE2EA</color>
-    <color name="drive_accent">#C2410C</color>
-    <color name="drive_option_selected">#FFF4EC</color>
-    <color name="drive_alt_route">#8A97A8</color>
-    <color name="drive_alt_route_edge">#5E6B7C</color>
-    <color name="drive_map_credit">#B3FFFFFF</color>
 </resources>

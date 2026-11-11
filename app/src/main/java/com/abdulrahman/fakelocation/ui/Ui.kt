@@ -42,8 +42,6 @@ fun View.padForSystemBars(top: Boolean = true, bottom: Boolean = false) {
 
 fun Context.toast(text: Int) = Toast.makeText(this, text, Toast.LENGTH_SHORT).show()
 
-fun Context.toast(text: String) = Toast.makeText(this, text, Toast.LENGTH_SHORT).show()
-
 fun Context.hasLocationPermission() =
     ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
 

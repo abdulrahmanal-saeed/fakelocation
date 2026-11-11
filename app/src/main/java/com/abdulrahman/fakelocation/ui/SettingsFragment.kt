@@ -10,7 +10,6 @@ import android.view.View
 import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
 import com.abdulrahman.fakelocation.R
-import com.abdulrahman.fakelocation.data.NightMode
 import com.abdulrahman.fakelocation.data.Prefs
 import com.abdulrahman.fakelocation.databinding.FragmentSettingsBinding
 import com.abdulrahman.fakelocation.mock.AlarmPlayer
@@ -60,18 +59,6 @@ class SettingsFragment : Fragment(R.layout.fragment_settings) {
         binding.silentSwitch.setOnCheckedChangeListener { _, checked -> prefs.ringInSilent = checked }
         binding.vibrateSwitch.setOnCheckedChangeListener { _, checked -> prefs.vibrate = checked }
         binding.naturalSwitch.setOnCheckedChangeListener { _, checked -> prefs.naturalMovement = checked }
-        binding.fasterSwitch.setOnCheckedChangeListener { _, checked -> prefs.suggestFasterRoute = checked }
-        binding.nightRow.setOnClickListener {
-            val modes = NightMode.entries
-            MaterialAlertDialogBuilder(requireContext())
-                .setTitle(R.string.settings_night)
-                .setSingleChoiceItems(modes.map { getString(nightLabel(it)) }.toTypedArray(), modes.indexOf(prefs.driveNight)) { dialog, which ->
-                    prefs.driveNight = modes[which]
-                    render()
-                    dialog.dismiss()
-                }
-                .show()
-        }
         binding.fullScreenRow.setOnClickListener { openFullScreenSettings() }
         binding.testAlarmRow.setOnClickListener { testAlarm() }
         binding.setupRow.setOnClickListener { (requireActivity() as MainActivity).openSetup() }
@@ -127,8 +114,6 @@ class SettingsFragment : Fragment(R.layout.fragment_settings) {
         b.silentSwitch.isChecked = prefs.ringInSilent
         b.vibrateSwitch.isChecked = prefs.vibrate
         b.naturalSwitch.isChecked = prefs.naturalMovement
-        b.fasterSwitch.isChecked = prefs.suggestFasterRoute
-        b.nightValue.setText(nightLabel(prefs.driveNight))
         val needsFullScreen = Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE
         b.fullScreenRow.isVisible = needsFullScreen
         b.fullScreenDivider.isVisible = needsFullScreen
@@ -137,13 +122,6 @@ class SettingsFragment : Fragment(R.layout.fragment_settings) {
             val used = MapCache.sizeBytes()
             _binding?.offlineValue?.text = getString(R.string.offline_used, megabytes(used), megabytes(prefs.mapCacheMb * 1024L * 1024L))
         }
-    }
-
-    private fun nightLabel(mode: NightMode) = when (mode) {
-        NightMode.AUTO -> R.string.night_auto
-        NightMode.PHONE -> R.string.night_phone
-        NightMode.ON -> R.string.night_on
-        NightMode.OFF -> R.string.night_off
     }
 
     private fun megabytes(bytes: Long): String =

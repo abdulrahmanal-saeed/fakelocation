@@ -25,8 +25,7 @@ data class Avoid(val tolls: Boolean = false, val highways: Boolean = false) {
 
 /**
  * Routes with turn-by-turn steps for real navigation: Google (live traffic) when chosen, otherwise OSRM.
- * Avoiding tolls/highways and offering a choice of routes on OpenStreetMap use Valhalla, since the free OSRM
- * server can't do either.
+ * Avoiding tolls/highways on OpenStreetMap uses Valhalla, since the free OSRM server can't.
  */
 object NavRouter {
 
@@ -37,86 +36,38 @@ object NavRouter {
         mode: TravelMode,
         via: List<LatLon> = emptyList(),
         avoid: Avoid = Avoid(),
-    ): NavRoute = routes(context, from, to, mode, via, avoid, alternatives = false).first()
-
-    /**
-     * The best route first, then other ways to get there when [alternatives] is on (up to [MAX_OPTIONS] in all).
-     * Routers only offer alternatives for a plain A → B trip, so with in-between stops there is just one.
-     */
-    suspend fun routes(
-        context: Context,
-        from: LatLon,
-        to: LatLon,
-        mode: TravelMode,
-        via: List<LatLon> = emptyList(),
-        avoid: Avoid = Avoid(),
-        alternatives: Boolean = true,
-    ): List<NavRoute> = withContext(Dispatchers.IO) {
+    ): NavRoute = withContext(Dispatchers.IO) {
         val prefs = Prefs(context)
         val stops = listOf(from) + via + to
         val carAvoid = if (mode == TravelMode.CAR) avoid else Avoid()
-        val more = alternatives && via.isEmpty()
         if (prefs.useGoogleRoutes && prefs.hasGoogleKey) {
             try {
-                return@withContext distinct(google(GoogleApi(context), stops, mode, carAvoid, more))
+                return@withContext google(GoogleApi(context), stops, mode, carAvoid)
             } catch (e: Exception) {
                 Log.w("NavRouter", "Google navigation route failed, using OpenStreetMap", e)
             }
         }
-        // The free OSRM server gives one route only, so a choice of ways for the car also comes from Valhalla.
-        if (carAvoid.any || (more && mode == TravelMode.CAR)) {
+        if (carAvoid.any) {
             try {
-                return@withContext distinct(valhalla(stops, carAvoid, more))
+                return@withContext valhalla(stops, carAvoid)
             } catch (e: Exception) {
                 Log.w("NavRouter", "Valhalla route failed, using OSRM", e)
             }
         }
-        distinct(osrm(stops, mode, more))
+        osrm(stops, mode)
     }
-
-    /** Drops alternatives that are nearly the same road as an earlier one, or far slower than the best. */
-    fun distinct(routes: List<NavRoute>): List<NavRoute> {
-        val kept = ArrayList<NavRoute>()
-        for (r in routes) {
-            if (kept.size >= MAX_OPTIONS) break
-            if (kept.isEmpty()) {
-                kept += r
-                continue
-            }
-            if (r.durationSeconds > kept.first().durationSeconds * 1.8 + 300) continue
-            if (kept.any { FasterRoute.sharedFraction(r, it) > 0.9 }) continue
-            kept += r
-        }
-        return kept
-    }
-
-    const val MAX_OPTIONS = 3
 
     // region OSRM
 
-    private fun osrm(stops: List<LatLon>, mode: TravelMode, alternatives: Boolean): List<NavRoute> {
+    private fun osrm(stops: List<LatLon>, mode: TravelMode): NavRoute {
         val coords = stops.joinToString(";") { String.format(Locale.US, "%.6f,%.6f", it.lon, it.lat) }
         val path = if (mode == TravelMode.CAR) "routed-car/route/v1/driving" else "routed-foot/route/v1/foot"
-        // Asked for, though the public server currently answers with a single route.
-        val extra = if (alternatives) "&alternatives=${MAX_OPTIONS - 1}" else ""
-        return parseOsrmRoutes(JSONObject(get("https://routing.openstreetmap.de/$path/$coords?overview=full&geometries=geojson&steps=true$extra")))
+        return parseOsrm(JSONObject(get("https://routing.openstreetmap.de/$path/$coords?overview=full&geometries=geojson&steps=true")))
     }
 
-    fun parseOsrm(json: JSONObject): NavRoute = parseOsrmRoutes(json).first()
-
-    /** Every route in the answer, best first. */
-    fun parseOsrmRoutes(json: JSONObject): List<NavRoute> {
+    fun parseOsrm(json: JSONObject): NavRoute {
         if (json.optString("code") != "Ok") throw IOException("Routing failed: " + json.optString("message", json.optString("code")))
-        val routes = json.getJSONArray("routes")
-        val parsed = (0 until routes.length()).mapNotNull { i ->
-            // A broken alternative shouldn't cost us the main route.
-            if (i == 0) parseOsrmRoute(routes.getJSONObject(i)) else runCatching { parseOsrmRoute(routes.getJSONObject(i)) }.getOrNull()
-        }
-        if (parsed.isEmpty()) throw IOException("Routing failed: no route")
-        return parsed
-    }
-
-    private fun parseOsrmRoute(route: JSONObject): NavRoute {
+        val route = json.getJSONArray("routes").getJSONObject(0)
         val points = ArrayList<LatLon>()
         val steps = ArrayList<NavStep>()
         val stopPoints = ArrayList<Int>()
@@ -160,7 +111,7 @@ object NavRouter {
 
     // region Valhalla (OpenStreetMap, can avoid tolls and highways)
 
-    private fun valhalla(stops: List<LatLon>, avoid: Avoid, alternatives: Boolean): List<NavRoute> {
+    private fun valhalla(stops: List<LatLon>, avoid: Avoid): NavRoute {
         fun body(excludeGates: Boolean): JSONObject {
             val options = JSONObject()
             if (avoid.highways) options.put("use_highways", 0.0)
@@ -170,7 +121,6 @@ object NavRouter {
                 .put("costing", "auto")
                 .put("costing_options", JSONObject().put("auto", options))
                 .put("directions_options", JSONObject().put("units", "kilometers").put("language", "en-US"))
-            if (alternatives) json.put("alternates", MAX_OPTIONS - 1)
             // Salik/Darb gates aren't always tagged as toll roads, so block the gates themselves.
             if (excludeGates) json.put("exclude_locations", JSONArray(Tolls.GATES.flatMap { it.points }.map { JSONObject().put("lat", it.lat).put("lon", it.lon) }))
             return json
@@ -181,17 +131,7 @@ object NavRouter {
             // No way around the gates (e.g. onto Abu Dhabi island): avoid tolls as much as possible instead.
             if (avoid.tolls) post(VALHALLA, body(excludeGates = false)) else throw e
         }
-        return parseValhallaRoutes(JSONObject(response))
-    }
-
-    /** The main trip, then Valhalla's "alternates" when it was asked for some. */
-    fun parseValhallaRoutes(json: JSONObject): List<NavRoute> {
-        val out = arrayListOf(parseValhalla(json))
-        val alternates = json.optJSONArray("alternates") ?: return out
-        for (i in 0 until alternates.length()) {
-            runCatching { parseValhalla(alternates.getJSONObject(i)) }.getOrNull()?.let { out += it }
-        }
-        return out
+        return parseValhalla(JSONObject(response))
     }
 
     fun parseValhalla(json: JSONObject): NavRoute {
@@ -265,7 +205,7 @@ object NavRouter {
 
     // region Google
 
-    private fun google(api: GoogleApi, stops: List<LatLon>, mode: TravelMode, avoid: Avoid, alternatives: Boolean): List<NavRoute> {
+    private fun google(api: GoogleApi, stops: List<LatLon>, mode: TravelMode, avoid: Avoid): NavRoute {
         fun waypoint(p: LatLon) = JSONObject().put("location", JSONObject().put("latLng", JSONObject().put("latitude", p.lat).put("longitude", p.lon)))
         val body = JSONObject()
             .put("origin", waypoint(stops.first()))
@@ -278,27 +218,16 @@ object NavRouter {
             body.put("extraComputations", JSONArray().put("TRAFFIC_ON_POLYLINE"))
         }
         if (avoid.any) body.put("routeModifiers", JSONObject().put("avoidTolls", avoid.tolls).put("avoidHighways", avoid.highways))
-        if (alternatives && stops.size == 2) body.put("computeAlternativeRoutes", true)
         val json = api.post(
             "https://routes.googleapis.com/directions/v2:computeRoutes", body,
             "routes.distanceMeters,routes.duration,routes.legs.steps.distanceMeters,routes.legs.steps.polyline.encodedPolyline," +
                 "routes.legs.steps.navigationInstruction,routes.polyline.encodedPolyline,routes.travelAdvisory.speedReadingIntervals"
         )
-        return parseGoogleRoutes(json, trafficAware = mode == TravelMode.CAR)
+        return parseGoogle(json, trafficAware = mode == TravelMode.CAR)
     }
 
-    fun parseGoogle(json: JSONObject, trafficAware: Boolean): NavRoute = parseGoogleRoutes(json, trafficAware).first()
-
-    /** Every route in the answer: Google's pick first, then its alternatives. */
-    fun parseGoogleRoutes(json: JSONObject, trafficAware: Boolean): List<NavRoute> {
-        val routes = json.optJSONArray("routes")?.takeIf { it.length() > 0 } ?: throw IOException("Google found no route")
-        return (0 until routes.length()).mapNotNull { i ->
-            if (i == 0) parseGoogleRoute(routes.getJSONObject(i), trafficAware)
-            else runCatching { parseGoogleRoute(routes.getJSONObject(i), trafficAware) }.getOrNull()
-        }
-    }
-
-    private fun parseGoogleRoute(route: JSONObject, trafficAware: Boolean): NavRoute {
+    fun parseGoogle(json: JSONObject, trafficAware: Boolean): NavRoute {
+        val route = json.optJSONArray("routes")?.optJSONObject(0) ?: throw IOException("Google found no route")
         val points = ArrayList<LatLon>()
         val steps = ArrayList<NavStep>()
         val stopPoints = ArrayList<Int>()

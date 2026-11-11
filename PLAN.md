@@ -45,4 +45,3 @@ Design (all screens, logo, splash): https://claude.ai/artifact/9FMXf1izujP79r3BA
 | 11 | Driving polish: smooth car, shrinking route, compact card, lane bubbles, traffic colours, speed-limit chunks, better voice | Done (v1.6.0) |
 | 12 | Lane-level guidance: lane counts, lane tracking (turns + gyroscope + camera + dual-frequency GPS), lane advice, voice choice | Done (v1.7.0) |
 | 13 | Louder voice: pause/lower music, volume raise and boost, Bluetooth call channel to cut the car radio | Done (v1.8.0) |
-| 14 | Home/Work shortcuts (also while faking), route alternatives, faster-route offers while driving, night colours, tests in CI | Done (v1.9.0) |

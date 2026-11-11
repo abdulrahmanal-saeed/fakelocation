@@ -71,7 +71,6 @@
         <activity
             android:name=".ui.NavigateActivity"
             android:exported="false"
-            android:theme="@style/Theme.FakeLocation.Drive"
             android:launchMode="singleTop" />
 
         <service

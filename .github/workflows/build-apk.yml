@@ -24,17 +24,6 @@ jobs:
 
       - uses: gradle/actions/setup-gradle@v4
 
-      # A failing test stops here, so a broken build never replaces "Latest build".
-      - name: Unit tests
-        run: ./gradlew testDebugUnitTest --console=plain
-
-      - name: Test report
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: test-report
-          path: app/build/reports/tests/testDebugUnitTest
-
       - name: Build
         run: ./gradlew assembleDebug --console=plain
 

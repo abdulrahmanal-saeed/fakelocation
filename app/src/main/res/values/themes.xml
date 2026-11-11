@@ -20,31 +20,6 @@
         <item name="textAppearanceLabelMedium">@style/Text.Caption</item>
     </style>
 
-    <!-- The navigation screen: same look by day, dark at night (see values-night/colors.xml). -->
-    <style name="Theme.FakeLocation.Drive" parent="Theme.Material3.DayNight.NoActionBar">
-        <item name="colorPrimary">@color/drive_ink</item>
-        <item name="colorOnPrimary">@color/drive_surface</item>
-        <item name="colorSecondary">@color/drive_accent</item>
-        <item name="colorSurface">@color/drive_surface</item>
-        <item name="colorOnSurface">@color/drive_ink</item>
-        <item name="colorOnSurfaceVariant">@color/drive_muted</item>
-        <item name="android:colorBackground">@color/drive_ground</item>
-        <item name="android:fontFamily">@font/manrope</item>
-        <item name="fontFamily">@font/manrope</item>
-        <item name="materialAlertDialogTheme">@style/ThemeOverlay.FakeLocation.Dialog.Drive</item>
-        <item name="textAppearanceTitleLarge">@style/Text.Title</item>
-        <item name="textAppearanceBodyLarge">@style/Text.Body</item>
-        <item name="textAppearanceBodyMedium">@style/Text.Body</item>
-        <item name="textAppearanceLabelLarge">@style/Text.Button</item>
-        <item name="textAppearanceLabelMedium">@style/Text.Caption</item>
-    </style>
-
-    <style name="ThemeOverlay.FakeLocation.Dialog.Drive" parent="ThemeOverlay.Material3.MaterialAlertDialog">
-        <item name="colorPrimary">@color/drive_accent</item>
-        <item name="android:fontFamily">@font/manrope</item>
-        <item name="fontFamily">@font/manrope</item>
-    </style>
-
     <style name="Theme.FakeLocation.Starting" parent="Theme.SplashScreen">
         <item name="windowSplashScreenBackground">@color/ink</item>
         <item name="windowSplashScreenAnimatedIcon">@drawable/splash_icon</item>
