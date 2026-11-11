@@ -154,6 +154,42 @@ class Prefs(context: Context) {
 
     // endregion
 
+    // region Driving screen
+
+    var driveNight: NightMode
+        get() = runCatching { NightMode.valueOf(prefs.getString("drive_night", null)!!) }.getOrDefault(NightMode.AUTO)
+        set(value) = prefs.edit { putString("drive_night", value.name) }
+
+    /** Offer a quicker way while driving when traffic changes (needs Google routes). */
+    var suggestFasterRoute: Boolean
+        get() = prefs.getBoolean("faster_route", true)
+        set(value) = prefs.edit { putBoolean("faster_route", value) }
+
+    // endregion
+
+    // region Home and work shortcuts
+
+    var home: Place?
+        get() = readPlace("home")
+        set(value) = writePlace("home", value)
+
+    var work: Place?
+        get() = readPlace("work")
+        set(value) = writePlace("work", value)
+
+    private fun readPlace(key: String): Place? =
+        readLatLon(key)?.let { Place(it, prefs.getString("${key}_name", null), prefs.getString("${key}_address", null)) }
+
+    private fun writePlace(key: String, value: Place?) {
+        writeLatLon(key, value?.position)
+        prefs.edit {
+            if (value?.name == null) remove("${key}_name") else putString("${key}_name", value.name)
+            if (value?.address == null) remove("${key}_address") else putString("${key}_address", value.address)
+        }
+    }
+
+    // endregion
+
     // region Driving costs and parking (UAE)
 
     var avoidTolls: Boolean

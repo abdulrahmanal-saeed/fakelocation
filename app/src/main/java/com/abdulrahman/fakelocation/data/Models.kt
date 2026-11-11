@@ -27,3 +27,6 @@ enum class MapProvider { OSM, GOOGLE_ROADMAP, GOOGLE_SATELLITE, GOOGLE_HYBRID;
 
     val isGoogle get() = this != OSM
 }
+
+/** When the driving screen uses night colours. */
+enum class NightMode { AUTO, PHONE, ON, OFF }

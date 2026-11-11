@@ -32,6 +32,7 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:background="@drawable/bg_round"
+            android:backgroundTint="@color/drive_surface"
             android:elevation="8dp"
             android:orientation="vertical"
             android:padding="12dp">
@@ -48,8 +49,9 @@
                     android:layout_width="40dp"
                     android:layout_height="40dp"
                     android:contentDescription="@string/back"
-                    app:backgroundTint="@color/ground"
+                    app:backgroundTint="@color/drive_ground"
                     app:cornerRadius="12dp"
+                    app:iconTint="@color/drive_ink"
                     app:icon="@drawable/ic_back"
                     app:iconSize="20dp" />
 
@@ -60,6 +62,7 @@
                     android:layout_marginStart="10dp"
                     android:layout_weight="1"
                     android:text="@string/nav_title"
+                    android:textColor="@color/drive_ink"
                     android:textSize="18sp" />
 
                 <com.google.android.material.button.MaterialButtonToggleGroup
@@ -72,7 +75,7 @@
 
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/modeCar"
-                        style="@style/Tab"
+                        style="@style/Tab.Drive"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:minWidth="0dp"
@@ -83,7 +86,7 @@
 
                     <com.google.android.material.button.MaterialButton
                         android:id="@+id/modeWalk"
-                        style="@style/Tab"
+                        style="@style/Tab.Drive"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:minWidth="0dp"
@@ -109,7 +112,7 @@
 
                     <LinearLayout
                         android:id="@+id/fromRow"
-                        style="@style/NavField">
+                        style="@style/NavField.Drive">
 
                         <View
                             android:layout_width="12dp"
@@ -119,7 +122,7 @@
 
                         <TextView
                             android:id="@+id/fromText"
-                            style="@style/NavFieldText"
+                            style="@style/NavFieldText.Drive"
                             tools:text="My real location" />
                     </LinearLayout>
 
@@ -131,7 +134,7 @@
 
                     <LinearLayout
                         android:id="@+id/toRow"
-                        style="@style/NavField"
+                        style="@style/NavField.Drive"
                         android:layout_marginTop="6dp">
 
                         <ImageView
@@ -139,11 +142,11 @@
                             android:layout_height="14dp"
                             android:importantForAccessibility="no"
                             android:src="@drawable/ic_m_arrive"
-                            app:tint="@color/ink" />
+                            app:tint="@color/drive_ink" />
 
                         <TextView
                             android:id="@+id/toText"
-                            style="@style/NavFieldText"
+                            style="@style/NavFieldText.Drive"
                             tools:text="Choose destination" />
                     </LinearLayout>
                 </LinearLayout>
@@ -155,8 +158,9 @@
                     android:layout_height="40dp"
                     android:layout_marginStart="8dp"
                     android:contentDescription="@string/nav_swap"
-                    app:backgroundTint="@color/ground"
+                    app:backgroundTint="@color/drive_ground"
                     app:cornerRadius="12dp"
+                    app:iconTint="@color/drive_ink"
                     app:icon="@drawable/ic_swap"
                     app:iconSize="18dp" />
             </LinearLayout>
@@ -174,13 +178,36 @@
                     app:singleLine="true">
 
                     <com.google.android.material.chip.Chip
+                        android:id="@+id/homeChip"
+                        style="@style/Widget.Material3.Chip.Assist"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/shortcut_home"
+                        android:visibility="gone"
+                        app:chipIcon="@drawable/ic_home"
+                        app:chipIconSize="16dp"
+                        app:chipIconTint="@color/drive_accent" />
+
+                    <com.google.android.material.chip.Chip
+                        android:id="@+id/workChip"
+                        style="@style/Widget.Material3.Chip.Assist"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="@string/shortcut_work"
+                        android:visibility="gone"
+                        app:chipIcon="@drawable/ic_work"
+                        app:chipIconSize="16dp"
+                        app:chipIconTint="@color/drive_accent" />
+
+                    <com.google.android.material.chip.Chip
                         android:id="@+id/addStopChip"
                         style="@style/Widget.Material3.Chip.Assist"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="@string/nav_add_stop"
                         app:chipIcon="@drawable/ic_plus"
-                        app:chipIconSize="16dp" />
+                        app:chipIconSize="16dp"
+                        app:chipIconTint="@color/drive_ink" />
 
                     <com.google.android.material.chip.Chip
                         android:id="@+id/avoidTollsChip"
@@ -306,7 +333,8 @@
                     <TextView
                         android:id="@+id/mySpeed"
                         style="@style/SpeedSign"
-                        android:background="@drawable/speed_bg"
+                        android:background="@drawable/speed_bg_drive"
+                        android:textColor="@color/drive_ink"
                         android:contentDescription="@string/nav_my_speed"
                         tools:text="55" />
 
@@ -327,6 +355,8 @@
                     android:layout_gravity="end"
                     android:layout_marginTop="8dp"
                     android:background="@drawable/bg_round"
+                    android:backgroundTint="@color/drive_surface"
+                    android:textColor="@color/drive_ink"
                     android:drawablePadding="6dp"
                     android:elevation="4dp"
                     android:gravity="center_vertical"
@@ -347,6 +377,8 @@
                     android:layout_gravity="end"
                     android:layout_marginTop="8dp"
                     android:background="@drawable/bg_round"
+                    android:backgroundTint="@color/drive_surface"
+                    android:textColor="@color/drive_ink"
                     android:drawablePadding="6dp"
                     android:elevation="4dp"
                     android:gravity="center_vertical"
@@ -409,6 +441,68 @@
             tools:text="Rerouting…"
             tools:visibility="visible" />
 
+        <!-- A quicker way found while driving: nothing changes until "Switch" is tapped -->
+        <LinearLayout
+            android:id="@+id/fasterCard"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:background="@drawable/bg_round"
+            android:backgroundTint="@color/ink"
+            android:elevation="8dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingStart="14dp"
+            android:paddingTop="8dp"
+            android:paddingEnd="6dp"
+            android:paddingBottom="8dp"
+            android:visibility="gone"
+            tools:visibility="visible">
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical">
+
+                <TextView
+                    style="@style/Text.Caption"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/nav_faster_title"
+                    android:textColor="@color/muted_light" />
+
+                <TextView
+                    android:id="@+id/fasterText"
+                    style="@style/Text.Item"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textColor="@color/route_green"
+                    android:textSize="18sp"
+                    tools:text="Saves 5 min" />
+            </LinearLayout>
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/fasterUseButton"
+                style="@style/Button.Small"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:minHeight="48dp"
+                android:text="@string/nav_faster_use"
+                android:textSize="15sp" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/fasterKeepButton"
+                style="@style/IconButton"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:contentDescription="@string/nav_faster_keep"
+                app:backgroundTint="@android:color/transparent"
+                app:icon="@drawable/ic_close"
+                app:iconSize="18dp"
+                app:iconTint="@color/surface" />
+        </LinearLayout>
+
         <TextView
             android:id="@+id/fakeChip"
             style="@style/Text.Caption"
@@ -430,7 +524,7 @@
 
     <com.google.android.material.button.MaterialButton
         android:id="@+id/recenterButton"
-        style="@style/MapFab"
+        style="@style/MapFab.Drive"
         android:layout_width="52dp"
         android:layout_height="52dp"
         android:layout_marginEnd="16dp"
@@ -443,7 +537,7 @@
 
     <com.google.android.material.button.MaterialButton
         android:id="@+id/muteFab"
-        style="@style/MapFab"
+        style="@style/MapFab.Drive"
         android:layout_width="52dp"
         android:layout_height="52dp"
         android:layout_marginEnd="16dp"
@@ -457,7 +551,7 @@
 
     <com.google.android.material.button.MaterialButton
         android:id="@+id/addStopFab"
-        style="@style/MapFab"
+        style="@style/MapFab.Drive"
         android:layout_width="52dp"
         android:layout_height="52dp"
         android:layout_marginEnd="16dp"
@@ -471,7 +565,7 @@
 
     <com.google.android.material.button.MaterialButton
         android:id="@+id/parkFab"
-        style="@style/MapFab"
+        style="@style/MapFab.Drive"
         android:layout_width="52dp"
         android:layout_height="52dp"
         android:layout_marginEnd="16dp"
@@ -490,6 +584,8 @@
         android:layout_height="wrap_content"
         android:layout_marginBottom="12dp"
         android:background="@drawable/bg_pill"
+        android:backgroundTint="@color/drive_surface"
+        android:textColor="@color/drive_ink"
         android:elevation="4dp"
         android:maxWidth="260dp"
         android:maxLines="1"
@@ -547,6 +643,7 @@
         android:layout_marginHorizontal="12dp"
         android:layout_marginBottom="12dp"
         android:background="@drawable/bg_round"
+        android:backgroundTint="@color/drive_surface"
         android:elevation="10dp"
         android:orientation="vertical"
         android:paddingHorizontal="14dp"
@@ -567,6 +664,7 @@
             <TextView
                 android:id="@+id/driveDistance"
                 style="@style/Text.Item"
+                android:textColor="@color/drive_ink"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
@@ -576,6 +674,7 @@
             <TextView
                 android:id="@+id/driveArrival"
                 style="@style/Text.Item"
+                android:textColor="@color/drive_ink"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
@@ -586,6 +685,7 @@
             <TextView
                 android:id="@+id/driveMinutes"
                 style="@style/Text.Item"
+                android:textColor="@color/drive_ink"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
@@ -595,7 +695,7 @@
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/endButton"
-                style="@style/IconButton"
+                style="@style/IconButton.Drive"
                 android:layout_width="40dp"
                 android:layout_height="40dp"
                 android:layout_marginStart="12dp"
@@ -617,6 +717,7 @@
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:background="@drawable/bg_sheet"
+        android:backgroundTint="@color/drive_surface"
         android:elevation="12dp"
         android:orientation="vertical"
         android:paddingHorizontal="20dp"
@@ -625,6 +726,22 @@
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent">
+
+        <!-- The ways to get there (filled in from code when there is more than one) -->
+        <HorizontalScrollView
+            android:id="@+id/optionsScroll"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="12dp"
+            android:scrollbars="none"
+            android:visibility="gone">
+
+            <LinearLayout
+                android:id="@+id/optionsRow"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal" />
+        </HorizontalScrollView>
 
         <LinearLayout
             android:layout_width="match_parent"
@@ -641,6 +758,7 @@
                 <TextView
                     android:id="@+id/etaText"
                     style="@style/Text.Title"
+                    android:textColor="@color/drive_ink"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     tools:text="12 min · 15:04" />
@@ -648,6 +766,7 @@
                 <TextView
                     android:id="@+id/summaryText"
                     style="@style/Text.Caption"
+                    android:textColor="@color/drive_muted"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     tools:text="4.3 km · Google live traffic" />
@@ -655,6 +774,7 @@
                 <TextView
                     android:id="@+id/costText"
                     style="@style/Text.Caption"
+                    android:textColor="@color/drive_muted"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="2dp"
