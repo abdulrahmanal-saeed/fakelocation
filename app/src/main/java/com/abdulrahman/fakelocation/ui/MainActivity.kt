@@ -85,6 +85,10 @@ class MainActivity : AppCompatActivity() {
             androidx.core.content.ContextCompat.startForegroundService(this, Intent(this, MockLocationService::class.java))
         }
         handleSharedText(intent)
+        if (savedInstanceState == null) {
+            WhatsNew.showIfUpdated(this)
+            lifecycleScope.launch { com.abdulrahman.fakelocation.system.UpdateChecker.checkDaily(this@MainActivity) }
+        }
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -141,6 +145,7 @@ class MainActivity : AppCompatActivity() {
             return
         }
         mapFragment?.rememberRealLocation()
+        binding.root.confirmHaptic()
         MockLocationService.teleport(this, place.position, place.name ?: place.position.format())
         selectTab(R.id.nav_map)
         mapFragment?.focus(place.position)

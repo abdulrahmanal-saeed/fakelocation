@@ -11,8 +11,10 @@ android {
         applicationId = "com.abdulrahman.fakelocation"
         minSdk = 26
         targetSdk = 36
-        versionCode = 13
-        versionName = "1.8.0"
+        versionCode = 26
+        versionName = "2.9.1"
+        // The vector map (MapLibre) brings native code: only the phone's kind (64-bit ARM) keeps the APK small.
+        ndk { abiFilters += listOf("arm64-v8a") }
     }
 
     signingConfigs {
@@ -30,6 +32,13 @@ android {
         getByName("debug") {
             signingConfig = signingConfigs.getByName("debug")
         }
+        // Smaller, faster APK (R8). Same key as the debug build, so either installs over the other.
+        getByName("release") {
+            signingConfig = signingConfigs.getByName("debug")
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+        }
     }
 
     compileOptions {
@@ -39,6 +48,11 @@ android {
 
     buildFeatures {
         viewBinding = true
+    }
+
+    // The vector map's native library is large: keep it compressed in the APK (unpacked when installed).
+    packaging {
+        jniLibs { useLegacyPackaging = true }
     }
 }
 
@@ -61,6 +75,8 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.9.4")
     implementation("androidx.lifecycle:lifecycle-service:2.9.4")
     implementation("org.osmdroid:osmdroid-android:6.1.20")
+    // The OpenGL build: the default one draws with Vulkan, which stayed blank on the phone.
+    implementation("org.maplibre.gl:android-sdk-opengl:13.6.1")
     implementation("androidx.car.app:app:1.4.0")
     implementation("androidx.camera:camera-camera2:1.5.1")
     implementation("androidx.camera:camera-lifecycle:1.5.1")

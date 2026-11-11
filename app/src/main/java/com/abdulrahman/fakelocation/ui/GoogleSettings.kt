@@ -153,6 +153,7 @@ class GoogleSettings(private val fragment: Fragment, private val binding: Fragme
             val checks = withContext(Dispatchers.IO) {
                 listOf(
                     R.string.api_tiles to async { GoogleTiles.session(ctx, api, MapProvider.GOOGLE_ROADMAP) },
+                    R.string.api_traffic to async { GoogleTiles.trafficSession(ctx, api) },
                     R.string.api_routes to async { GoogleRoutes.route(api, listOf(a, b), TravelMode.CAR) },
                     R.string.api_places to async { GooglePlaces.search(api, "Dubai Mall", a) },
                     R.string.api_geocoding to async { GooglePlaces.reverse(api, a) },
@@ -163,6 +164,7 @@ class GoogleSettings(private val fragment: Fragment, private val binding: Fragme
             }
             dialog.setMessage(text)
             prefs.googleTileSession = null
+            prefs.googleTrafficSession = null
             changed()
         }
     }

@@ -5,10 +5,9 @@ import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
 import com.abdulrahman.fakelocation.data.Prefs
+import com.abdulrahman.fakelocation.geo.Http
 import org.json.JSONObject
 import java.io.IOException
-import java.net.HttpURLConnection
-import java.net.URL
 import java.security.MessageDigest
 
 /** A Google API call failed. [message] is Google's own explanation (e.g. "API not enabled"). */
@@ -29,35 +28,23 @@ class GoogleApi(private val context: Context) {
 
     private fun request(url: String, method: String, body: String?, fieldMask: String?): JSONObject {
         if (key.isBlank()) throw GoogleApiException(0, "No Google API key")
-        val connection = URL(url).openConnection() as HttpURLConnection
-        try {
-            connection.requestMethod = method
-            connection.connectTimeout = 15_000
-            connection.readTimeout = 20_000
-            connection.setRequestProperty("X-Goog-Api-Key", key)
-            for ((name, value) in appHeaders(context)) connection.setRequestProperty(name, value)
-            fieldMask?.let { connection.setRequestProperty("X-Goog-FieldMask", it) }
-            if (body != null) {
-                connection.doOutput = true
-                connection.setRequestProperty("Content-Type", "application/json")
-                connection.outputStream.use { it.write(body.toByteArray()) }
-            }
-            val code = connection.responseCode
-            val stream = if (code in 200..299) connection.inputStream else connection.errorStream
-            val text = stream?.bufferedReader()?.use { it.readText() }.orEmpty()
-            val json = runCatching { JSONObject(text) }.getOrElse { JSONObject() }
-            if (code !in 200..299) {
-                throw GoogleApiException(code, json.optJSONObject("error")?.optString("message")?.takeIf { it.isNotBlank() } ?: "HTTP $code")
-            }
-            // The older web services (Geocoding) answer 200 with a status field.
-            val status = json.optString("status")
-            if (status.isNotEmpty() && status != "OK" && status != "ZERO_RESULTS") {
-                throw GoogleApiException(code, json.optString("error_message").ifBlank { status })
-            }
-            return json
-        } finally {
-            connection.disconnect()
+        val headers = buildMap {
+            put("X-Goog-Api-Key", key)
+            putAll(appHeaders(context))
+            fieldMask?.let { put("X-Goog-FieldMask", it) }
         }
+        val response = Http.request(url, method, body, contentType = "application/json", headers = headers)
+        val code = response.code
+        val json = runCatching { JSONObject(response.body) }.getOrElse { JSONObject() }
+        if (!response.ok) {
+            throw GoogleApiException(code, json.optJSONObject("error")?.optString("message")?.takeIf { it.isNotBlank() } ?: "HTTP $code")
+        }
+        // The older web services (Geocoding) answer 200 with a status field.
+        val status = json.optString("status")
+        if (status.isNotEmpty() && status != "OK" && status != "ZERO_RESULTS") {
+            throw GoogleApiException(code, json.optString("error_message").ifBlank { status })
+        }
+        return json
     }
 
     companion object {

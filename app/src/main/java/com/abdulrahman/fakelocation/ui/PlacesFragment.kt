@@ -7,7 +7,10 @@ import androidx.fragment.app.Fragment
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
+import androidx.recyclerview.widget.ItemTouchHelper
 import androidx.recyclerview.widget.LinearLayoutManager
+import androidx.recyclerview.widget.RecyclerView
+import com.google.android.material.snackbar.Snackbar
 import com.abdulrahman.fakelocation.R
 import com.abdulrahman.fakelocation.data.Favorite
 import com.abdulrahman.fakelocation.data.HistoryEntry
@@ -25,9 +28,38 @@ class PlacesFragment : Fragment(R.layout.fragment_places) {
     private var _binding: FragmentPlacesBinding? = null
     private val binding get() = _binding!!
     private lateinit var places: PlacesRepository
-    private val adapter = PlaceRowAdapter()
+    private val adapter: PlaceRowAdapter = PlaceRowAdapter { holder -> dragger.startDrag(holder) }
     private val showingHistory = MutableStateFlow(false)
     private val main get() = requireActivity() as MainActivity
+    private var dragFrom = -1
+    private var dragTo = -1
+
+    /** Favorites only: drag by the handle to change the order (the first ones are the map's chips and shortcuts). */
+    private val dragger: ItemTouchHelper = ItemTouchHelper(object : ItemTouchHelper.SimpleCallback(ItemTouchHelper.UP or ItemTouchHelper.DOWN, 0) {
+        override fun isLongPressDragEnabled() = false
+
+        override fun onMove(rv: RecyclerView, from: RecyclerView.ViewHolder, to: RecyclerView.ViewHolder): Boolean {
+            val a = from.bindingAdapterPosition
+            val b = to.bindingAdapterPosition
+            if (a < 0 || b < 0) return false
+            if (dragFrom < 0) dragFrom = a
+            dragTo = b
+            adapter.submitList(adapter.currentList.toMutableList().apply { add(b, removeAt(a)) })
+            return true
+        }
+
+        override fun clearView(rv: RecyclerView, holder: RecyclerView.ViewHolder) {
+            super.clearView(rv, holder)
+            if (dragFrom >= 0 && dragTo >= 0 && dragFrom != dragTo) {
+                places.moveFavorite(dragFrom, dragTo)
+                holder.itemView.confirmHaptic()
+            }
+            dragFrom = -1
+            dragTo = -1
+        }
+
+        override fun onSwiped(holder: RecyclerView.ViewHolder, direction: Int) = Unit
+    })
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         _binding = FragmentPlacesBinding.bind(view)
@@ -35,12 +67,13 @@ class PlacesFragment : Fragment(R.layout.fragment_places) {
         places = PlacesRepository.get(requireContext())
         binding.list.layoutManager = LinearLayoutManager(requireContext())
         binding.list.adapter = adapter
+        dragger.attachToRecyclerView(binding.list)
 
         binding.tabs.addOnButtonCheckedListener { _, id, checked ->
             if (checked) showingHistory.value = id == R.id.tabHistory
         }
         binding.footerButton.setOnClickListener {
-            if (showingHistory.value) confirmClearHistory() else main.openSearchForFavorite()
+            if (showingHistory.value) clearHistory() else main.openSearchForFavorite()
         }
 
         viewLifecycleOwner.lifecycleScope.launch {
@@ -72,6 +105,7 @@ class PlacesFragment : Fragment(R.layout.fragment_places) {
         initial = favorite.name.take(1).uppercase(),
         onGo = { main.teleport(Place(favorite.position, favorite.name)) },
         onLongClick = { editFavorite(favorite) },
+        draggable = places.favorites.value.size > 1,
     ) { main.showPlace(Place(favorite.position, favorite.name)) }
 
     private fun historyRow(entry: HistoryEntry): PlaceRow {
@@ -107,17 +141,26 @@ class PlacesFragment : Fragment(R.layout.fragment_places) {
                 if (which == 0) {
                     requireContext().askName(R.string.rename, favorite.name) { places.renameFavorite(favorite.id, it) }
                 } else {
-                    places.deleteFavorite(favorite.id)
+                    deleteFavorite(favorite)
                 }
             }
             .show()
     }
 
-    private fun confirmClearHistory() {
-        MaterialAlertDialogBuilder(requireContext())
-            .setTitle(R.string.clear_history)
-            .setPositiveButton(R.string.clear) { _, _ -> places.clearHistory() }
-            .setNegativeButton(R.string.cancel, null)
+    /** Deleted straight away, with Undo for a few seconds. */
+    private fun deleteFavorite(favorite: Favorite) {
+        val index = places.favorites.value.indexOfFirst { it.id == favorite.id }
+        places.deleteFavorite(favorite.id)
+        Snackbar.make(binding.root, getString(R.string.favorite_deleted, favorite.name), Snackbar.LENGTH_LONG)
+            .setAction(R.string.undo) { places.restoreFavorite(favorite, index) }
+            .show()
+    }
+
+    private fun clearHistory() {
+        val cleared = places.history.value
+        places.clearHistory()
+        Snackbar.make(binding.root, R.string.history_cleared, Snackbar.LENGTH_LONG)
+            .setAction(R.string.undo) { places.restoreHistory(cleared) }
             .show()
     }
 

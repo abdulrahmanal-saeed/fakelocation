@@ -1,6 +1,7 @@
 package com.abdulrahman.fakelocation.car
 
 import android.text.SpannableStringBuilder
+import android.util.Log
 import androidx.car.app.CarContext
 import androidx.car.app.Screen
 import androidx.car.app.constraints.ConstraintManager
@@ -41,6 +42,8 @@ private fun Screen.listLimit(): Int =
     } else 6
 
 private fun here(): LatLon? = NavSession.state.value.real
+
+private const val TAG = "CarScreens"
 
 /** A place row: name, address and how far it is; tapping it previews the route. */
 private fun Screen.placeRow(place: Place, fallback: String): Row {
@@ -99,7 +102,9 @@ class CarSearchScreen(carContext: CarContext) : Screen(carContext) {
             delay(debounceMs)
             loading = true
             invalidate()
-            results = runCatching { PlaceSearch.search(carContext, query, here()) }.getOrDefault(emptyList())
+            results = runCatching { PlaceSearch.search(carContext, query, here()) }
+                .onFailure { Log.w(TAG, "car search failed", it) }
+                .getOrDefault(emptyList())
             loading = false
             searched = true
             invalidate()
@@ -117,8 +122,16 @@ class CarSavedScreen(carContext: CarContext) : Screen(carContext) {
         val recent = ItemList.Builder()
         repo.history.value.distinctBy { it.name }.take(limit).forEach { recent.addItem(placeRow(Place(it.position, it.name), it.name)) }
         val builder = ListTemplate.Builder().setHeaderAction(Action.BACK).setTitle(carContext.getString(R.string.car_saved))
-        if (repo.favorites.value.isEmpty() && repo.history.value.isEmpty()) {
+        val prefs = com.abdulrahman.fakelocation.data.Prefs(carContext)
+        val homeWork = listOfNotNull(prefs.home, prefs.work)
+        if (repo.favorites.value.isEmpty() && repo.history.value.isEmpty() && homeWork.isEmpty()) {
             return builder.setSingleList(ItemList.Builder().setNoItemsMessage(carContext.getString(R.string.car_no_saved)).build()).build()
+        }
+        // Home and Work first: the usual one-tap drives (set them on the phone's Navigate screen).
+        if (homeWork.isNotEmpty()) {
+            val list = ItemList.Builder()
+            homeWork.forEach { list.addItem(placeRow(it, it.name.orEmpty())) }
+            builder.addSectionedList(SectionedItemList.create(list.build(), carContext.getString(R.string.car_home_work)))
         }
         if (repo.favorites.value.isNotEmpty()) {
             builder.addSectionedList(SectionedItemList.create(favorites.build(), carContext.getString(R.string.nav_places)))
@@ -154,7 +167,9 @@ class CarNearbyScreen(carContext: CarContext, private val category: PlaceCategor
     init {
         lifecycleScope.launch {
             val center = here() ?: LatLon.HOME_REGION
-            results = runCatching { NearbySearch.find(carContext, category, center) }.getOrDefault(emptyList())
+            results = runCatching { NearbySearch.find(carContext, category, center) }
+                .onFailure { Log.w(TAG, "car nearby search failed", it) }
+                .getOrDefault(emptyList())
             invalidate()
         }
     }

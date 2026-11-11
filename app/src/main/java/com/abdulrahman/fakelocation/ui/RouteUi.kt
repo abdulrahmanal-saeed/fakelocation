@@ -39,7 +39,7 @@ fun Context.modeLabel(mode: TravelMode) = getString(if (mode == TravelMode.CAR) 
 
 fun Context.routeMeta(route: Route): String {
     val path = route.path
-    return if (path == null) {
+    val base = if (path == null) {
         getString(R.string.route_meta_unrouted, modeLabel(route.mode), route.stops.size)
     } else {
         getString(
@@ -47,6 +47,41 @@ fun Context.routeMeta(route: Route): String {
             formatDistance(path.distanceMeters), formatDuration(Schedule.totalMillis(route.stops, path))
         )
     }
+    val extras = listOfNotNull(
+        repeatLabel(route),
+        route.speed.takeIf { it != 1.0 }?.let { speedLabel(this, it) },
+        scheduleLabel(route.timing),
+    )
+    return (listOf(base) + extras).joinToString(" · ")
+}
+
+/** Trip speeds offered: slower than the streets, as they are, and faster. */
+val TRIP_SPEEDS = listOf(0.5, 0.75, 1.0, 1.5, 2.0, 3.0)
+
+/** "1×", "1.5×", "0.75×" */
+fun speedLabel(context: Context, speed: Double): String =
+    context.getString(R.string.speed_value, if (speed % 1.0 == 0.0) speed.toInt().toString() else speed.toString())
+
+/** "There and back ×2", "3 laps", or null for a plain one-way trip. */
+fun Context.repeatLabel(route: Route): String? {
+    val laps = if (route.canRepeat) route.laps else 1
+    return when {
+        route.returnTrip && laps > 1 -> getString(R.string.repeat_back_laps, laps)
+        route.returnTrip -> getString(R.string.repeat_back)
+        laps > 1 -> getString(R.string.repeat_laps, laps)
+        else -> null
+    }
+}
+
+/** "Mon–Fri 07:30", "Sat, Sun · arrive 09:00", or null when the route doesn't repeat. */
+fun Context.scheduleLabel(timing: com.abdulrahman.fakelocation.data.Timing): String? {
+    if (!timing.repeats) return null
+    val time = clockText(timing.timeMillis!!)
+    val days = com.abdulrahman.fakelocation.trip.TripSchedule.daysText(
+        timing.days, resources.getStringArray(R.array.weekdays_short).toList(), getString(R.string.every_day),
+    )
+    return if (timing.mode == com.abdulrahman.fakelocation.data.TimingMode.ARRIVE_BY) getString(R.string.schedule_arrive_label, days, time)
+    else getString(R.string.schedule_start_label, days, time)
 }
 
 fun Context.editedText(time: Long): String =
@@ -61,11 +96,11 @@ fun Context.letterMarker(letter: String, colorRes: Int, sizeDp: Int = 30): Drawa
     val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
     val canvas = Canvas(bitmap)
     val paint = Paint(Paint.ANTI_ALIAS_FLAG)
-    paint.color = ContextCompat.getColor(this, R.color.surface)
+    paint.color = ContextCompat.getColor(this, R.color.white)
     canvas.drawCircle(size / 2f, size / 2f, size / 2f, paint)
     paint.color = ContextCompat.getColor(this, colorRes)
     canvas.drawCircle(size / 2f, size / 2f, size / 2f - 3 * density, paint)
-    paint.color = ContextCompat.getColor(this, R.color.surface)
+    paint.color = ContextCompat.getColor(this, R.color.white)
     paint.textAlign = Paint.Align.CENTER
     paint.textSize = (if (letter.length > 1) 11 else 13) * density
     paint.typeface = ResourcesCompat.getFont(this, R.font.manrope_800) ?: Typeface.DEFAULT_BOLD
@@ -87,7 +122,7 @@ class RouteThumbView @JvmOverloads constructor(context: Context, attrs: Attribut
         strokeJoin = Paint.Join.ROUND
     }
     private val dot = Paint(Paint.ANTI_ALIAS_FLAG)
-    private val white = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = ContextCompat.getColor(context, R.color.surface) }
+    private val white = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = ContextCompat.getColor(context, R.color.white) }
     private var points: List<LatLon> = emptyList()
 
     fun setRoute(route: Route) {

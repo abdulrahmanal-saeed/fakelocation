@@ -27,6 +27,8 @@ import com.abdulrahman.fakelocation.data.TravelMode
 import com.abdulrahman.fakelocation.mock.LocationMocker
 import com.abdulrahman.fakelocation.mock.MockLocationService
 import com.abdulrahman.fakelocation.mock.MockState
+import com.abdulrahman.fakelocation.system.TripScheduler
+import com.abdulrahman.fakelocation.trip.TripSchedule
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import android.widget.Toast
 import com.google.android.material.timepicker.MaterialTimePicker
@@ -42,6 +44,11 @@ class RoutePlanActivity : AppCompatActivity() {
     private lateinit var prefs: Prefs
     private var mode = TimingMode.NOW
     private var pickedTime: Long? = null
+    /** Weekly repeat days being chosen (see [Timing.days]). */
+    private var days = 0
+    private val dayButtons by lazy { listOf(R.id.day1, R.id.day2, R.id.day3, R.id.day4, R.id.day5, R.id.day6, R.id.day7) }
+    private val speedButtons by lazy { listOf(R.id.speed1, R.id.speed2, R.id.speed3, R.id.speed4, R.id.speed5, R.id.speed6) }
+    private val lapButtons by lazy { listOf(R.id.laps1, R.id.laps2, R.id.laps3, R.id.laps4, R.id.laps5) }
     private val refresh = Handler(Looper.getMainLooper())
     private val tick = object : Runnable {
         override fun run() {
@@ -89,8 +96,73 @@ class RoutePlanActivity : AppCompatActivity() {
         binding.timeButton.setOnClickListener { pickTime() }
         binding.naturalSwitch.isChecked = prefs.naturalMovement
         binding.naturalSwitch.setOnCheckedChangeListener { _, checked -> prefs.naturalMovement = checked }
-        binding.startButton.setOnClickListener { startTrip() }
+        binding.startButton.setOnClickListener { if (repeating) saveSchedule() else startTrip() }
+        setUpOptions()
         render()
+    }
+
+    private val repeating get() = mode != TimingMode.NOW && days != 0
+
+    /** Repeat days, trip speed, the way back and laps. */
+    private fun setUpOptions() {
+        days = route.timing.days
+        val letters = resources.getStringArray(R.array.weekdays_letters)
+        val names = resources.getStringArray(R.array.weekdays_short)
+        dayButtons.forEachIndexed { i, id ->
+            val button = binding.dayGroup.findViewById<com.google.android.material.button.MaterialButton>(id)
+            button.text = letters[i]
+            button.contentDescription = names[i]
+            if (days and (1 shl i) != 0) binding.dayGroup.check(id)
+        }
+        binding.dayGroup.addOnButtonCheckedListener { _, id, checked ->
+            val bit = 1 shl dayButtons.indexOf(id)
+            days = if (checked) days or bit else days and bit.inv()
+            render()
+        }
+
+        speedButtons.forEachIndexed { i, id -> binding.speedGroup.findViewById<android.widget.Button>(id).text = speedLabel(this, TRIP_SPEEDS[i]) }
+        binding.speedGroup.check(speedButtons[TRIP_SPEEDS.indexOf(route.speed).takeIf { it >= 0 } ?: TRIP_SPEEDS.indexOf(1.0)])
+        binding.speedGroup.addOnButtonCheckedListener { _, id, checked ->
+            if (!checked) return@addOnButtonCheckedListener
+            route = route.copy(speed = TRIP_SPEEDS[speedButtons.indexOf(id)])
+            render()
+        }
+
+        binding.wayGroup.check(if (route.returnTrip) R.id.wayBack else R.id.wayOne)
+        binding.wayGroup.addOnButtonCheckedListener { _, id, checked ->
+            if (!checked) return@addOnButtonCheckedListener
+            route = route.copy(returnTrip = id == R.id.wayBack)
+            render()
+        }
+
+        lapButtons.forEachIndexed { i, id -> binding.lapsGroup.findViewById<android.widget.Button>(id).text = getString(R.string.laps_value, LAP_CHOICES[i]) }
+        binding.lapsGroup.check(lapButtons[LAP_CHOICES.indexOf(route.laps).takeIf { it >= 0 } ?: 0])
+        binding.lapsGroup.addOnButtonCheckedListener { _, id, checked ->
+            if (!checked) return@addOnButtonCheckedListener
+            route = route.copy(laps = LAP_CHOICES[lapButtons.indexOf(id)])
+            render()
+        }
+    }
+
+    /** A weekly route: save it and set the alarm; nothing starts now. */
+    private fun saveSchedule() {
+        val saved = route.copy(timing = Timing(mode, pickedTime, days))
+        repo.save(saved)
+        TripScheduler.update(this)
+        val next = TripSchedule.nextStart(saved, prefs.trafficPercent, System.currentTimeMillis(), java.time.ZoneId.systemDefault(), prefs.redLightPercent)
+        val label = scheduleLabel(saved.timing).orEmpty()
+        Toast.makeText(
+            this,
+            if (next == null) label else getString(R.string.schedule_saved, label, "${dayName(next)} ${clockText(next)}"),
+            Toast.LENGTH_LONG,
+        ).show()
+        finish()
+    }
+
+    private fun dayName(time: Long): String = when {
+        DateUtils.isToday(time) -> getString(R.string.today_lower)
+        DateUtils.isToday(time - DateUtils.DAY_IN_MILLIS) -> getString(R.string.tomorrow_lower)
+        else -> java.text.SimpleDateFormat("EEEE", java.util.Locale.US).format(java.util.Date(time))
     }
 
     override fun onResume() {
@@ -103,15 +175,24 @@ class RoutePlanActivity : AppCompatActivity() {
         super.onPause()
     }
 
-    /** The path with the traffic setting applied, as the trip will actually run it. */
-    private val travelPath get() = route.travelPath(prefs.trafficPercent)!!
+    /** The trip as it will run: with the way back and laps laid out as stops. */
+    private val trip get() = route.expanded()
+
+    /** The path with the traffic setting and speed applied, as the trip will actually run it. */
+    private val travelPath get() = trip.travelPath(prefs.trafficPercent, prefs.redLightPercent)!!
+
+    /** When the next weekly run starts, while repeat days are picked. */
+    private fun nextRun(now: Long): Long? =
+        if (!repeating) null
+        else TripSchedule.nextStart(route.copy(timing = Timing(mode, pickedTime, days)), prefs.trafficPercent, now, java.time.ZoneId.systemDefault(), prefs.redLightPercent)
 
     private fun startAt(now: Long): Long {
+        nextRun(now)?.let { return it }
         val time = pickedTime ?: now
         return when (mode) {
             TimingMode.NOW -> now
             TimingMode.START_AT -> time
-            TimingMode.ARRIVE_BY -> Schedule.startFor(route.stops, travelPath, time).coerceAtLeast(now)
+            TimingMode.ARRIVE_BY -> Schedule.startFor(trip.stops, travelPath, time).coerceAtLeast(now)
         }
     }
 
@@ -138,12 +219,17 @@ class RoutePlanActivity : AppCompatActivity() {
     }
 
     private fun launchTrip() {
-        val saved = route.copy(timing = Timing(mode, if (mode == TimingMode.NOW) null else pickedTime))
+        val original = repo.get(route.id)?.timing
+        // Running a weekly route once right now keeps its schedule.
+        val timing = if (mode == TimingMode.NOW && original?.repeats == true) original
+        else Timing(mode, if (mode == TimingMode.NOW) null else pickedTime)
+        val saved = route.copy(timing = timing)
         repo.save(saved)
         val start = startAt(System.currentTimeMillis())
+        binding.startButton.confirmHaptic()
         MockLocationService.startTrip(this, saved, start)
         if (start > System.currentTimeMillis() + 60_000) {
-            Toast.makeText(this, getString(R.string.trip_scheduled, "${clockText(start)} ${dayText(start)}"), Toast.LENGTH_LONG).show()
+            Toast.makeText(this, getString(R.string.trip_scheduled, "${clockText(start)} ${dayName(start)}"), Toast.LENGTH_LONG).show()
         }
         startActivity(MainActivity.showMap(this))
         finish()
@@ -151,7 +237,7 @@ class RoutePlanActivity : AppCompatActivity() {
 
     private fun defaultTime(): Long {
         val path = travelPath
-        val base = System.currentTimeMillis() + if (mode == TimingMode.ARRIVE_BY) Schedule.totalMillis(route.stops, path) else 0L
+        val base = System.currentTimeMillis() + if (mode == TimingMode.ARRIVE_BY) Schedule.totalMillis(trip.stops, path) else 0L
         return roundUp(base + 30 * 60_000L)
     }
 
@@ -194,23 +280,30 @@ class RoutePlanActivity : AppCompatActivity() {
         picker.show(supportFragmentManager, "time")
     }
 
-    private fun dayText(time: Long) = getString(if (DateUtils.isToday(time)) R.string.today_lower else R.string.tomorrow_lower)
-
     private fun render() {
         if (route.path == null) return
         val path = travelPath
-        val stops = route.stops
+        val stops = trip.stops
         val now = System.currentTimeMillis()
         val lastName = stops.last().name
         val time = pickedTime
 
         binding.timeButton.isVisible = mode != TimingMode.NOW
+        binding.repeatRow.isVisible = mode != TimingMode.NOW
+        val next = nextRun(now)
+        binding.repeatHint.text = if (days == 0) getString(R.string.repeat_hint_off) else {
+            getString(R.string.repeat_hint_on, scheduleLabel(Timing(mode, pickedTime, days)).orEmpty(), next?.let { "${dayName(it)} ${clockText(it)}" } ?: "–")
+        }
+        binding.lapsGroup.isEnabled = route.canRepeat
+        binding.lapsHint.isVisible = !route.canRepeat
         if (time != null && mode != TimingMode.NOW) {
             val label = getString(if (mode == TimingMode.ARRIVE_BY) R.string.arrive_by else R.string.start_at)
-            binding.timeButton.text = "$label ${clockText(time)} · ${dayText(time)}"
+            // Weekly: the day comes from the picked days, not from "today / tomorrow".
+            binding.timeButton.text = if (repeating) "$label ${clockText(time)}" else "$label ${clockText(time)} · ${dayName(time)}"
         }
 
-        val tooSoon = mode == TimingMode.ARRIVE_BY && Schedule.startFor(stops, path, time ?: now) < now
+        val tooSoon = !repeating && mode == TimingMode.ARRIVE_BY && Schedule.startFor(stops, path, time ?: now) < now
+        // Weekly: the times shown are those of the next run.
         val startAt = startAt(now)
         val times = Schedule.times(stops, path, startAt)
         val arrival = times.last().arriveAt
@@ -225,7 +318,7 @@ class RoutePlanActivity : AppCompatActivity() {
                 binding.headlineTime.text = clockText(arrival)
             }
             mode == TimingMode.START_AT -> {
-                binding.headlineCaption.text = getString(R.string.headline_start_at, "${clockText(startAt)} ${dayText(startAt)}", lastName)
+                binding.headlineCaption.text = getString(R.string.headline_start_at, "${clockText(startAt)} ${dayName(startAt)}", lastName)
                 binding.headlineTime.text = clockText(arrival)
             }
             else -> {
@@ -255,11 +348,18 @@ class RoutePlanActivity : AppCompatActivity() {
         } else {
             total
         }
-        binding.startButton.setText(if (startAt > now + 60_000) R.string.schedule_trip else R.string.start_trip)
+        binding.startButton.setText(
+            when {
+                repeating -> R.string.save_schedule
+                startAt > now + 60_000 -> R.string.schedule_trip
+                else -> R.string.start_trip
+            }
+        )
     }
 
     companion object {
         private const val EXTRA_ROUTE_ID = "route_id"
+        private val LAP_CHOICES = listOf(1, 2, 3, 5, 10)
 
         fun intent(context: Context, routeId: Long) =
             Intent(context, RoutePlanActivity::class.java).putExtra(EXTRA_ROUTE_ID, routeId)

@@ -4,6 +4,7 @@ import android.content.Context
 import android.graphics.Canvas
 import android.graphics.Paint
 import android.util.AttributeSet
+import android.util.Log
 import android.view.View
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageAnalysis
@@ -46,7 +47,9 @@ class LaneCamera(
         if (running) return
         running = true
         owner.lifecycleScope.launch {
-            val cameras = runCatching { ProcessCameraProvider.awaitInstance(context) }.getOrNull() ?: return@launch
+            val cameras = runCatching { ProcessCameraProvider.awaitInstance(context) }
+                .onFailure { Log.w("LaneCamera", "camera unavailable", it) }
+                .getOrNull() ?: return@launch
             if (!running) return@launch
             provider = cameras
             val selector = ResolutionSelector.Builder().setAspectRatioStrategy(AspectRatioStrategy.RATIO_4_3_FALLBACK_AUTO_STRATEGY).build()
@@ -59,7 +62,7 @@ class LaneCamera(
             runCatching {
                 cameras.unbindAll()
                 cameras.bindToLifecycle(owner, CameraSelector.DEFAULT_BACK_CAMERA, show, analysis)
-            }
+            }.onFailure { Log.w("LaneCamera", "back camera didn't start", it) }
         }
     }
 

@@ -45,3 +45,15 @@ Design (all screens, logo, splash): https://claude.ai/artifact/9FMXf1izujP79r3BA
 | 11 | Driving polish: smooth car, shrinking route, compact card, lane bubbles, traffic colours, speed-limit chunks, better voice | Done (v1.6.0) |
 | 12 | Lane-level guidance: lane counts, lane tracking (turns + gyroscope + camera + dual-frequency GPS), lane advice, voice choice | Done (v1.7.0) |
 | 13 | Louder voice: pause/lower music, volume raise and boost, Bluetooth call channel to cut the car radio | Done (v1.8.0) |
+| 14 | Groundwork: tests in CI, publish from the default branch only, one HTTP helper with retry and "No internet", logging, more tests | Done (v1.8.1) |
+| 15 | Data & settings: backup/restore, own routing server with fallback, settings split into sections, reset, health check | Done (v1.9.0) |
+| 16 | Fake: joystick, trip speed, repeat / there and back, repeating schedule, wander, GPX/KML, app shortcuts | Done (v2.0.0) |
+| 17 | Real navigation: alternative routes, Home/Work, night map, drive log, share ETA, parking on arrival | Done (v2.1.0) |
+| 18 | UI/UX: dark theme, undo, reorder favorites, empty states, haptics, accessibility, favorites widget, what's new | Done (v2.2.0) |
+| 19 | Refactor & release: split big screens/service, R8 release build, update checker | Done (v2.3.0) |
+| 20 | Smooth driving: car drawn every frame along the road, smooth heading and zoom (out before turns), tunnels (dead reckoning), auto-recenter | Done (v2.4.0) |
+| 21 | Real location: blue dot every second with accuracy circle and compass cone, GPS smoothing (Kalman) | Done (v2.5.0) |
+| 22 | Navigation: faster off-route, Google traffic on the map, average-speed zones | Done (v2.6.0) |
+| 23 | Fake movement: smooth trip arrow, faster location updates option | Done (v2.7.0) |
+| 24 | Vector map (MapLibre) for the Navigate screen, beta | Done (v2.8.0) |
+| 25 | Traffic lights: fake trips stop at red lights (setting + per light), real navigation shows them and says "at the traffic lights" | Done (v2.9.0) |

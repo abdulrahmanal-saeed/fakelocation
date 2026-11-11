@@ -72,6 +72,23 @@ class TripTimeline(val stops: List<Stop>, rawPath: RoutePath, val natural: Boole
 
     private fun legMs(i: Int) = (path.legs[i].durationSeconds * 1000).toLong()
 
+    /**
+     * The moment in [other] (the same stops, other speeds) that matches [t] here: the same share of the same leg, or
+     * the same minute of the same wait. Used to change speed mid-trip without the position jumping.
+     */
+    fun sameMomentIn(other: TripTimeline, t: Long): Long {
+        if (t < 0) return t
+        if (t >= totalMs) return other.totalMs
+        for (i in stops.indices) {
+            if (t >= arrive[i] && t < leave[i]) return other.arrive[i] + (t - arrive[i])
+            if (i < stops.lastIndex && t >= leave[i] && t < arrive[i + 1]) {
+                val share = (t - leave[i]).toDouble() / (arrive[i + 1] - leave[i])
+                return other.leave[i] + (share * (other.arrive[i + 1] - other.leave[i])).toLong()
+            }
+        }
+        return other.totalMs
+    }
+
     fun at(t: Long): TripPoint {
         if (t < 0) return still(TripPhase.SCHEDULED, 0)
         if (t >= totalMs) return still(TripPhase.FINISHED, stops.lastIndex)
@@ -109,8 +126,11 @@ class TripTimeline(val stops: List<Stop>, rawPath: RoutePath, val natural: Boole
         var speed = if (segSeconds > 0) segLength / segSeconds else 0.0
         if (natural) speed *= (warp(u + 500, span.toDouble(), leg) - warp(u - 500, span.toDouble(), leg)) / 1000.0
         val done = pointDist[k] + segLength * f
+        // Standing at a red light (a piece of road of no length): keep facing the way we came.
+        var h = k
+        while (h > first && pointDist[h + 1] - pointDist[h] < 0.1) h--
         return TripPoint(
-            TripPhase.MOVING, leg, position, bearing(a, b), speed.toFloat(), k, done, pointDist[last] - done
+            TripPhase.MOVING, leg, position, bearing(path.points[h], path.points[h + 1]), speed.toFloat(), k, done, pointDist[last] - done
         )
     }
 
@@ -139,12 +159,17 @@ class TripTimeline(val stops: List<Stop>, rawPath: RoutePath, val natural: Boole
             return ((Math.toDegrees(atan2(y, x)) + 360) % 360).toFloat()
         }
 
-        /** Moves some travel time onto the pieces of road around sharp turns, keeping each leg's total the same. */
+        /**
+         * Moves some travel time onto the pieces of road around sharp turns, keeping each leg's total the same.
+         * Standing still at a red light (a piece of no length) is left as it is.
+         */
         fun slowAtTurns(path: RoutePath): RoutePath {
             val seconds = path.segmentSeconds.toMutableList()
             val weights = DoubleArray(seconds.size) { 1.0 }
+            val still = BooleanArray(seconds.size) { distanceMeters(path.points[it], path.points[it + 1]) < 0.1 }
             for (leg in path.legs) {
                 for (k in leg.firstPoint + 1 until leg.lastPoint) {
+                    if (still[k - 1] || still[k]) continue
                     val turn = abs(((bearing(path.points[k], path.points[k + 1]) - bearing(path.points[k - 1], path.points[k]) + 540) % 360) - 180)
                     if (turn > 30) {
                         val extra = 0.8 * (turn / 180.0)
@@ -152,9 +177,10 @@ class TripTimeline(val stops: List<Stop>, rawPath: RoutePath, val natural: Boole
                         weights[k] += extra
                     }
                 }
-                val before = (leg.firstPoint until leg.lastPoint).sumOf { seconds[it] }
-                val after = (leg.firstPoint until leg.lastPoint).sumOf { seconds[it] * weights[it] }
-                if (after > 0) for (k in leg.firstPoint until leg.lastPoint) seconds[k] = seconds[k] * weights[k] * before / after
+                val moving = (leg.firstPoint until leg.lastPoint).filter { !still[it] }
+                val before = moving.sumOf { seconds[it] }
+                val after = moving.sumOf { seconds[it] * weights[it] }
+                if (after > 0) for (k in moving) seconds[k] = seconds[k] * weights[k] * before / after
             }
             return path.copy(segmentSeconds = seconds)
         }
