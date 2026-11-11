@@ -83,6 +83,7 @@ class SettingsFragment : Fragment(R.layout.fragment_settings) {
                 }
                 .show()
         }
+        binding.fasterSwitch.setOnCheckedChangeListener { _, checked -> prefs.suggestFasterRoute = checked }
         binding.nightMapRow.setOnClickListener {
             val modes = NightMapMode.entries
             MaterialAlertDialogBuilder(requireContext())
@@ -241,6 +242,7 @@ class SettingsFragment : Fragment(R.layout.fragment_settings) {
         backup.render()
         servers.render()
         b.nightMapValue.setText(nightLabel(prefs.nightMap))
+        b.fasterSwitch.isChecked = prefs.suggestFasterRoute
         b.themeValue.setText(themeLabel(prefs.theme))
         b.arriveValue.text = minutes(prefs.alertBeforeArriveMinutes)
         b.leaveValue.text = minutes(prefs.alertBeforeLeaveMinutes)

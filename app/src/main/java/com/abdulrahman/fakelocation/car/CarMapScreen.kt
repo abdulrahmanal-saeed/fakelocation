@@ -45,7 +45,7 @@ class CarMapScreen(carContext: CarContext, private val renderer: CarMapRenderer)
         }
         // Only rebuild the template when something on it changes (hosts throttle template updates).
         val p = s.progress
-        val key = listOf(s.status, s.muted, s.rerouting, p?.arrived, p?.nextStep?.text, p?.thenStep?.text,
+        val key = listOf(s.status, s.muted, s.rerouting, s.faster != null, p?.arrived, p?.nextStep?.text, p?.thenStep?.text,
             p?.metersToNextStep?.let { (it / 10).roundToInt() }, s.roadInfo?.stepLanes?.size, p?.remainingSeconds?.let { (it / 30).roundToInt() }).toString()
         if (key != shownKey) {
             shownKey = key
@@ -85,7 +85,11 @@ class CarMapScreen(carContext: CarContext, private val renderer: CarMapRenderer)
                         .setOnClickListener { NavSession.stop() }.build(),
                 )
                 .addAction(iconAction(if (s.muted) R.drawable.ic_volume_off else R.drawable.ic_volume) { NavSession.toggleMute() })
-                .addAction(iconAction(R.drawable.ic_plus) { screenManager.push(CarCategoriesScreen(carContext)) })
+                .addAction(
+                    // While a quicker way is on offer (the voice announces it), this button switches to it.
+                    if (s.faster != null) iconAction(R.drawable.ic_clock) { NavSession.acceptFaster() }
+                    else iconAction(R.drawable.ic_plus) { screenManager.push(CarCategoriesScreen(carContext)) },
+                )
                 .build(),
         )
 

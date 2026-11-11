@@ -440,6 +440,16 @@
 
                 <View style="@style/Divider" />
 
+                <LinearLayout style="@style/SettingsRow">
+                    <LinearLayout style="@style/SettingsRowText">
+                        <TextView style="@style/Text.Item" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/settings_faster" />
+                        <TextView style="@style/Text.Caption" android:layout_width="wrap_content" android:layout_height="wrap_content" android:text="@string/settings_faster_hint" android:textSize="12sp" />
+                    </LinearLayout>
+                    <com.google.android.material.materialswitch.MaterialSwitch android:id="@+id/fasterSwitch" android:layout_width="wrap_content" android:layout_height="wrap_content" android:contentDescription="@string/settings_faster" />
+                </LinearLayout>
+
+                <View style="@style/Divider" />
+
                 <LinearLayout android:id="@+id/googleSearchRow" style="@style/SettingsRow.Clickable">
                     <TextView style="@style/SettingsRowLabel" android:text="@string/google_search" />
                     <TextView android:id="@+id/googleSearchValue" style="@style/SettingsRowValue.Accent" />

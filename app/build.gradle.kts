@@ -11,8 +11,8 @@ android {
         applicationId = "com.abdulrahman.fakelocation"
         minSdk = 26
         targetSdk = 36
-        versionCode = 26
-        versionName = "2.9.1"
+        versionCode = 27
+        versionName = "2.10.0"
         // The vector map (MapLibre) brings native code: only the phone's kind (64-bit ARM) keeps the APK small.
         ndk { abiFilters += listOf("arm64-v8a") }
     }

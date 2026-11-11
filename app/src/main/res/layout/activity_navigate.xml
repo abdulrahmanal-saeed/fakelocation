@@ -451,6 +451,70 @@
             tools:text="Rerouting…"
             tools:visibility="visible" />
 
+        <!-- A quicker way found while driving: nothing changes until "Switch" is tapped -->
+        <LinearLayout
+            android:id="@+id/fasterCard"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:background="@drawable/bg_round"
+            android:backgroundTint="@color/nav_blue"
+            android:elevation="8dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingStart="14dp"
+            android:paddingTop="8dp"
+            android:paddingEnd="6dp"
+            android:paddingBottom="8dp"
+            android:visibility="gone"
+            tools:visibility="visible">
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical">
+
+                <TextView
+                    style="@style/Text.Caption"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="@string/nav_faster_title"
+                    android:textColor="#D6DBFF" />
+
+                <TextView
+                    android:id="@+id/fasterText"
+                    style="@style/Text.Item"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:textColor="#FFFFFF"
+                    android:textSize="18sp"
+                    tools:text="Saves 5 min" />
+            </LinearLayout>
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/fasterUseButton"
+                style="@style/Button.Small"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:minHeight="48dp"
+                android:text="@string/nav_faster_use"
+                android:textColor="#0F1B2D"
+                android:textSize="15sp"
+                app:backgroundTint="#FFFFFF" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/fasterKeepButton"
+                style="@style/IconButton"
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:contentDescription="@string/nav_faster_keep"
+                app:backgroundTint="@android:color/transparent"
+                app:icon="@drawable/ic_close"
+                app:iconSize="18dp"
+                app:iconTint="#FFFFFF" />
+        </LinearLayout>
+
         <TextView
             android:id="@+id/fakeChip"
             style="@style/Text.Caption"
