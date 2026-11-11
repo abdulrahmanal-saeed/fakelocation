@@ -688,7 +688,7 @@
     <string name="nav_parking_nearby">P  Parking nearby: %1$s · %2$s. Tap to drive there.</string>
     <string name="car_home_work">Home &amp; Work</string>
     <string name="night_map">Night map</string>
-    <string name="night_map_hint">Darker map colours on the Navigate screen, so it doesn’t dazzle at night</string>
+    <string name="night_map_hint">Dark map and dark cards on the Navigate screen, so it doesn’t dazzle at night</string>
     <string name="night_map_auto">After sunset</string>
     <string name="night_map_always">Always</string>
     <string name="drive_log">Drive log</string>
@@ -723,7 +723,7 @@
     <string name="theme_dark">Dark</string>
     <string name="whats_new">What’s new</string>
     <string name="whats_new_title">What’s new in %1$s</string>
-    <string name="whats_new_body">• Driving: the car now moves smoothly along the road between GPS fixes (no more lagging a second behind or cutting corners), the map turns and zooms gently, zooming out a little so the next turn shows before you reach it.\n\n• Tunnels: when the GPS drops out the car carries on along the route at your speed, with distances and voice, until the signal is back.\n\n• Moved the map while driving? It follows you again by itself after 10 seconds.\n\n• Your real location on the map: updated every second and gliding, with a circle showing how accurate the GPS is and a cone showing which way you face.\n\n• Navigation: notices sooner when you take a wrong turn, shows Google’s live traffic on the whole map (with a Google key, button on the left), and average speed checks with your average so far.\n\n• Fake trips: the arrow on the map glides along the road instead of jumping once a second, and the joystick moves the pin smoothly. Settings → Fake movement → Location updates sends the moving fake position up to 5 times a second.\n\n• Try the vector map for navigation (Settings → Map &amp; routing, beta): smooth turning, upright street names, a tilted view while driving and a real night map.\n\n• Traffic lights: fake car trips stop at some red lights (Settings → Fake movement → Red lights; tap a light on the route to set it), and navigation shows the lights ahead and says “at the traffic lights, turn right”.</string>
+    <string name="whats_new_body">• Home and Work are now on the map too, also while the fake location is on: tap to navigate there or to put the fake location there, long-press to change.\n\n• Faster routes: while you drive with Google routes, a clearly quicker way is offered on screen and by voice. Nothing changes until you tap Switch.\n\n• At night the Navigate screen’s cards go dark together with the map.\n\n• Driving: the car now moves smoothly along the road between GPS fixes (no more lagging a second behind or cutting corners), the map turns and zooms gently, zooming out a little so the next turn shows before you reach it.\n\n• Tunnels: when the GPS drops out the car carries on along the route at your speed, with distances and voice, until the signal is back.\n\n• Moved the map while driving? It follows you again by itself after 10 seconds.\n\n• Your real location on the map: updated every second and gliding, with a circle showing how accurate the GPS is and a cone showing which way you face.\n\n• Navigation: notices sooner when you take a wrong turn, shows Google’s live traffic on the whole map (with a Google key, button on the left), and average speed checks with your average so far.\n\n• Fake trips: the arrow on the map glides along the road instead of jumping once a second, and the joystick moves the pin smoothly. Settings → Fake movement → Location updates sends the moving fake position up to 5 times a second.\n\n• Try the vector map for navigation (Settings → Map &amp; routing, beta): smooth turning, upright street names, a tilted view while driving and a real night map.\n\n• Traffic lights: fake car trips stop at some red lights (Settings → Fake movement → Red lights; tap a light on the route to set it), and navigation shows the lights ahead and says “at the traffic lights, turn right”.</string>
 
     <!-- Updates -->
     <string name="update_check">Check for updates</string>
@@ -740,4 +740,23 @@
     <string name="shortcut_go_to">Go to %1$s</string>
     <string name="shortcut_stop">Stop</string>
     <string name="shortcut_stop_long">Stop the fake location</string>
+
+    <!-- A faster way while driving -->
+    <string name="nav_faster_title">Faster route found</string>
+    <string name="nav_faster_saves">Saves %1$d min</string>
+    <string name="nav_faster_use">Switch</string>
+    <string name="nav_faster_keep">Keep my route</string>
+    <string name="nav_faster_voice">A faster route is available. It saves %1$d minutes.</string>
+    <string name="settings_faster">Suggest faster routes</string>
+    <string name="settings_faster_hint">Checks the traffic every few minutes while you drive and offers a quicker way. Needs Google routes.</string>
+
+    <!-- Home and Work on the map -->
+    <string name="map_set_home">Set home</string>
+    <string name="map_set_work">Set work</string>
+    <string name="map_pick_search">Search for a place</string>
+    <string name="map_pick_center">Use the middle of the map</string>
+    <string name="map_pick_fake">Use the fake location</string>
+    <string name="map_change_place">Change the place</string>
+    <string name="map_place_saved">%1$s saved</string>
+    <string name="map_place_removed">%1$s removed</string>
 </resources>
