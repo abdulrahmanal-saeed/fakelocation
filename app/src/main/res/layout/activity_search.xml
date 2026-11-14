@@ -58,6 +58,15 @@
             app:iconTint="@color/ink_soft" />
     </LinearLayout>
 
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/searchArea"
+        style="@style/Button.Soft"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="16dp"
+        android:minHeight="48dp"
+        android:text="@string/search_this_area" />
+
     <HorizontalScrollView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
@@ -65,15 +74,6 @@
         android:clipToPadding="false"
         android:paddingHorizontal="16dp"
         android:scrollbars="none">
-
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/searchArea"
-            style="@style/Button.Soft"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginHorizontal="16dp"
-            android:minHeight="48dp"
-            android:text="@string/search_this_area" />
 
         <com.google.android.material.chip.ChipGroup
             android:id="@+id/categories"

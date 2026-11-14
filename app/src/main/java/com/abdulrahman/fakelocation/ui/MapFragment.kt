@@ -172,6 +172,7 @@ class MapFragment : Fragment(R.layout.fragment_map) {
 
     override fun onHiddenChanged(hidden: Boolean) {
         super.onHiddenChanged(hidden)
+        if (_binding == null) return
         if (!hidden) applyMapStyle()
         if (hidden) stopRealLocationTracking() else updateRealLocationTracking()
         if (hidden) tripView?.stop() else if (isResumed) tripView?.start()
