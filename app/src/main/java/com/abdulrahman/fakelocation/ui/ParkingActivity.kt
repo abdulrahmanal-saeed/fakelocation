@@ -63,7 +63,12 @@ class ParkingActivity : AppCompatActivity() {
         binding.hoursPlus.setOnClickListener { setHours(hours + 1) }
         binding.zoneInput.doAfterTextChanged { binding.zoneLayout.error = null; renderSms() }
         binding.plateInput.doAfterTextChanged { binding.plateLayout.error = null; renderSms() }
-        binding.payButton.setOnClickListener { begin(paySms = true) }
+        binding.payButton.setOnClickListener {
+            com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
+                .setTitle(R.string.parking_dubai).setMessage(R.string.parking_sms_local)
+                .setNegativeButton(android.R.string.cancel, null)
+                .setPositiveButton(android.R.string.ok) { _, _ -> begin(paySms = true) }.show()
+        }
         binding.timerButton.setOnClickListener { begin(paySms = false) }
         binding.addHourButton.setOnClickListener {
             ParkingAlarms.extend(this, 60)
@@ -180,7 +185,7 @@ class ParkingActivity : AppCompatActivity() {
     private fun begin(paySms: Boolean) {
         val zone = zone()
         val plate = plate()
-        if (!Parking.isZoneCode(zone)) {
+        if (paySms && !Parking.isZoneCode(zone)) {
             binding.zoneLayout.error = getString(R.string.parking_zone_invalid)
             return
         }

@@ -16,6 +16,7 @@ import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import com.abdulrahman.fakelocation.R
 import com.abdulrahman.fakelocation.nav.NavSession
+import com.abdulrahman.fakelocation.nav.RoadReports
 import kotlinx.coroutines.launch
 import java.time.ZonedDateTime
 import kotlin.math.roundToInt
@@ -26,6 +27,7 @@ class CarMapScreen(carContext: CarContext, private val renderer: CarMapRenderer)
     private val navigationManager = carContext.getCarService(NavigationManager::class.java)
     private var hostKnowsNavigating = false
     private var shownKey = ""
+    private var roadAlert: Int? = null
 
     init {
         navigationManager.setNavigationManagerCallback(object : NavigationManagerCallback {
@@ -42,6 +44,14 @@ class CarMapScreen(carContext: CarContext, private val renderer: CarMapRenderer)
         if (s.navigating != hostKnowsNavigating) {
             hostKnowsNavigating = s.navigating
             if (s.navigating) navigationManager.navigationStarted() else navigationManager.navigationEnded()
+        }
+        if (s.roadAlert != roadAlert) {
+            roadAlert = s.roadAlert
+            s.roadAlert?.let { alert ->
+                androidx.car.app.CarToast.makeText(carContext,
+                    carContext.getString(R.string.report_ahead, carContext.getString(alert)),
+                    androidx.car.app.CarToast.LENGTH_SHORT).show()
+            }
         }
         // Only rebuild the template when something on it changes (hosts throttle template updates).
         val p = s.progress
@@ -86,11 +96,14 @@ class CarMapScreen(carContext: CarContext, private val renderer: CarMapRenderer)
                 )
                 .addAction(iconAction(if (s.muted) R.drawable.ic_volume_off else R.drawable.ic_volume) { NavSession.toggleMute() })
                 .addAction(
-                    // While a quicker way is on offer (the voice announces it), this button switches to it.
                     if (s.faster != null) iconAction(R.drawable.ic_clock) { NavSession.acceptFaster() }
                     else iconAction(R.drawable.ic_plus) { screenManager.push(CarCategoriesScreen(carContext)) },
                 )
-                .build(),
+                .apply {
+                    if (RoadReports.configured) addAction(iconAction(R.drawable.ic_road_report) {
+                        screenManager.push(CarReportScreen(carContext))
+                    })
+                }.build(),
         )
 
         val p = s.progress

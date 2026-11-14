@@ -62,6 +62,30 @@ class SettingsFragment : Fragment(R.layout.fragment_settings) {
         requireActivity().onBackPressedDispatcher.addCallback(viewLifecycleOwner, backToList)
 
         binding.backButton.setOnClickListener { open(null) }
+        binding.openFeedback.setOnClickListener {
+            val draft = com.abdulrahman.fakelocation.nav.RoadReports.draft(requireContext())
+            if (draft == null) Feedback.show(this) else MaterialAlertDialogBuilder(requireContext())
+                .setTitle(R.string.report_review_draft)
+                .setMessage(draft.label)
+                .setNegativeButton(R.string.report_dismiss_draft) { _, _ ->
+                    com.abdulrahman.fakelocation.nav.RoadReports.clearDraft(requireContext())
+                }
+                .setPositiveButton(R.string.feedback) { _, _ -> Feedback.show(this) }
+                .show()
+        }
+        binding.openIntro.setOnClickListener { startActivity(Intent(requireContext(), IntroActivity::class.java)) }
+        binding.openPlus.isVisible = com.abdulrahman.fakelocation.BuildConfig.PLAY_BUILD
+        binding.openPlus.setOnClickListener { startActivity(Intent(requireContext(), PlusActivity::class.java)) }
+        binding.openAccount.setOnClickListener { startActivity(Intent(requireContext(), AccountActivity::class.java)) }
+        binding.speedOptions.setOnClickListener {
+            MaterialAlertDialogBuilder(requireContext()).setTitle(R.string.road_speed_settings)
+                .setMultiChoiceItems(
+                    arrayOf(getString(R.string.speed_alerts), getString(R.string.speed_unit_setting)),
+                    booleanArrayOf(prefs.soundOnSpeeding, prefs.speedInMph),
+                ) { _, index, checked ->
+                    if (index == 0) prefs.soundOnSpeeding = checked else prefs.speedInMph = checked
+                }.setPositiveButton(android.R.string.ok, null).show()
+        }
         binding.openAlerts.setOnClickListener { open(Page.ALERTS) }
         binding.openMovement.setOnClickListener { open(Page.MOVEMENT) }
         binding.openLanes.setOnClickListener { open(Page.LANES) }
@@ -71,7 +95,11 @@ class SettingsFragment : Fragment(R.layout.fragment_settings) {
         binding.openBackup.setOnClickListener { open(Page.BACKUP) }
         binding.openDriveLog.setOnClickListener { startActivity(android.content.Intent(requireContext(), DriveLogActivity::class.java)) }
         binding.whatsNewRow.setOnClickListener { WhatsNew.show(requireActivity()) }
-        binding.updateRow.setOnClickListener { checkForUpdate() }
+        binding.updateRow.setOnClickListener {
+            if (com.abdulrahman.fakelocation.BuildConfig.PLAY_BUILD) {
+                startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://play.google.com/store/apps/details?id=" + requireContext().packageName)))
+            } else checkForUpdate()
+        }
         binding.themeRow.setOnClickListener {
             val themes = listOf(Prefs.THEME_SYSTEM, Prefs.THEME_LIGHT, Prefs.THEME_DARK)
             MaterialAlertDialogBuilder(requireContext())

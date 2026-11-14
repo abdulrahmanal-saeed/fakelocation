@@ -37,6 +37,8 @@ class SearchActivity : AppCompatActivity() {
     private lateinit var binding: ActivitySearchBinding
     private lateinit var prefs: Prefs
     private var searchJob: Job? = null
+    private var worldwide = false
+    private var selectedCity: Place? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -47,6 +49,7 @@ class SearchActivity : AppCompatActivity() {
         prefs = Prefs(this)
 
         binding.backButton.setOnClickListener { finish() }
+        binding.searchArea.setOnClickListener { chooseSearchArea() }
         binding.clearButton.setOnClickListener { binding.searchInput.text = null }
         binding.searchInput.doAfterTextChanged { onQueryChanged(it?.toString().orEmpty(), immediate = false) }
         binding.searchInput.setOnEditorActionListener { view, actionId, _ ->
@@ -104,7 +107,11 @@ class SearchActivity : AppCompatActivity() {
         binding.quickSection.isVisible = false
         binding.recentSection.isVisible = false
         binding.resultsTitle.text = getString(R.string.nearby_title, getString(category.label))
-        val center = nearPoint() ?: LatLon.HOME_REGION
+        val center = selectedCity?.position ?: nearPoint()
+        if (center == null) {
+            chooseSearchArea()
+            return
+        }
         searchJob = lifecycleScope.launch {
             showStatus(R.string.searching)
             runCatching { NearbySearch.find(this@SearchActivity, category, center) }
@@ -150,13 +157,18 @@ class SearchActivity : AppCompatActivity() {
             return
         }
         val isLink = LocationText.extractUrl(query) != null || query.startsWith("geo:")
-        if (!isLink && query.length < 2) return
+        if (!isLink && (query.length < 2 || (!immediate && !PlaceSearch.supportsLiveSearch(this)))) {
+            showStatus(R.string.search_confirm)
+            return
+        }
 
         searchJob = lifecycleScope.launch {
             if (!immediate && !isLink) delay(SEARCH_DELAY_MS)
             showStatus(if (isLink) R.string.reading_link else R.string.searching)
             val results = runCatching {
-                if (isLink) listOfNotNull(MapsLinkResolver.resolve(query)) else PlaceSearch.search(this@SearchActivity, query, nearPoint())
+                if (isLink) listOfNotNull(MapsLinkResolver.resolve(query)) else PlaceSearch.search(
+                    this@SearchActivity, query, if (worldwide) null else selectedCity?.position ?: nearPoint(), immediate,
+                )
             }
             results.onSuccess { places ->
                 if (places.isEmpty()) showStatus(if (isLink) R.string.link_failed else R.string.no_results) else showResults(places)
@@ -164,6 +176,51 @@ class SearchActivity : AppCompatActivity() {
                 showError(it)
             }
         }
+    }
+
+    private fun chooseSearchArea() {
+        com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
+            .setItems(arrayOf(
+                getString(R.string.search_this_area), getString(R.string.search_worldwide), getString(R.string.search_choose_city),
+            )) { _, which ->
+                when (which) {
+                    0 -> setSearchArea(false, null)
+                    1 -> setSearchArea(true, null)
+                    2 -> chooseCity()
+                }
+            }.show()
+    }
+
+    private fun chooseCity() {
+        val input = android.widget.EditText(this).apply {
+            hint = getString(R.string.search_city_hint)
+            isSingleLine = true
+        }
+        com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
+            .setTitle(R.string.search_city_title).setView(input)
+            .setNegativeButton(android.R.string.cancel, null)
+            .setPositiveButton(android.R.string.search_go) { _, _ ->
+                val query = input.text.toString().trim()
+                if (query.length < 2) return@setPositiveButton
+                lifecycleScope.launch {
+                    runCatching { PlaceSearch.search(this@SearchActivity, query, null) }
+                        .onSuccess { results ->
+                            if (results.isEmpty()) toast(R.string.search_city_not_found)
+                            else com.google.android.material.dialog.MaterialAlertDialogBuilder(this@SearchActivity)
+                                .setTitle(R.string.search_choose_city)
+                                .setItems(results.map { listOfNotNull(it.name, it.address).joinToString(", ") }.toTypedArray()) { _, i ->
+                                    setSearchArea(false, results[i])
+                                }.show()
+                        }.onFailure { showError(it) }
+                }
+            }.show()
+    }
+
+    private fun setSearchArea(world: Boolean, city: Place?) {
+        worldwide = world
+        selectedCity = city
+        binding.searchArea.text = city?.name ?: getString(if (world) R.string.search_worldwide else R.string.search_this_area)
+        onQueryChanged(binding.searchInput.text.toString(), immediate = true)
     }
 
     private fun showError(error: Throwable) {

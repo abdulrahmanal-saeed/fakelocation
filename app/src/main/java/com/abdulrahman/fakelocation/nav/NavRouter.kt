@@ -7,6 +7,7 @@ import com.abdulrahman.fakelocation.data.Prefs
 import com.abdulrahman.fakelocation.data.TravelMode
 import com.abdulrahman.fakelocation.drive.Tolls
 import com.abdulrahman.fakelocation.geo.Http
+import com.abdulrahman.fakelocation.geo.MapLocale
 import com.abdulrahman.fakelocation.geo.HttpException
 import com.abdulrahman.fakelocation.geo.NoInternetException
 import com.abdulrahman.fakelocation.geo.RoutingServers
@@ -56,7 +57,7 @@ object NavRouter {
         val stops = listOf(from) + via + to
         val alt = alternatives && via.isEmpty()
         val carAvoid = if (mode == TravelMode.CAR) avoid else Avoid()
-        if (prefs.useGoogleRoutes && prefs.hasGoogleKey) {
+        if (prefs.useGoogleRoutes && prefs.hasGoogleKey && prefs.mapProvider.isGoogle) {
             try {
                 return@withContext distinct(google(GoogleApi(context), stops, mode, carAvoid, alt))
             } catch (e: Exception) {
@@ -64,27 +65,16 @@ object NavRouter {
             }
         }
         val valhallaUrls = RoutingServers.valhalla(prefs.valhallaServer)
-        if (carAvoid.any) {
-            try {
-                return@withContext distinct(valhalla(valhallaUrls, stops, carAvoid, mode, alt))
-            } catch (e: NoInternetException) {
-                throw e
-            } catch (e: Exception) {
-                Log.w("NavRouter", "Valhalla route failed, using OSRM", e)
-            }
+        val language = if (MapLocale.from(context).language == "ar") "ar-SA" else "en-US"
+        try {
+            distinct(valhalla(valhallaUrls, stops, carAvoid, mode, alt, language))
+        } catch (error: NoInternetException) {
+            throw error
+        } catch (error: Exception) {
+            if (error is kotlinx.coroutines.CancellationException || carAvoid.any) throw error
+            Log.w("NavRouter", "Valhalla route failed, using OSRM", error)
+            distinct(osrm(RoutingServers.osrm(prefs.osrmServer, mode), stops, alt))
         }
-        distinct(
-            try {
-                osrm(RoutingServers.osrm(prefs.osrmServer, mode), stops, alt)
-            } catch (e: NoInternetException) {
-                throw e
-            } catch (e: Exception) {
-                // Every OSRM server failed: Valhalla knows the same roads.
-                Log.w("NavRouter", "OSRM route failed, using Valhalla", e)
-                if (carAvoid.any) throw e // Valhalla was just tried
-                valhalla(valhallaUrls, stops, Avoid(), mode, alt)
-            }
-        )
     }
 
     /** Other ways that are really the same (within 1 % in length and time) are left out; at most three. */
@@ -179,28 +169,35 @@ object NavRouter {
 
     // region Valhalla (OpenStreetMap, can avoid tolls and highways)
 
-    private fun valhalla(urls: List<String>, stops: List<LatLon>, avoid: Avoid, mode: TravelMode, alternatives: Boolean): List<NavRoute> {
+    private fun valhalla(urls: List<String>, stops: List<LatLon>, avoid: Avoid, mode: TravelMode, alternatives: Boolean, language: String): List<NavRoute> {
         val costing = if (mode == TravelMode.CAR) "auto" else "pedestrian"
-        fun body(excludeGates: Boolean): JSONObject {
+        fun body(excludeGates: Boolean, languageCode: String): JSONObject {
             val options = JSONObject()
             if (avoid.highways) options.put("use_highways", 0.0)
             if (avoid.tolls) options.put("use_tolls", 0.0)
             val json = JSONObject()
                 .put("locations", JSONArray(stops.map { JSONObject().put("lat", it.lat).put("lon", it.lon).put("type", "break") }))
                 .put("costing", costing)
-                .put("directions_options", JSONObject().put("units", "kilometers").put("language", "en-US"))
+                .put("units", "kilometers").put("language", languageCode)
             if (options.length() > 0) json.put("costing_options", JSONObject().put(costing, options))
             if (alternatives) json.put("alternates", 2)
             // Salik/Darb gates aren't always tagged as toll roads, so block the gates themselves.
-            if (excludeGates) json.put("exclude_locations", JSONArray(Tolls.GATES.flatMap { it.points }.map { JSONObject().put("lat", it.lat).put("lon", it.lon) }))
+            if (excludeGates) json.put("exclude_locations", JSONArray(Tolls.GATES.flatMap { it.points }.filter { gate ->
+                stops.any { com.abdulrahman.fakelocation.data.distanceMeters(it, gate) <= 100_000 }
+            }.map { JSONObject().put("lat", it.lat).put("lon", it.lon) }))
             return json
         }
         return firstAnswer(urls) { url ->
+            fun request(languageCode: String): String = try {
+                post(url, body(excludeGates = avoid.tolls, languageCode = languageCode))
+            } catch (error: HttpException) {
+                if (avoid.tolls) post(url, body(excludeGates = false, languageCode = languageCode)) else throw error
+            }
             val response = try {
-                post(url, body(excludeGates = avoid.tolls))
-            } catch (e: HttpException) {
-                // No way around the gates (e.g. onto Abu Dhabi island): avoid tolls as much as possible instead.
-                if (avoid.tolls) post(url, body(excludeGates = false)) else throw e
+                request(language)
+            } catch (error: HttpException) {
+                if (language == "en-US") throw error
+                request("en-US")
             }
             parseValhallaAll(JSONObject(response))
         }
@@ -290,7 +287,7 @@ object NavRouter {
             .put("origin", waypoint(stops.first()))
             .put("destination", waypoint(stops.last()))
             .put("travelMode", if (mode == TravelMode.CAR) "DRIVE" else "WALK")
-            .put("languageCode", "en")
+            .put("languageCode", api.locale.language)
         if (stops.size > 2) body.put("intermediates", JSONArray(stops.subList(1, stops.size - 1).map(::waypoint)))
         if (mode == TravelMode.CAR) {
             body.put("routingPreference", "TRAFFIC_AWARE")

@@ -265,8 +265,16 @@ class CarMapRenderer(private val carContext: CarContext, private val owner: Life
             val r = 26 * scale
             val x = area.left + r + 16 * scale
             val y = area.bottom - r - 16 * scale
-            sign(canvas, x, y, r, state.speedKmh.toString(), if (state.speeding) ContextCompat.getColor(carContext, R.color.limit_red) else 0xFF0F1B2D.toInt(), null, scale)
-            if (state.limitKmh > 0) sign(canvas, x + 2 * r + 10 * scale, y, r, state.limitKmh.toString(), 0xFF0F1B2D.toInt(), ContextCompat.getColor(carContext, R.color.limit_red), scale)
+            val mph = Prefs(carContext).speedInMph
+            val unknown = carContext.getString(R.string.limit_unknown)
+            val speed = if (state.gpsLost || state.fixId == 0L) unknown else
+                com.abdulrahman.fakelocation.nav.SpeedDisplay.number(state.speedKmh, mph)
+            val limit = if (state.limitKmh == 0 || state.gpsLost) unknown else
+                com.abdulrahman.fakelocation.nav.SpeedDisplay.number(state.limitKmh, mph)
+            val red = ContextCompat.getColor(carContext, R.color.limit_red)
+            val ink = 0xFF0F1B2D.toInt()
+            sign(canvas, x, y, r, speed, if (state.speeding) red else ink, null, scale)
+            sign(canvas, x + 2 * r + 10 * scale, y, r, limit, ink, red, scale)
         }
     }
 

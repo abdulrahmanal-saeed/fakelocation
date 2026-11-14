@@ -39,6 +39,25 @@ class RoadInfoTest {
     }
 
     @Test
+    fun choosesTheLimitForTheDirectionOfTravel() {
+        val points = route.points.subList(0, 30)
+        val opposite = MappedWay(0, points.reversed(), limitForward = 100, limitBackward = 60)
+        assertEquals(60, RoadInfoFetcher.assignLimits(route, listOf(opposite))[5])
+        val oneWay = opposite.copy(travelDirection = 1)
+        assertEquals(0, RoadInfoFetcher.assignLimits(route, listOf(oneWay))[5])
+    }
+
+    @Test
+    fun doesNotBorrowLimitFromNearbyParallelRoad() {
+        val points = route.points.subList(0, 30)
+        val actual = MappedWay(0, points)
+        val parallel = MappedWay(110, points.map { LatLon(it.lat + 0.00004, it.lon) })
+        assertEquals(0, RoadInfoFetcher.assignLimits(route, listOf(parallel, actual))[5])
+        val conditional = actual.copy(limitKmh = 90, conditionalForward = true)
+        assertEquals(0, RoadInfoFetcher.assignLimits(route, listOf(conditional))[5])
+    }
+
+    @Test
     fun camerasOnTheRoute() {
         val onRoute = route.points[100]
         val offRoute = LatLon(onRoute.lat + 0.01, onRoute.lon)

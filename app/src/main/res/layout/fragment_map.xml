@@ -206,45 +206,51 @@
             android:visibility="gone" />
     </LinearLayout>
 
-    <com.google.android.material.button.MaterialButton
-        android:id="@+id/navigateButton"
-        style="@style/MapFab"
-        android:layout_width="52dp"
-        android:layout_height="52dp"
+
+
+    <LinearLayout
+        android:id="@+id/mapActions"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
         android:layout_marginEnd="16dp"
         android:layout_marginBottom="12dp"
-        android:contentDescription="@string/nav_open"
-        app:backgroundTint="@color/real"
-        app:icon="@drawable/ic_navigate"
-        app:iconTint="@color/white"
-        app:layout_constraintBottom_toTopOf="@id/myLocationButton"
-        app:layout_constraintEnd_toEndOf="parent" />
-
-    <com.google.android.material.button.MaterialButton
-        android:id="@+id/parkingButton"
-        style="@style/MapFab"
-        android:layout_width="52dp"
-        android:layout_height="52dp"
-        android:layout_marginEnd="16dp"
-        android:layout_marginBottom="12dp"
-        android:contentDescription="@string/parking_title"
-        app:icon="@drawable/ic_parking"
-        app:iconTint="@color/nav_blue"
-        app:layout_constraintBottom_toTopOf="@id/navigateButton"
-        app:layout_constraintEnd_toEndOf="parent" />
-
-    <com.google.android.material.button.MaterialButton
-        android:id="@+id/myLocationButton"
-        style="@style/MapFab"
-        android:layout_width="52dp"
-        android:layout_height="52dp"
-        android:layout_marginEnd="16dp"
-        android:layout_marginBottom="14dp"
-        android:contentDescription="@string/my_location"
-        app:icon="@drawable/ic_my_location"
-        app:iconTint="@color/real"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
         app:layout_constraintBottom_toTopOf="@id/bottomCard"
-        app:layout_constraintEnd_toEndOf="parent" />
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/navigateButton"
+            style="@style/Button.Soft"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="6dp"
+            android:minHeight="48dp"
+            android:text="@string/navigation_action"
+            android:textColor="@color/real"
+            app:icon="@drawable/ic_navigate"
+            app:iconTint="@color/real" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/parkingButton"
+            style="@style/MapFab"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:layout_marginEnd="6dp"
+            android:contentDescription="@string/parking_title"
+            app:icon="@drawable/ic_parking"
+            app:iconTint="@color/nav_blue" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/myLocationButton"
+            style="@style/MapFab"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:contentDescription="@string/my_location"
+            app:icon="@drawable/ic_my_location"
+            app:iconTint="@color/real" />
+
+    </LinearLayout>
 
     <TextView
         android:id="@+id/mapCredit"
@@ -257,7 +263,7 @@
         android:paddingHorizontal="4dp"
         android:text="@string/map_credit"
         android:textSize="11sp"
-        app:layout_constraintBottom_toTopOf="@id/bottomCard"
+        app:layout_constraintBottom_toTopOf="@id/mapActions"
         app:layout_constraintStart_toStartOf="parent" />
 
     <LinearLayout
@@ -327,7 +333,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginEnd="5dp"
                     android:layout_weight="1"
-                    android:text="@string/teleport"
+                    android:text="@string/simulation_action"
                     app:icon="@drawable/ic_pin" />
 
                 <com.google.android.material.button.MaterialButton

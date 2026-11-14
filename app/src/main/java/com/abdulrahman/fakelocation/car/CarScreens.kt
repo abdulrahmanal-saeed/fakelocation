@@ -80,7 +80,9 @@ class CarSearchScreen(carContext: CarContext) : Screen(carContext) {
 
     override fun onGetTemplate(): Template {
         val builder = SearchTemplate.Builder(object : SearchTemplate.SearchCallback {
-            override fun onSearchTextChanged(searchText: String) = search(searchText, 600)
+            override fun onSearchTextChanged(searchText: String) {
+                if (searchText.isBlank() || PlaceSearch.supportsLiveSearch(carContext)) search(searchText, 600)
+            }
             override fun onSearchSubmitted(searchText: String) = search(searchText, 0)
         })
             .setHeaderAction(Action.BACK)
@@ -102,7 +104,7 @@ class CarSearchScreen(carContext: CarContext) : Screen(carContext) {
             delay(debounceMs)
             loading = true
             invalidate()
-            results = runCatching { PlaceSearch.search(carContext, query, here()) }
+            results = runCatching { PlaceSearch.search(carContext, query, here(), submitted = debounceMs == 0L) }
                 .onFailure { Log.w(TAG, "car search failed", it) }
                 .getOrDefault(emptyList())
             loading = false
@@ -253,8 +255,9 @@ class CarPreviewScreen(carContext: CarContext, private val place: Place) : Scree
             .setItemList(ItemList.Builder().addItem(row.build()).setSelectedIndex(0).setOnSelectedListener { }.build())
             .setNavigateAction(
                 Action.Builder().setTitle(carContext.getString(R.string.car_start)).setOnClickListener {
-                    NavSession.start()
-                    screenManager.popToRoot()
+                    if (NavSession.start()) screenManager.popToRoot()
+                    else androidx.car.app.CarToast.makeText(carContext, carContext.getString(R.string.plus_dual_required),
+                        androidx.car.app.CarToast.LENGTH_LONG).show()
                 }.build(),
             )
             .build()

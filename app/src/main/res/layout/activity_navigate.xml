@@ -591,6 +591,19 @@
 
     <!-- Google's live traffic on the map (only with a Google key). -->
     <com.google.android.material.button.MaterialButton
+        android:id="@+id/reportFab"
+        style="@style/MapFab"
+        android:layout_width="52dp"
+        android:layout_height="52dp"
+        android:layout_marginStart="16dp"
+        android:layout_marginBottom="12dp"
+        android:contentDescription="@string/report_road"
+        android:visibility="gone"
+        app:icon="@drawable/ic_road_report"
+        app:layout_constraintBottom_toTopOf="@id/trafficFab"
+        app:layout_constraintStart_toStartOf="parent" />
+
+    <com.google.android.material.button.MaterialButton
         android:id="@+id/trafficFab"
         style="@style/MapFab"
         android:layout_width="52dp"

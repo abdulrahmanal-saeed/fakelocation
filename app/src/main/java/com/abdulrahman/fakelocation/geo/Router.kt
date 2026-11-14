@@ -28,7 +28,7 @@ object Router {
     /** Google (with live traffic) when chosen in Settings, otherwise, or if Google fails, OpenStreetMap. */
     suspend fun route(context: Context, stops: List<LatLon>, mode: TravelMode): RoutePath = withContext(Dispatchers.IO) {
         val prefs = Prefs(context)
-        if (prefs.useGoogleRoutes && prefs.hasGoogleKey) {
+        if (prefs.useGoogleRoutes && prefs.hasGoogleKey && prefs.mapProvider.isGoogle) {
             try {
                 return@withContext GoogleRoutes.route(GoogleApi(context), stops, mode)
             } catch (e: Exception) {

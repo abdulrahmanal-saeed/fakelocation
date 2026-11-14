@@ -23,6 +23,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
 import com.abdulrahman.fakelocation.R
+import com.abdulrahman.fakelocation.nav.RoadReports
 import com.abdulrahman.fakelocation.data.LatLon
 import com.abdulrahman.fakelocation.data.MapProvider
 import com.abdulrahman.fakelocation.data.Place
@@ -90,6 +91,13 @@ class NavigateActivity : AppCompatActivity() {
     private var askedCamera = false
     private var shownStops: Pair<List<Place>, Int>? = null
 
+    private val requestLocation = registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { grants ->
+        if (grants[android.Manifest.permission.ACCESS_FINE_LOCATION] == true) {
+            NavSession.acquire()
+            NavSession.release()
+        } else toast(R.string.nav_location_needed)
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         // At night the cards go dark with the map, whatever the app's theme (see applyNight).
         cardsNight = isNightNow(NavSession.state.value)
@@ -102,6 +110,9 @@ class NavigateActivity : AppCompatActivity() {
         setupMap(savedInstanceState)
         setupControls()
         if (savedInstanceState == null) {
+            if (!hasLocationPermission()) {
+                requestLocation.launch(arrayOf(android.Manifest.permission.ACCESS_FINE_LOCATION, android.Manifest.permission.ACCESS_COARSE_LOCATION))
+            }
             intent.getStringExtra(EXTRA_TO_NAME)?.let { name ->
                 NavSession.setDestination(Place(LatLon(intent.getDoubleExtra(EXTRA_TO_LAT, 0.0), intent.getDoubleExtra(EXTRA_TO_LON, 0.0)), name))
             }
@@ -194,7 +205,7 @@ class NavigateActivity : AppCompatActivity() {
     private fun createMap(savedInstanceState: Bundle?): NavMap {
         val prefs = Prefs(this)
         val start = prefs.lastRealLocation ?: LatLon.HOME_REGION
-        if (prefs.vectorNavMap && !vectorFailed) {
+        if (prefs.vectorNavMap && !vectorFailed && !(prefs.hasGoogleKey && prefs.mapProvider.isGoogle)) {
             try {
                 val vector = VectorNavMap(this, lifecycleScope, start, savedInstanceState) { message ->
                     runOnUiThread { fallBackToClassic(message) }
@@ -265,7 +276,7 @@ class NavigateActivity : AppCompatActivity() {
         }
         binding.mainButton.setOnClickListener {
             navMap.follow = true
-            NavSession.start()
+            withDualModeAccess(MockState.isFaking) { NavSession.start() }
         }
         binding.endButton.setOnClickListener {
             NavSession.stop()
@@ -283,6 +294,7 @@ class NavigateActivity : AppCompatActivity() {
         }
         binding.workButton.setOnLongClickListener { pickWork.launch(Intent(this, SearchActivity::class.java)); true }
         binding.shareFab.setOnClickListener { shareEta(NavSession.state.value) }
+        binding.reportFab.setOnClickListener { roadReportMenu() }
         binding.trafficFab.setOnClickListener {
             val prefs = Prefs(this)
             prefs.trafficOnMap = !prefs.trafficOnMap
@@ -300,11 +312,70 @@ class NavigateActivity : AppCompatActivity() {
         startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, text), getString(R.string.nav_share_eta)))
     }
 
+    private fun roadReportMenu() {
+        val kinds = RoadReports.Kind.entries
+        val fix = RoadReports.fix(NavSession.state.value)
+        lifecycleScope.launch {
+            val nearby = try {
+                if (fix == null) emptyList() else RoadReports.nearby(this@NavigateActivity, fix)
+            } catch (error: kotlinx.coroutines.CancellationException) {
+                throw error
+            } catch (_: Exception) { emptyList() }
+            if (!NavSession.state.value.navigating || isFinishing) return@launch
+            val incident = nearby.firstOrNull()
+            val labels = kinds.map { getString(it.label) }.toMutableList()
+            if (incident != null) labels += getString(incident.kind.label) + " · " + getString(R.string.report_prompt)
+            com.google.android.material.dialog.MaterialAlertDialogBuilder(this@NavigateActivity)
+                .setTitle(R.string.report_road)
+                .setItems(labels.toTypedArray()) { _, which ->
+                    if (which < kinds.size) submitRoadReport(kinds[which])
+                    else if (incident != null) voteRoadReport(incident)
+                }.show()
+        }
+    }
+
+    private fun submitRoadReport(kind: RoadReports.Kind) {
+        lifecycleScope.launch {
+            try {
+                val result = RoadReports.submit(this@NavigateActivity, kind, RoadReports.fix(NavSession.state.value))
+                toast(when (result) {
+                    RoadReports.Result.SENT -> R.string.report_saved
+                    RoadReports.Result.DRAFT -> R.string.report_saved_draft
+                    RoadReports.Result.SIGN_IN -> R.string.report_login
+                })
+            } catch (error: kotlinx.coroutines.CancellationException) {
+                throw error
+            } catch (_: Exception) { toast(R.string.account_failure) }
+        }
+    }
+
+    private fun voteRoadReport(incident: RoadReports.Incident) {
+        val votes = if (incident.confirmed) listOf("present", "gone", "abuse") else listOf("present", "abuse")
+        val labels = votes.map { when (it) {
+            "present" -> R.string.report_vote_present
+            "gone" -> R.string.report_vote_gone
+            else -> R.string.report_flag
+        } }
+        com.google.android.material.dialog.MaterialAlertDialogBuilder(this).setTitle(incident.kind.label)
+            .setItems(labels.map(::getString).toTypedArray()) { _, which ->
+                val fix = RoadReports.fix(NavSession.state.value) ?: return@setItems
+                lifecycleScope.launch {
+                    try {
+                        RoadReports.vote(this@NavigateActivity, fix, incident.id, votes[which])
+                        toast(R.string.report_saved)
+                    } catch (error: kotlinx.coroutines.CancellationException) {
+                        throw error
+                    } catch (_: Exception) { toast(R.string.account_failure) }
+                }
+            }.show()
+    }
+
     /** Live traffic over the map: with a Google key, on unless turned off with the button (remembered). */
     private fun applyTraffic() {
         val prefs = Prefs(this)
-        binding.trafficFab.isVisible = prefs.hasGoogleKey
-        val on = prefs.hasGoogleKey && prefs.trafficOnMap
+        val googleMap = prefs.hasGoogleKey && prefs.mapProvider.isGoogle
+        binding.trafficFab.isVisible = googleMap
+        val on = googleMap && prefs.trafficOnMap
         binding.trafficFab.setIconTintResource(if (on) R.color.real else R.color.muted)
         androidx.core.view.ViewCompat.setStateDescription(binding.trafficFab, getString(if (on) R.string.tile_on else R.string.tile_off))
         navMap.setTraffic(on)
@@ -415,7 +486,7 @@ class NavigateActivity : AppCompatActivity() {
                 val millis = (r.durationSeconds * 1000).toLong()
                 binding.etaText.text = getString(R.string.nav_eta, formatDuration(millis), clockText(System.currentTimeMillis() + millis))
                 val distance = formatDistance(r.distanceMeters)
-                binding.summaryText.text = if (r.trafficAware) getString(R.string.nav_traffic, distance) else distance
+                binding.summaryText.text = if (r.trafficAware) getString(R.string.nav_traffic, distance) else listOf(distance, getString(R.string.traffic_unavailable)).joinToString("  ·  ")
             }
         }
         val cost = if (r != null && s.mode == TravelMode.CAR && s.status == NavSession.Status.PREVIEW) costLine(s) else null
@@ -426,11 +497,12 @@ class NavigateActivity : AppCompatActivity() {
     private fun renderDriving(s: NavSession.State) {
         val p = s.progress
         val parking = s.parkingNearby?.takeIf { p?.arrived == true }
-        binding.banner.isVisible = s.rerouting || s.gpsLost || s.toStartMeters > 0 || parking != null
+        binding.banner.isVisible = s.rerouting || s.gpsLost || s.toStartMeters > 0 || parking != null || s.roadAlert != null
         binding.banner.text = when {
             s.rerouting -> getString(R.string.nav_rerouting)
             s.gpsLost -> getString(R.string.nav_gps_lost)
             s.toStartMeters > 0 -> getString(R.string.nav_go_to_start, formatDistance(s.toStartMeters))
+            s.roadAlert != null -> getString(R.string.report_ahead, getString(s.roadAlert))
             parking != null -> getString(
                 R.string.nav_parking_nearby, parking.name ?: getString(R.string.cat_parking),
                 s.real?.let { formatDistance(distanceMeters(it, parking.position)) }.orEmpty(),
@@ -440,11 +512,20 @@ class NavigateActivity : AppCompatActivity() {
         // Arrived by car: tap the banner to drive on to the nearest parking.
         binding.banner.setOnClickListener(if (parking != null && !s.rerouting) View.OnClickListener { NavSession.setDestination(parking) } else null)
         binding.banner.isClickable = parking != null && !s.rerouting
+        binding.reportFab.isVisible = s.navigating && s.mode == TravelMode.CAR && RoadReports.configured
         binding.speedRow.isVisible = s.mode == TravelMode.CAR
-        binding.mySpeed.text = s.speedKmh.toString()
+        val mph = Prefs(this).speedInMph
+        val speed = if (s.gpsLost || s.fixId == 0L) getString(R.string.limit_unknown)
+            else com.abdulrahman.fakelocation.nav.SpeedDisplay.number(s.speedKmh, mph)
+        val limit = if (s.limitKmh > 0 && !s.gpsLost) com.abdulrahman.fakelocation.nav.SpeedDisplay.number(s.limitKmh, mph)
+            else getString(R.string.limit_unknown)
+        val unit = getString(if (mph) R.string.speed_units_mph else R.string.speed_units_kmh)
+        binding.mySpeed.text = if (s.gpsLost) speed else getString(R.string.speed_with_unit, speed, unit)
+        binding.mySpeed.contentDescription = getString(R.string.actual_speed, "$speed $unit")
         binding.mySpeed.setTextColor(ContextCompat.getColor(this, if (s.speeding) R.color.limit_red else R.color.ink))
-        binding.speedLimit.isVisible = s.limitKmh > 0
-        binding.speedLimit.text = s.limitKmh.toString()
+        binding.speedLimit.isVisible = true
+        binding.speedLimit.text = limit
+        binding.speedLimit.contentDescription = getString(R.string.road_speed_limit, "$limit $unit")
         binding.cameraChip.isVisible = s.cameraMeters != null
         binding.cameraChip.text = s.cameraMeters?.let { formatDistance(it) }
         binding.lightChip.isVisible = s.lightMeters != null
@@ -551,9 +632,12 @@ class NavigateActivity : AppCompatActivity() {
 
     /** "Fuel ≈ AED 3.10 · Salik AED 10 (2 gates)". */
     private fun costLine(s: NavSession.State): String {
-        val parts = mutableListOf(getString(R.string.nav_cost_fuel, Fuel.aed(s.fuelCostAed)))
+        val parts = mutableListOf<String>()
+        if (s.route?.points?.any { it.lat in 22.5..26.2 && it.lon in 51.4..56.4 } == true) {
+            parts += getString(R.string.nav_cost_fuel, Fuel.aed(s.fuelCostAed))
+        }
         if (s.tolls.isEmpty()) {
-            parts += getString(R.string.nav_cost_no_tolls)
+            parts += getString(R.string.nav_cost_unknown_tolls)
         } else {
             s.tolls.groupBy { it.gate.system }.forEach { (system, passes) ->
                 val sum = Fuel.aed(Tolls.total(passes)).replace(".00", "")

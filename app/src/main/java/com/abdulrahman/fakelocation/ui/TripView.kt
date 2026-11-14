@@ -231,7 +231,7 @@ class TripView(private val binding: FragmentMapBinding) : Choreographer.FrameCal
         binding.speedStat.setOnClickListener { chooseSpeed(trip.speed) }
         when (p.phase) {
             TripPhase.MOVING -> stats(
-                R.string.stat_speed to context.getString(R.string.kmh, (p.speedMps * 3.6f).roundToInt()),
+                R.string.stat_speed to if (trip.paused) context.getString(R.string.paused_status) else context.getString(R.string.kmh, (p.speedMps * 3.6f).roundToInt()),
                 R.string.stat_done to formatDistance(p.distanceDone),
                 lastLetter to arriveLast,
             )
@@ -255,6 +255,7 @@ class TripView(private val binding: FragmentMapBinding) : Choreographer.FrameCal
             p.phase == TripPhase.WAITING && trip.beforeLeaveMs > 0 &&
                 trip.timeline.leave[p.stopIndex] - trip.timeline.arrive[p.stopIndex] > trip.beforeLeaveMs ->
                 context.getString(R.string.hint_leave_alarm, (trip.beforeLeaveMs / 60_000).toInt())
+            trip.beforeArriveMs < 60_000 -> context.getString(R.string.trip_alarm_at_stop, stopLetter(trip.nextStop ?: stops.lastIndex))
             else -> context.getString(
                 R.string.hint_alarm_before, (trip.beforeArriveMs / 60_000).toInt(),
                 stopLetter(trip.nextStop ?: stops.lastIndex)

@@ -1,5 +1,7 @@
 package com.abdulrahman.fakelocation.mock
 
+import com.abdulrahman.fakelocation.nav.NavSession
+import com.abdulrahman.fakelocation.plus.PlusAccess
 import android.app.Notification
 import android.content.Context
 import android.content.Intent
@@ -388,6 +390,7 @@ class MockLocationService : LifecycleService() {
         session = null
         prefs.activeSession = null
         MockState.set(null)
+        PlusAccess.endWhenInactive(this)
         ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE)
         refreshSurfaces(force = true)
         stopSelf()
@@ -448,7 +451,15 @@ class MockLocationService : LifecycleService() {
         private const val ACTION_SET_SPEED = "set_speed"
         private const val EXTRA_SPEED = "speed"
 
+        private fun allowSimulation(context: Context): Boolean {
+            val nav = NavSession.state.value
+            if (!nav.navigating || nav.progress?.arrived == true || PlusAccess.mayUseBoth(context)) return true
+            android.widget.Toast.makeText(context, R.string.plus_simulation_blocked, android.widget.Toast.LENGTH_LONG).show()
+            return false
+        }
+
         fun teleport(context: Context, target: LatLon, name: String?) {
+            if (!allowSimulation(context)) return
             val intent = Intent(context, MockLocationService::class.java)
                 .setAction(ACTION_TELEPORT)
                 .putExtra(EXTRA_LAT, target.lat)
@@ -458,6 +469,7 @@ class MockLocationService : LifecycleService() {
         }
 
         fun startTrip(context: Context, route: Route, startAt: Long) {
+            if (!allowSimulation(context)) return
             val intent = Intent(context, MockLocationService::class.java)
                 .setAction(ACTION_START_TRIP)
                 .putExtra(EXTRA_ROUTE, RouteJson.write(route).toString())

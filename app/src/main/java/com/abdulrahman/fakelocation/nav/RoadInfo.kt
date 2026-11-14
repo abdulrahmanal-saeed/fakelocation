@@ -85,7 +85,19 @@ data class MappedWay(
     /** Number of lanes each way (0 = unknown). */
     val countForward: Int = 0,
     val countBackward: Int = 0,
-)
+    val limitForward: Int? = null,
+    val limitBackward: Int? = null,
+    val travelDirection: Int = 0,
+    val conditionalForward: Boolean = false,
+    val conditionalBackward: Boolean = false,
+) {
+    fun limitInDirection(forward: Boolean): Int = when {
+        forward && (travelDirection < 0 || conditionalForward) -> 0
+        !forward && (travelDirection > 0 || conditionalBackward) -> 0
+        forward -> limitForward ?: limitKmh
+        else -> limitBackward ?: limitKmh
+    }
+}
 
 /**
  * Looks up speed limits, cameras, gantries and lanes along a route from OpenStreetMap (Overpass API).
@@ -108,7 +120,7 @@ object RoadInfoFetcher {
         }
         val coords = line.joinToString(",") { String.format(Locale.US, "%.6f,%.6f", it.lat, it.lon) }
         val query = "[out:json][timeout:40];(" +
-            "way(around:20,$coords)[highway][~\"^(maxspeed|lanes(:forward|:backward)?|turn:lanes(:forward|:backward)?)$\"~\".\"];" +
+            "way(around:20,$coords)[highway~\"^(motorway|trunk|primary|secondary|tertiary|unclassified|residential|service|living_street|road)(_link)?$\"];" +
             "node(around:30,$coords)[highway=speed_camera];" +
             "node(around:25,$coords)[highway=toll_gantry];" +
             "node(around:25,$coords)[highway=traffic_signals];" +
@@ -150,7 +162,20 @@ object RoadInfoFetcher {
                         tags?.optString(key)?.toIntOrNull() ?: turn?.split('|')?.size ?: if (half && total >= 2) total / 2 else 0
                     val countForward = if (oneway) total.takeIf { it > 0 } ?: forward?.split('|')?.size ?: 0 else count("lanes:forward", forward, true)
                     val countBackward = if (oneway) 0 else count("lanes:backward", backward, true)
-                    ways += MappedWay(limit, shape, forward, backward, countForward.coerceIn(0, 8), countBackward.coerceIn(0, 8))
+                    val direction = when (tags?.optString("oneway")) {
+                        "-1" -> -1
+                        "no" -> 0
+                        else -> if (oneway) 1 else 0
+                    }
+                    fun directionalLimit(key: String): Int? =
+                        tags?.optString(key)?.takeIf { it.isNotBlank() }?.let { parseMaxspeed(it) ?: 0 }
+                    val conditional = tags?.has("maxspeed:conditional") == true
+                    ways += MappedWay(
+                        limit, shape, forward, backward, countForward.coerceIn(0, 8), countBackward.coerceIn(0, 8),
+                        directionalLimit("maxspeed:forward"), directionalLimit("maxspeed:backward"), direction,
+                        conditional || tags?.has("maxspeed:forward:conditional") == true,
+                        conditional || tags?.has("maxspeed:backward:conditional") == true,
+                    )
                 }
                 "relation" -> averageZone(route, e)?.let { zones += it }
                 "node" -> {
@@ -166,7 +191,7 @@ object RoadInfoFetcher {
         val first = route.along.indexOfFirst { it >= fromAlong }.coerceAtLeast(0)
         val last = route.along.indexOfLast { it <= toAlong }.coerceAtLeast(first)
         return RoadInfo(
-            assignLimits(route, ways.filter { it.limitKmh > 0 }, first, last),
+            assignLimits(route, ways, first, last),
             camerasAlong(route, cameras),
             gantries,
             stepLanes(route, ways.filter { it.lanesForward != null || it.lanesBackward != null }, fromAlong, toAlong),
@@ -215,8 +240,8 @@ object RoadInfoFetcher {
     /** "60" → 60, "30 mph" → 48. Anything else (e.g. "AE:urban", "signals") → null. */
     fun parseMaxspeed(value: String): Int? {
         val v = value.trim().lowercase(Locale.US)
-        Regex("""^(\d{1,3})$""").find(v)?.let { return it.groupValues[1].toInt().takeIf { n -> n in 5..200 } }
-        Regex("""^(\d{1,3})\s*mph$""").find(v)?.let { return (it.groupValues[1].toInt() * 1.609).roundToInt() }
+        Regex("""^(\d{1,3})(?:\s*km/h)?$""").find(v)?.let { return it.groupValues[1].toInt().takeIf { n -> n in 5..200 } }
+        Regex("""^(\d{1,3})\s*mph$""").find(v)?.let { return (it.groupValues[1].toInt() * 1.609344).roundToInt().takeIf { n -> n in 5..200 } }
         return null
     }
 
@@ -236,9 +261,12 @@ object RoadInfoFetcher {
                     val d = project(mid, way.shape[k], way.shape[k + 1]).first
                     if (d >= best || d > 15.0) continue
                     // A crossing road isn't the road we're on.
-                    if (axisDiff(heading, bearing(way.shape[k], way.shape[k + 1])) > 35) continue
+                    val wayHeading = bearing(way.shape[k], way.shape[k + 1])
+                    if (axisDiff(heading, wayHeading) > 35) continue
+                    val forward = kotlin.math.cos(Math.toRadians(heading - wayHeading)) > 0
+                    if ((forward && way.travelDirection < 0) || (!forward && way.travelDirection > 0)) continue
                     best = d
-                    bestLimit = way.limitKmh
+                    bestLimit = way.limitInDirection(forward)
                 }
             }
             limits[i] = bestLimit

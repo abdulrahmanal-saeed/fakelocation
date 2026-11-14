@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Delete your WayShift account</title>
+<style>
+  :root { color-scheme: light dark; font: 16px/1.5 system-ui, sans-serif }
+  main { max-width: 34rem; margin: 3rem auto; padding: 1rem }
+  form, label { display: grid; gap: .5rem }
+  form { gap: 1rem; margin-block: 1rem }
+  input, button { font: inherit; padding: .6rem }
+  button { cursor: pointer }
+</style>
+<main>
+  <h1>Delete your WayShift account</h1>
+  <p>This permanently removes your sign-in and cloud backups. It also requests deletion of linked road reports and feedback when those services are connected. Any linked Plus subscription renewal is cancelled.</p>
+  <p>To remove copies stored on your phone, clear WayShift’s app data in Android Settings.</p>
+  <form id="signin">
+    <label>Email <input id="email" type="email" autocomplete="username" required></label>
+    <label>Password <input id="password" type="password" autocomplete="current-password" required></label>
+    <button>Sign in with email</button>
+  </form>
+  <button id="google" type="button">Sign in with Google</button>
+  <button id="remove" type="button" hidden>Delete my account</button>
+  <p id="status" role="status"></p>
+</main>
+<script type="module" src="./account-deletion.js"></script>
+</html>
