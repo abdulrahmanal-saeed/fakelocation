@@ -118,6 +118,16 @@ test('reports require a verified account, matching direction and an independent 
   assert.deepEqual((await request(query)).data.incidents, []);
 });
 
+test('a driver can mark a confirmed incident gone immediately after confirming it', async () => {
+  const id = crypto.randomUUID();
+  const position = { lat: 24.44, lon: 54.37, heading: 180, road: 'test abu dhabi road' };
+  const input = { ...position, id, kind: 'crash' };
+  assert.equal((await request('/v1/incidents', input, 'driver-6')).status, 201);
+  assert.equal((await request('/v1/incidents/vote', { ...input, vote: 'present' }, 'driver-7')).status, 200);
+  assert.equal((await request('/v1/incidents/vote', { ...input, vote: 'gone' }, 'driver-7')).status, 200);
+  assert.deepEqual((await request('/v1/incidents?lat=24.44&lon=54.37')).data.incidents, []);
+});
+
 test('expired reports are hidden and cannot be confirmed', async () => {
   const id = crypto.randomUUID();
   const position = { lat: 30.04, lon: 31.23, heading: 45, road: 'test cairo road' };

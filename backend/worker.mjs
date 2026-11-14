@@ -154,12 +154,12 @@ async function road(request, env, url, user) {
       return json({ error: "not_eligible" }, 409);
     const time = now();
     await env.DB.batch([
-      env.DB.prepare("INSERT INTO incident_votes VALUES (?,?,?,?) ON CONFLICT(incident,actor) DO UPDATE SET vote=excluded.vote,created=excluded.created WHERE incident_votes.vote<>excluded.vote AND incident_votes.created<?")
-        .bind(event.id,user.id,input.vote,time,time-ms(1)),
+      env.DB.prepare("INSERT INTO incident_votes VALUES (?,?,?,?) ON CONFLICT(incident,actor) DO UPDATE SET vote=excluded.vote,created=excluded.created WHERE incident_votes.vote='present' AND excluded.vote='gone'")
+        .bind(event.id,user.id,input.vote,time),
       input.vote === "present"
-        ? env.DB.prepare("UPDATE incidents SET confirmed=coalesce(confirmed,?),expires=? WHERE id=? AND removed IS NULL AND expires>? AND EXISTS(SELECT 1 FROM incident_votes WHERE incident=? AND actor=? AND created=?)")
+        ? env.DB.prepare("UPDATE incidents SET confirmed=coalesce(confirmed,?),expires=? WHERE id=? AND removed IS NULL AND expires>? AND EXISTS(SELECT 1 FROM incident_votes WHERE incident=? AND actor=? AND created=? AND vote='present')")
           .bind(time,time+ms(lifetimes[event.kind]),event.id,time,event.id,user.id,time)
-        : env.DB.prepare("UPDATE incidents SET removed=? WHERE id=? AND removed IS NULL AND expires>? AND EXISTS(SELECT 1 FROM incident_votes WHERE incident=? AND actor=? AND created=?)")
+        : env.DB.prepare("UPDATE incidents SET removed=? WHERE id=? AND removed IS NULL AND expires>? AND EXISTS(SELECT 1 FROM incident_votes WHERE incident=? AND actor=? AND created=? AND vote='gone')")
           .bind(time,event.id,time,event.id,user.id,time),
     ]);
     return json({ ok: true });
