@@ -865,4 +865,8 @@
     <string name="nav_location_needed">Allow precise location for turn-by-turn navigation.</string>
     <string name="speed_with_unit">%1$s %2$s</string>
     <string name="report_ahead">Ahead · %1$s</string>
+    <string name="nav_voice_meters">%1$d meters</string>
+    <string name="nav_voice_one_km">1 kilometer</string>
+    <string name="nav_voice_km">%1$s kilometers</string>
+    <string name="nav_voice_preview">In 400 meters, turn right. Then keep left.</string>
 </resources>

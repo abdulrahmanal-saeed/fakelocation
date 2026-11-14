@@ -895,23 +895,28 @@ object NavSession {
         return (location.distanceTo(previous) / seconds * 3.6).roundToInt()
     }
 
-    /** "400 meters", "1 kilometer", "1.5 kilometers": round numbers, as people say them. */
     private fun spokenDistance(meters: Double): String = when {
-        meters < 100 -> "${((meters / 10).roundToInt() * 10).coerceAtLeast(10)} meters"
-        meters < 1000 -> "${((meters / 50).roundToInt() * 50).coerceAtMost(950)} meters"
-        meters < 1250 -> "1 kilometer"
-        meters < 10_000 -> String.format(Locale.US, "%.1f kilometers", (meters / 500).roundToInt() / 2.0).replace(".0 ", " ")
-        else -> "${(meters / 1000).roundToInt()} kilometers"
+        meters < 100 -> app.getString(R.string.nav_voice_meters, ((meters / 10).roundToInt() * 10).coerceAtLeast(10))
+        meters < 1000 -> app.getString(R.string.nav_voice_meters, ((meters / 50).roundToInt() * 50).coerceAtMost(950))
+        meters < 1250 -> app.getString(R.string.nav_voice_one_km)
+        meters < 10_000 -> {
+            val rounded = (meters / 500).roundToInt() / 2.0
+            val number = java.text.NumberFormat.getNumberInstance(voiceLocale()).format(rounded)
+            app.getString(R.string.nav_voice_km, number)
+        }
+        else -> app.getString(R.string.nav_voice_km, (meters / 1000).roundToInt().toString())
     }
 
-    /** A clear offline English voice on the navigation audio channel. */
+    private fun voiceLocale(): Locale =
+        if (com.abdulrahman.fakelocation.geo.MapLocale.from(app).language == "ar") Locale.forLanguageTag("ar") else Locale.US
+
     private fun setUpVoice() {
         val engine = tts ?: return
         engine.setAudioAttributes(voice.attributes())
         val prefs = Prefs(app)
-        val voices = englishVoices(engine)
+        val voices = installedVoices(engine)
         val chosen = voices.firstOrNull { it.name == prefs.navVoice } ?: voices.firstOrNull()
-        if (chosen != null) engine.voice = chosen else engine.language = Locale.US
+        if (chosen != null) engine.voice = chosen else engine.language = voiceLocale()
         engine.setSpeechRate(prefs.navSpeechRate)
         engine.setPitch(1.0f)
         engine.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
@@ -923,10 +928,10 @@ object NavSession {
         })
     }
 
-    /** Installed English voices that work offline, best first. */
-    private fun englishVoices(engine: TextToSpeech): List<android.speech.tts.Voice> =
+    /** Installed voices for the navigation language, best first. */
+    private fun installedVoices(engine: TextToSpeech): List<android.speech.tts.Voice> =
         runCatching { engine.voices }.getOrNull().orEmpty()
-            .filter { it.locale.language == "en" && !it.isNetworkConnectionRequired && "notinstalled" !in it.features.orEmpty() }
+            .filter { it.locale.language == voiceLocale().language && !it.isNetworkConnectionRequired && "notinstalled" !in it.features.orEmpty() }
             .sortedByDescending { v -> v.quality * 10 + (if (v.locale.country == "US") 3 else if (v.locale.country == "GB") 2 else 0) - v.latency / 100 }
 
     /** For Settings: the voices to choose from (name, label). Empty until the voice engine has started. */
@@ -937,7 +942,7 @@ object NavSession {
             return emptyList()
         }
         if (!ttsReady) return emptyList()
-        return englishVoices(engine).mapIndexed { i, v ->
+        return installedVoices(engine).mapIndexed { i, v ->
             val country = v.locale.displayCountry.ifBlank { v.locale.country }
             v.name to "Voice ${i + 1} · $country" + if (v.quality >= android.speech.tts.Voice.QUALITY_HIGH) " · HD" else ""
         }
@@ -949,7 +954,7 @@ object NavSession {
         setUpVoice()
         val wasMuted = state.value.muted
         if (wasMuted) return
-        speak("In 400 meters, turn right. Then keep left.")
+        speak(app.getString(R.string.nav_voice_preview))
     }
 
     private fun speak(text: String, queue: Boolean = false) {

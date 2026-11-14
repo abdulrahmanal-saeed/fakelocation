@@ -101,4 +101,20 @@
     <string name="plus_expired">انتهى Plus. الملاحة الحقيقية هتكمل.</string>
     <string name="plus_checkout_terms">الدفع من اليوم. الإدارة أو الإلغاء من Google Play.</string>
     <string name="ad_privacy">خصوصية الإعلانات</string>
+    <string name="nav_voice_meters">%1$d متر</string>
+    <string name="nav_voice_one_km">كيلومتر واحد</string>
+    <string name="nav_voice_km">%1$s كيلومتر</string>
+    <string name="nav_voice_preview">بعد ٤٠٠ متر، انعطف يمينًا، ثم الزم اليسار.</string>
+    <string name="nav_in">بعد %1$s، %2$s</string>
+    <string name="nav_arrived">وصلت إلى وجهتك</string>
+    <string name="nav_voice_then">، ثم %1$s</string>
+    <string name="nav_voice_at_lights">عند إشارة المرور،</string>
+    <string name="nav_voice_at_lights_now">عند إشارة المرور، %1$s</string>
+    <string name="nav_voice_continue">واصل السير لمسافة %1$s</string>
+    <string name="nav_voice_lanes_right">تحرّك %1$s إلى اليمين</string>
+    <string name="nav_voice_lanes_left">تحرّك %1$s إلى اليسار</string>
+    <string name="nav_camera_ahead">كاميرا سرعة أمامك</string>
+    <string name="nav_speed_limit_voice">حد السرعة %1$d</string>
+    <string name="nav_faster_voice">طريق أسرع متاح. يوفّر %1$d دقيقة.</string>
+    <string name="report_ahead">أمامك · %1$s</string>
 </resources>
