@@ -78,6 +78,7 @@ class AccountActivity : AppCompatActivity() {
             button(R.string.account_verify) { perform { user.sendEmailVerification().awaitResult(); toast(R.string.account_sent) } }
         } else {
             button(R.string.account_sync) { CloudBackup.show(this, user) }
+            button(R.string.account_sync_automatic) { CloudBackup.showAutoSync(this, user) }
         }
         button(R.string.account_sign_out) { perform { WayShiftAccount.signOut(this, auth); render() } }
         button(R.string.account_delete) {

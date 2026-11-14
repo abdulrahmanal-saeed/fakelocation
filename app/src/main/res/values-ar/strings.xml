@@ -117,4 +117,5 @@
     <string name="nav_speed_limit_voice">حد السرعة %1$d</string>
     <string name="nav_faster_voice">طريق أسرع متاح. يوفّر %1$d دقيقة.</string>
     <string name="report_ahead">أمامك · %1$s</string>
+    <string name="account_sync_automatic">المزامنة السحابية التلقائية</string>
 </resources>

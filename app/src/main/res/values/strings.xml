@@ -869,4 +869,5 @@
     <string name="nav_voice_one_km">1 kilometer</string>
     <string name="nav_voice_km">%1$s kilometers</string>
     <string name="nav_voice_preview">In 400 meters, turn right. Then keep left.</string>
+    <string name="account_sync_automatic">Automatic cloud sync</string>
 </resources>

@@ -120,6 +120,7 @@ class MainActivity : AppCompatActivity() {
             runCatching { PlusAccess.retryFinish(this@MainActivity) }
             if (PlusAccess.cached(this@MainActivity).paid) runCatching { PlusAccess.refresh(this@MainActivity) }
             updateBanner()
+            runCatching { com.abdulrahman.fakelocation.account.CloudBackup.sync(this@MainActivity) }
         }
     }
 

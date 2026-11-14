@@ -211,6 +211,10 @@ class MockLocationService : LifecycleService() {
                 mocking = false
             }
         } else {
+            if (!allowSimulation(this)) {
+                stopEverything()
+                return
+            }
             if (!ensureMocking()) return
             push(point.position, point.bearing, point.speedMps, run.natural)
         }
