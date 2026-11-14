@@ -1,0 +1,29 @@
+{
+  "firestore": {
+    "rules": "firestore.rules"
+  },
+  "auth": {
+    "providers": {
+      "emailPassword": true,
+      "googleSignIn": {
+        "oAuthBrandDisplayName": "WayShift",
+        "supportEmail": "abdulrahmanalsaeed5@gmail.com",
+        "authorizedRedirectUris": [
+          "https://wayshift-navigation.firebaseapp.com/__/auth/handler"
+        ]
+      }
+    }
+  },
+  "hosting": {
+    "public": "public",
+    "cleanUrls": true
+  },
+  "emulators": {
+    "auth": {
+      "port": 9099
+    },
+    "firestore": {
+      "port": 8080
+    }
+  }
+}

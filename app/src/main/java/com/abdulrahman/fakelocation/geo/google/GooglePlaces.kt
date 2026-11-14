@@ -9,7 +9,7 @@ import java.util.Locale
 object GooglePlaces {
 
     fun search(api: GoogleApi, query: String, near: LatLon?): List<Place> {
-        val body = JSONObject().put("textQuery", query).put("languageCode", "en").put("regionCode", "AE").put("pageSize", 10)
+        val body = JSONObject().put("textQuery", query).put("languageCode", api.locale.language).put("pageSize", 10)
         near?.let {
             body.put("locationBias", JSONObject().put("circle", JSONObject()
                 .put("center", JSONObject().put("latitude", it.lat).put("longitude", it.lon))
@@ -34,8 +34,8 @@ object GooglePlaces {
     fun reverse(api: GoogleApi, position: LatLon): Place? {
         val json = api.get(
             String.format(
-                Locale.US, "https://maps.googleapis.com/maps/api/geocode/json?latlng=%.6f,%.6f&language=en&region=ae&key=%s",
-                position.lat, position.lon, api.key
+                Locale.US, "https://maps.googleapis.com/maps/api/geocode/json?latlng=%.6f,%.6f&language=%s&key=%s",
+                position.lat, position.lon, api.locale.language, api.key
             )
         )
         val result = json.optJSONArray("results")?.optJSONObject(0) ?: return null

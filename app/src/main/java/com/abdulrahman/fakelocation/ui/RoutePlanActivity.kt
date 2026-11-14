@@ -219,6 +219,10 @@ class RoutePlanActivity : AppCompatActivity() {
     }
 
     private fun launchTrip() {
+        withDualModeAccess(com.abdulrahman.fakelocation.nav.NavSession.state.value.navigating) { startSavedTrip() }
+    }
+
+    private fun startSavedTrip() {
         val original = repo.get(route.id)?.timing
         // Running a weekly route once right now keeps its schedule.
         val timing = if (mode == TimingMode.NOW && original?.repeats == true) original

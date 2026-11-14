@@ -19,6 +19,8 @@ class GoogleApiException(val code: Int, message: String) : IOException(message)
  */
 class GoogleApi(private val context: Context) {
 
+    internal val locale get() = com.abdulrahman.fakelocation.geo.MapLocale.from(context)
+
     val key: String get() = Prefs(context).googleApiKey
 
     fun post(url: String, body: JSONObject, fieldMask: String? = null): JSONObject =

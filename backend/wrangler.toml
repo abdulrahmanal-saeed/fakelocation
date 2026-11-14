@@ -1,0 +1,18 @@
+name = "wayshift"
+main = "worker.mjs"
+compatibility_date = "2026-11-14"
+
+[triggers]
+crons = ["*/5 * * * *"]
+
+[vars]
+FIREBASE_PROJECT_ID = "wayshift-navigation"
+PLAY_PACKAGE_ID = "com.abdulrahman.fakelocation.play"
+MODERATOR_EMAIL = "abdulrahmanalsaeed5@gmail.com"
+FEEDBACK_FROM = "WayShift <onboarding@resend.dev>"
+FEEDBACK_TO = "abdulrahmanalsaeed5@gmail.com"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "wayshift"
+database_id = "f907293a-c57f-45db-acc5-a187915cf560"

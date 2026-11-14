@@ -22,12 +22,19 @@ import com.abdulrahman.fakelocation.mock.MockLocationService
 import com.abdulrahman.fakelocation.mock.MockState
 import com.google.android.material.dialog.MaterialAlertDialogBuilder
 import com.google.android.material.snackbar.Snackbar
+import com.abdulrahman.fakelocation.nav.NavSession
+import com.abdulrahman.fakelocation.plus.PlusAccess
+import com.abdulrahman.fakelocation.plus.WayShiftAds
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.repeatOnLifecycle
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 
 class MainActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityMainBinding
     private lateinit var prefs: Prefs
+    private var browsing = false
 
     private val searchLauncher = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
         SearchActivity.placeFrom(result.data)?.let { showPlace(it) }
@@ -49,7 +56,7 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         prefs = Prefs(this)
         if (!prefs.setupDone) {
-            startActivity(Intent(this, SetupActivity::class.java).putExtras(intent))
+            startActivity(Intent(this, IntroActivity::class.java).putExtras(intent))
             finish()
             return
         }
@@ -78,6 +85,12 @@ class MainActivity : AppCompatActivity() {
             true
         }
         showTab(binding.bottomNav.selectedItemId)
+        lifecycleScope.launch {
+            repeatOnLifecycle(Lifecycle.State.STARTED) {
+                combine(MockState.session, MockState.trip, NavSession.state) { _, _, _ -> Unit }
+                    .collect { updateBanner() }
+            }
+        }
         // A trip that is running or scheduled is shown on the map.
         if (MockState.trip.value != null || prefs.activeTrip != null) selectTab(R.id.nav_map)
         if (MockState.trip.value == null && prefs.activeTrip != null) {
@@ -87,7 +100,9 @@ class MainActivity : AppCompatActivity() {
         handleSharedText(intent)
         if (savedInstanceState == null) {
             WhatsNew.showIfUpdated(this)
-            lifecycleScope.launch { com.abdulrahman.fakelocation.system.UpdateChecker.checkDaily(this@MainActivity) }
+            if (!com.abdulrahman.fakelocation.BuildConfig.PLAY_BUILD) {
+                lifecycleScope.launch { com.abdulrahman.fakelocation.system.UpdateChecker.checkDaily(this@MainActivity) }
+            }
         }
     }
 
@@ -95,6 +110,30 @@ class MainActivity : AppCompatActivity() {
         super.onNewIntent(intent)
         if (intent.getBooleanExtra(EXTRA_SHOW_MAP, false)) selectTab(R.id.nav_map)
         handleSharedText(intent)
+    }
+
+    override fun onResume() {
+        super.onResume()
+        if (!::binding.isInitialized) return
+        browsing = true
+        lifecycleScope.launch {
+            runCatching { PlusAccess.retryFinish(this@MainActivity) }
+            if (PlusAccess.cached(this@MainActivity).paid) runCatching { PlusAccess.refresh(this@MainActivity) }
+            updateBanner()
+        }
+    }
+
+    override fun onPause() {
+        browsing = false
+        if (::binding.isInitialized) WayShiftAds.clearBanner(binding.adSlot)
+        super.onPause()
+    }
+
+    private fun updateBanner() {
+        fun visible() = browsing && binding.bottomNav.selectedItemId == R.id.nav_map &&
+            !NavSession.state.value.navigating && !MockState.isFaking && !PlusAccess.cached(this).paid
+        if (visible()) WayShiftAds.attachBanner(this, binding.adSlot, ::visible)
+        else WayShiftAds.clearBanner(binding.adSlot)
     }
 
     override fun onStop() {
@@ -120,6 +159,7 @@ class MainActivity : AppCompatActivity() {
             if (t == tag) transaction.show(fragment) else transaction.hide(fragment)
         }
         transaction.commitNow()
+        updateBanner()
     }
 
     /** Switches to the map, centers on [place] and opens its teleport sheet. */
@@ -144,11 +184,13 @@ class MainActivity : AppCompatActivity() {
                 .show()
             return
         }
-        mapFragment?.rememberRealLocation()
-        binding.root.confirmHaptic()
-        MockLocationService.teleport(this, place.position, place.name ?: place.position.format())
-        selectTab(R.id.nav_map)
-        mapFragment?.focus(place.position)
+        withDualModeAccess(NavSession.state.value.navigating) {
+            mapFragment?.rememberRealLocation()
+            binding.root.confirmHaptic()
+            MockLocationService.teleport(this, place.position, place.name ?: place.position.format())
+            selectTab(R.id.nav_map)
+            mapFragment?.focus(place.position)
+        }
     }
 
     fun openSetup() = startActivity(SetupActivity.fromSettings(this))

@@ -5,3 +5,7 @@ local.properties
 *.iml
 .DS_Store
 captures/
+
+.firebase/
+.wrangler/
+.dev.vars*

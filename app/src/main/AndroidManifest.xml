@@ -51,6 +51,12 @@
             </intent-filter>
         </activity>
 
+        <activity android:name=".ui.IntroActivity" android:exported="false" />
+        <activity android:name=".ui.AccountActivity" android:exported="false" />
+        <activity android:name=".ui.PlusActivity" android:exported="false" />
+
+        <meta-data android:name="com.google.android.gms.ads.APPLICATION_ID" android:value="${admobAppId}" />
+
         <activity
             android:name=".ui.SetupActivity"
             android:exported="false" />

@@ -177,6 +177,14 @@ class Prefs(context: Context) {
         get() = prefs.getBoolean("real_gps_nav", false)
         set(value) = prefs.edit { putBoolean("real_gps_nav", value) }
 
+    var soundOnSpeeding: Boolean
+        get() = prefs.getBoolean("sound_on_speeding", false)
+        set(value) = prefs.edit { putBoolean("sound_on_speeding", value) }
+
+    var speedInMph: Boolean
+        get() = prefs.getBoolean("speed_in_mph", false)
+        set(value) = prefs.edit { putBoolean("speed_in_mph", value) }
+
     var navMuted: Boolean
         get() = prefs.getBoolean("nav_muted", false)
         set(value) = prefs.edit { putBoolean("nav_muted", value) }
@@ -336,7 +344,7 @@ class Prefs(context: Context) {
             for (key in listOf(
                 "ring_silent", "vibrate", "natural", "google_routes", "google_search", "nav_muted", "lane_guidance",
                 "pause_music", "voice_call", "avoid_tolls", "avoid_highways", "traffic_on_map", "vector_nav_map",
-                "faster_route",
+                "faster_route", "sound_on_speeding", "speed_in_mph",
             )) put(key, SettingType.BOOLEAN)
             for (key in listOf("nav_speech_rate", "fuel_consumption") + FUEL_PRICES) put(key, SettingType.FLOAT)
             for (key in listOf(

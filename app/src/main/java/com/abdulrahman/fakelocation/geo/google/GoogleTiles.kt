@@ -14,6 +14,10 @@ import org.osmdroid.util.MapTileIndex
  * Tiles need a session token, created once and reused until it expires (about two weeks).
  */
 object GoogleTiles {
+    private fun sessionOptions(api: GoogleApi) = JSONObject()
+        .put("language", api.locale.language)
+        .put("region", api.locale.region ?: "US")
+
 
     /** Returns a tile source for [provider], creating a session if needed. Network call: not on the main thread. */
     fun tileSource(context: Context, provider: MapProvider): OnlineTileSourceBase {
@@ -49,11 +53,11 @@ object GoogleTiles {
 
     fun trafficSession(context: Context, api: GoogleApi): String {
         val prefs = Prefs(context)
-        val cachedKey = "traffic:${api.key.takeLast(6)}"
+        val cachedKey = "traffic:${api.locale}:${api.key.takeLast(6)}"
         prefs.googleTrafficSession?.split('|')?.takeIf { it.size == 3 }?.let { (who, session, expiry) ->
             if (who == cachedKey && (expiry.toLongOrNull() ?: 0) > System.currentTimeMillis() + 3_600_000) return session
         }
-        val body = JSONObject().put("language", "en-US").put("region", "AE").put("mapType", "roadmap")
+        val body = sessionOptions(api).put("mapType", "roadmap")
             .put("layerTypes", JSONArray().put("layerTraffic")).put("overlay", true)
         val json = api.post("https://tile.googleapis.com/v1/createSession", body)
         val session = json.getString("session")
@@ -64,11 +68,11 @@ object GoogleTiles {
 
     fun session(context: Context, api: GoogleApi, provider: MapProvider): String {
         val prefs = Prefs(context)
-        val cachedKey = "${provider.name}:${api.key.takeLast(6)}"
+        val cachedKey = "${provider.name}:${api.locale}:${api.key.takeLast(6)}"
         prefs.googleTileSession?.split('|')?.takeIf { it.size == 3 }?.let { (who, session, expiry) ->
             if (who == cachedKey && (expiry.toLongOrNull() ?: 0) > System.currentTimeMillis() + 3_600_000) return session
         }
-        val body = JSONObject().put("language", "en-US").put("region", "AE")
+        val body = sessionOptions(api)
         when (provider) {
             MapProvider.GOOGLE_SATELLITE -> body.put("mapType", "satellite")
             MapProvider.GOOGLE_HYBRID -> body.put("mapType", "satellite").put("layerTypes", JSONArray().put("layerRoadmap"))

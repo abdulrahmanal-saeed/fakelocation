@@ -103,6 +103,13 @@ class MapFragment : Fragment(R.layout.fragment_map) {
         prefs = Prefs(requireContext())
         places = PlacesRepository.get(requireContext())
         applyInsets()
+        if (resources.configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE) {
+            val params = binding.topPanel.layoutParams as androidx.constraintlayout.widget.ConstraintLayout.LayoutParams
+            params.matchConstraintDefaultWidth = androidx.constraintlayout.widget.ConstraintLayout.LayoutParams.MATCH_CONSTRAINT_PERCENT
+            params.matchConstraintPercentWidth = 0.55f
+            params.horizontalBias = 0f
+            binding.topPanel.layoutParams = params
+        }
         setupMap()
         setupControls()
 
@@ -477,7 +484,11 @@ class MapFragment : Fragment(R.layout.fragment_map) {
         group.addView(homeWorkChip(home = true))
         group.addView(homeWorkChip(home = false))
         if (shortcutsOnly) return
-        for (favorite in favorites.take(6)) {
+        val shortcuts = listOfNotNull(prefs.home, prefs.work)
+        val otherFavorites = favorites.filterNot { favorite ->
+            shortcuts.any { com.abdulrahman.fakelocation.data.distanceMeters(favorite.position, it.position) < 15.0 }
+        }
+        for (favorite in otherFavorites.take(6)) {
             group.addView(chip(favorite.name, iconFor(favorite.name), tinted = true) {
                 main.showPlace(Place(favorite.position, favorite.name))
             })

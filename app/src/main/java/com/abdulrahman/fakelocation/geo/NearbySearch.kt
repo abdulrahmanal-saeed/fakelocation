@@ -35,7 +35,7 @@ object NearbySearch {
 
     suspend fun find(context: Context, category: PlaceCategory, center: LatLon): List<Place> = withContext(Dispatchers.IO) {
         val prefs = Prefs(context)
-        val places = if (prefs.useGoogleSearch && prefs.hasGoogleKey) {
+        val places = if (prefs.useGoogleSearch && prefs.hasGoogleKey && prefs.mapProvider.isGoogle) {
             runCatching { google(GoogleApi(context), category, center) }
                 .onFailure { Log.w("NearbySearch", "Google nearby failed, using OpenStreetMap", it) }
                 .getOrNull()
@@ -50,8 +50,7 @@ object NearbySearch {
             .put("includedTypes", JSONArray(category.googleTypes))
             .put("maxResultCount", 20)
             .put("rankPreference", "DISTANCE")
-            .put("languageCode", "en")
-            .put("regionCode", "AE")
+            .put("languageCode", api.locale.language)
             .put("locationRestriction", JSONObject().put("circle", JSONObject()
                 .put("center", JSONObject().put("latitude", center.lat).put("longitude", center.lon))
                 .put("radius", category.radiusMeters.toDouble())))

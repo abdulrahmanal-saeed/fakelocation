@@ -35,6 +35,15 @@
                 android:minHeight="42dp"
                 android:text="@string/import_route"
                 android:textSize="14sp" />
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/newRouteButton"
+                style="@style/Button.Ink"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:minHeight="48dp"
+                android:layout_marginStart="8dp"
+                android:text="@string/new_route"
+                android:textSize="14sp" />
         </LinearLayout>
 
         <androidx.recyclerview.widget.RecyclerView
@@ -44,13 +53,14 @@
             android:clipToPadding="false"
             android:paddingHorizontal="20dp"
             android:paddingTop="14dp"
-            android:paddingBottom="96dp" />
+            android:paddingBottom="16dp" />
     </LinearLayout>
 
     <LinearLayout
         android:id="@+id/empty"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
+        android:layout_marginTop="90dp"
         android:gravity="center"
         android:orientation="vertical"
         android:paddingHorizontal="32dp"
@@ -89,16 +99,4 @@
             android:textSize="15sp" />
     </LinearLayout>
 
-    <com.google.android.material.button.MaterialButton
-        android:id="@+id/newRouteButton"
-        style="@style/Button.Ink"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_gravity="bottom|end"
-        android:layout_margin="20dp"
-        android:elevation="6dp"
-        android:paddingHorizontal="22dp"
-        android:text="@string/new_route"
-        app:cornerRadius="18dp"
-        app:icon="@drawable/ic_plus" />
 </FrameLayout>

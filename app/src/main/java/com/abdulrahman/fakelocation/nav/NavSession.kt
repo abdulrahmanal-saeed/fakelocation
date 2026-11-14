@@ -31,6 +31,7 @@ import com.abdulrahman.fakelocation.geo.LocationKalman
 import com.abdulrahman.fakelocation.geo.NearbySearch
 import com.abdulrahman.fakelocation.geo.PlaceCategory
 import com.abdulrahman.fakelocation.mock.MockLocationService
+import com.abdulrahman.fakelocation.plus.PlusAccess
 import com.abdulrahman.fakelocation.mock.MockState
 import com.abdulrahman.fakelocation.trip.TripTimeline
 import com.google.android.gms.location.LocationCallback
@@ -106,6 +107,7 @@ object NavSession {
         val fixId: Long = 0,
         /** No GPS for a few seconds (a tunnel): the position is being estimated along the route. */
         val gpsLost: Boolean = false,
+        val roadAlert: Int? = null,
         /** Inside an average speed check: the zone, your average so far and how far it still goes. */
         val averageCheck: AverageSpeedCheck.Status? = null,
         /** The next traffic light, when it's close (cars). */
@@ -147,12 +149,59 @@ object NavSession {
     /** Dead reckoning ran out (too long or too far): wait for the GPS. */
     private var deadReckoningDone = false
     private val handler = android.os.Handler(Looper.getMainLooper())
+    private var lastPlusCheck = 0L
+    private var lastRoadReportCheck = 0L
+    private var roadAlertJob: Job? = null
+    private var currentRoadAlert: RoadReports.Incident? = null
     private val gpsWatch = object : Runnable {
         override fun run() {
             checkGps()
+            checkRoadReports()
+            if (state.value.navigating && MockState.isFaking && state.value.progress?.arrived != true) {
+                if (!PlusAccess.mayUseBoth(app)) {
+                    MockLocationService.stop(app)
+                } else if (PlusAccess.cached(app).paid && SystemClock.uptimeMillis() - lastPlusCheck >= 60_000) {
+                    lastPlusCheck = SystemClock.uptimeMillis()
+                    scope.launch { runCatching { PlusAccess.refresh(app) } }
+                }
+            }
             if (state.value.navigating) handler.postDelayed(this, 1000L)
         }
     }
+    private fun checkRoadReports() {
+        val current = state.value
+        val progress = current.progress
+        val route = current.route
+        val fix = RoadReports.fix(current)
+        if (!RoadReports.configured || current.mode != TravelMode.CAR || route == null ||
+            progress == null || progress.arrived || fix == null) {
+            if (current.roadAlert != null) _state.update { it.copy(roadAlert = null) }
+            currentRoadAlert = null
+            return
+        }
+        currentRoadAlert?.let { incident ->
+            val incidentAlong = RoadInfoFetcher.alongOf(route, incident.position, 18.0)
+            if (incidentAlong == null || incidentAlong < progress.alongMeters - 15) {
+                currentRoadAlert = null
+                _state.update { it.copy(roadAlert = null) }
+            }
+        }
+        val elapsed = SystemClock.uptimeMillis()
+        if (lastRoadReportCheck != 0L && elapsed - lastRoadReportCheck < 15_000 || roadAlertJob?.isActive == true) return
+        lastRoadReportCheck = elapsed
+        roadAlertJob = scope.launch {
+            val alert = try {
+                RoadReports.ahead(app, fix, route, progress.alongMeters)
+            } catch (error: CancellationException) {
+                throw error
+            } catch (_: Exception) { null }
+            val latest = state.value
+            if (latest.route !== route || RoadReports.fix(latest) == null) return@launch
+            currentRoadAlert = alert
+            _state.update { it.copy(roadAlert = alert?.kind?.label) }
+        }
+    }
+
     private val offRoute = OffRouteDetector()
     private val averageCheck = AverageSpeedCheck()
     private var lastReroute = 0L
@@ -167,9 +216,6 @@ object NavSession {
     private var ttsReady = false
     private var beeper: ToneGenerator? = null
     private var roadInfoFailedAt = 0L
-    /** The last posted limit seen, kept on screen a little while over unmapped bits of the same road. */
-    private var heldLimit = 0
-    private var heldLimitAlong = 0.0
     private val voice by lazy { VoiceOutput(app) }
     private val laneTracker = LaneTracker()
     private var laneSensors: LaneSensors? = null
@@ -302,8 +348,10 @@ object NavSession {
         setRoute(chosen, s.routes)
     }
 
-    fun start() {
-        if (state.value.route == null) return
+    fun start(): Boolean {
+        if (state.value.navigating) return true
+        if (state.value.route == null || ContextCompat.checkSelfPermission(app, android.Manifest.permission.ACCESS_FINE_LOCATION) != android.content.pm.PackageManager.PERMISSION_GRANTED) return false
+        if (MockState.isFaking && !PlusAccess.mayUseBoth(app)) return false
         routeStopBase = 0
         laneTracker.reset()
         lastStepIndex = -1
@@ -323,15 +371,20 @@ object NavSession {
         handler.removeCallbacks(gpsWatch)
         handler.postDelayed(gpsWatch, 1000L)
         lastFix?.let { handle(it, lastFixEstimated) }
+        return true
     }
 
     fun stop() {
         if (!state.value.navigating) return
         recordDrive()
+        PlusAccess.endWhenInactive(app)
+        roadAlertJob?.cancel()
+        currentRoadAlert = null
+        lastRoadReportCheck = 0L
         handler.removeCallbacks(gpsWatch)
         deadReckoning.stop()
         fasterJob?.cancel()
-        _state.update { it.copy(status = if (it.route != null) Status.PREVIEW else Status.IDLE, progress = null, rerouting = false, parkingNearby = null, gpsLost = false, faster = null) }
+        _state.update { it.copy(status = if (it.route != null) Status.PREVIEW else Status.IDLE, progress = null, rerouting = false, parkingNearby = null, gpsLost = false, faster = null, roadAlert = null) }
         app.stopService(NavigationService.intent(app))
         tts?.stop()
         if (clients == 0) stopListening()
@@ -363,7 +416,7 @@ object NavSession {
         val car = state.value.mode == TravelMode.CAR
         val prefs = Prefs(app)
         _state.update {
-            it.copy(route = route, roadInfo = null, progress = null, rerouting = false, faster = null,
+            it.copy(route = route, roadInfo = null, progress = null, rerouting = false, faster = null, limitKmh = 0, speeding = false,
                 status = if (it.navigating) Status.NAVIGATING else Status.PREVIEW,
                 tolls = if (car) tollsOn(route, Tolls.GATES) else emptyList(),
                 fuelCostAed = if (car) Fuel.cost(route.distanceMeters, prefs.fuelConsumption, prefs.fuelPrice()) else 0.0,
@@ -373,7 +426,6 @@ object NavSession {
         fasterJob?.cancel()
         lastFasterCheck = System.currentTimeMillis()
         roadInfoFailedAt = 0L
-        heldLimitAlong = 0.0
         if (state.value.navigating) lastStepIndex = -2
         fetchRoadInfo(route, 0.0)
         deadReckoning.stop()
@@ -599,10 +651,15 @@ object NavSession {
             route != null && progress != null -> TripTimeline.bearing(route.points[progress.segment], route.points[progress.segment + 1])
             else -> s.bearing
         }
-        val limit = if (progress != null) heldLimit(s.roadInfo?.limitAt(progress.segment) ?: 0, progress.alongMeters) else 0
+        val reliable = !estimated && location.hasAccuracy() && location.accuracy <= 30f
+        val limit = if (reliable && s.mode == TravelMode.CAR && progress != null && progress.offRouteMeters <= 18.0) {
+            s.roadInfo?.limitAt(progress.segment) ?: 0
+        } else 0
         if (route != null && progress != null) fetchMoreRoadInfo(route, progress.alongMeters)
-        val over = limit > 0 && speed > limit + 5
-        if (over && !s.speeding && s.navigating && !s.muted) beeper?.startTone(ToneGenerator.TONE_PROP_BEEP2, 400)
+        val over = limit > 0 && speed > limit
+        if (over && !s.speeding && s.navigating && !s.muted && Prefs(app).soundOnSpeeding) {
+            beeper?.startTone(ToneGenerator.TONE_PROP_BEEP2, 400)
+        }
         val camera = progress?.let { p -> s.roadInfo?.nextCamera(p.alongMeters)?.takeIf { it in 0.0..600.0 && s.mode == TravelMode.CAR } }
         val light = progress?.let { p -> s.roadInfo?.nextLight(p.alongMeters)?.takeIf { it in 0.0..LIGHT_CHIP_METERS && s.mode == TravelMode.CAR } }
         val toStart = if (route != null && s.from != null && (progress?.alongMeters ?: 0.0) < 1) distanceMeters(here, route.points.first()) else 0.0
@@ -626,8 +683,8 @@ object NavSession {
         }
         _state.update {
             it.copy(real = here, bearing = bearing, speedKmh = speed, limitKmh = limit, progress = progress,
-                fixId = it.fixId + 1, gpsLost = estimated, averageCheck = average, lightMeters = light,
-                speeding = if (over) true else if (speed <= limit || limit == 0) false else it.speeding,
+                fixId = it.fixId + 1, gpsLost = !reliable, averageCheck = average, lightMeters = light,
+                speeding = over,
                 cameraMeters = camera, toStartMeters = if (toStart > NavTracker.OFF_ROUTE_METERS) toStart else 0.0,
                 nextToll = toll?.takeIf { tollMeters != null }, tollMeters = tollMeters, stopsReached = reached)
         }
@@ -676,6 +733,7 @@ object NavSession {
             if (spoken.add("arrived")) {
                 speak(app.getString(R.string.nav_arrived))
                 recordDrive()
+                PlusAccess.endWhenInactive(app)
                 if (s.mode == TravelMode.CAR) s.to?.let { findParking(it.position) }
             }
             return
@@ -828,15 +886,6 @@ object NavSession {
 
     /** The next traffic light shows on screen from this close. */
     private const val LIGHT_CHIP_METERS = 300.0
-
-    private fun heldLimit(mapped: Int, along: Double): Int {
-        if (mapped > 0) {
-            heldLimit = mapped
-            heldLimitAlong = along
-            return mapped
-        }
-        return if (heldLimit > 0 && along - heldLimitAlong in -50.0..700.0) heldLimit else 0
-    }
 
     private fun speedKmh(location: Location): Int {
         if (location.hasSpeed()) return (location.speed * 3.6f).roundToInt()

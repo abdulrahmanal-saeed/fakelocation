@@ -155,6 +155,33 @@
                 </LinearLayout>
             </LinearLayout>
 
+            <LinearLayout style="@style/SettingsCard" android:layout_marginTop="20dp">
+                <LinearLayout android:id="@+id/openPlus" style="@style/SettingsRow.Clickable">
+                    <TextView style="@style/SettingsRowLabel" android:text="@string/plus_title" />
+                    <ImageView style="@style/SettingsChevron" />
+                </LinearLayout>
+                <View style="@style/Divider" />
+                <LinearLayout android:id="@+id/openAccount" style="@style/SettingsRow.Clickable">
+                    <TextView style="@style/SettingsRowLabel" android:text="@string/account" />
+                    <ImageView style="@style/SettingsChevron" />
+                </LinearLayout>
+                <View style="@style/Divider" />
+                <LinearLayout android:id="@+id/openIntro" style="@style/SettingsRow.Clickable">
+                    <TextView style="@style/SettingsRowLabel" android:text="@string/onboarding_open" />
+                    <ImageView style="@style/SettingsChevron" />
+                </LinearLayout>
+                <View style="@style/Divider" />
+                <LinearLayout android:id="@+id/openFeedback" style="@style/SettingsRow.Clickable">
+                    <TextView style="@style/SettingsRowLabel" android:text="@string/feedback" />
+                    <ImageView style="@style/SettingsChevron" />
+                </LinearLayout>
+                <View style="@style/Divider" />
+                <LinearLayout android:id="@+id/speedOptions" style="@style/SettingsRow.Clickable">
+                    <TextView style="@style/SettingsRowLabel" android:text="@string/road_speed_settings" />
+                    <ImageView style="@style/SettingsChevron" />
+                </LinearLayout>
+            </LinearLayout>
+
             <TextView style="@style/SettingsSection" android:text="@string/about_section" />
 
             <LinearLayout style="@style/SettingsCard">

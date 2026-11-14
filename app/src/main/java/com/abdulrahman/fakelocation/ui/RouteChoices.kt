@@ -33,7 +33,7 @@ class RouteChoices(private val binding: ActivityNavigateBinding) {
         binding.routeOptionsScroll.isVisible = options.size > 1
         binding.routeOptions.removeAllViews()
         if (options.size < 2) return
-        val fastest = options.minOf { it.durationSeconds }
+        val fastest = options.minBy { it.durationSeconds }
         options.forEachIndexed { i, route ->
             val chosen = route === s.route
             binding.routeOptions.addView(card(route, i, chosen, fastest, s.mode), LinearLayout.LayoutParams(
@@ -42,15 +42,19 @@ class RouteChoices(private val binding: ActivityNavigateBinding) {
         }
     }
 
-    private fun card(route: NavRoute, index: Int, chosen: Boolean, fastest: Double, mode: TravelMode) = TextView(context).apply {
+    private fun card(route: NavRoute, index: Int, chosen: Boolean, fastest: NavRoute, mode: TravelMode) = TextView(context).apply {
         val (tolls, fuel) = NavSession.costOf(route)
         val time = formatDuration((route.durationSeconds * 1000).toLong())
         val extra = when {
-            mode != TravelMode.CAR -> formatDistance(route.distanceMeters)
+            mode != TravelMode.CAR || route.points.none { it.lat in 22.5..26.2 && it.lon in 51.4..56.4 } -> formatDistance(route.distanceMeters)
             else -> formatDistance(route.distanceMeters) + " · " + Fuel.aed(tolls + fuel).replace(".00", "")
         }
-        val slower = ((route.durationSeconds - fastest) / 60).toInt()
-        val label = if (slower >= 1) context.getString(R.string.nav_option_slower, slower) else context.getString(R.string.nav_option_fastest)
+        val slower = ((route.durationSeconds - fastest.durationSeconds) / 60).toInt()
+        val label = when {
+            route === fastest -> context.getString(R.string.nav_option_fastest)
+            slower >= 1 -> context.getString(R.string.nav_option_slower, slower)
+            else -> context.getString(R.string.nav_option_alternative)
+        }
         text = "$time\n$extra\n$label"
         textSize = 13f
         gravity = Gravity.START

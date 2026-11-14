@@ -22,7 +22,7 @@ class HttpException(val code: Int, val body: String) :
  * Blocking: call from a background thread.
  */
 object Http {
-    const val USER_AGENT = "FakeLocation-personal-app/0.2"
+    const val USER_AGENT = "WayShift/2.11 (+https://github.com/abdulrahmanal-saeed/fakelocation)"
 
     class Response(val code: Int, val body: String, private val headers: Map<String?, List<String>>) {
         val ok get() = code in 200..299
